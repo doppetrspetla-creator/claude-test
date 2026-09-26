@@ -59,7 +59,10 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Box (Š×H×V)** – obecný kvádr s nastavitelnou šířkou, hloubkou a výškou, materiálem (dřevo,
   bílá, tmavá, kov, beton, látka) a popiskem – pro kuchyňskou linku, lednici, auto v garáži apod.
   Box vyšší než 1,3 m stíní.
-- **Postava** – účes (krátké, dlouhé, drdol, bez vlasů), barva vlasů, odstín pleti, oblečení.
+- **Postava** – tři realistické 3D modely (muž, dvě ženy; riggované postavy Renderpeople ze
+  Sketchfabu, klipy stání a sezení z Mixama přemapované na jejich kostru) plus stylizovaná figura
+  s volbou účesu, barvy vlasů, pleti a oblečení. Modely jsou ve složce `models/` (asi 2 MB každý),
+  načítají se až při použití. Výška obličeje pro měření odpovídá modelu.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
 - **Cvaky (lišta dole)** – tlačítko „📸 Cvaknout“ (klávesa C) uloží záběr kamery, schéma
@@ -109,7 +112,8 @@ Podrobnosti v `wordpress/README.md`.
 - `sim.js` – simulační jádro (bez závislostí, jde použít i v Node)
 - `view3d.js` – 3D pohled (Three.js)
 - `app.js` – půdorys, interakce, panely
-- `vendor/three-bundle.js` – Three.js 0.160 + OrbitControls + RectAreaLight (sestaveno přes esbuild)
+- `vendor/three-bundle.js` – Three.js 0.160 + OrbitControls + RectAreaLight + GLTFLoader + SkeletonUtils (esbuild)
+- `models/*.glb` – 3D postavy s animačními klipy `idle` a `sit`
 
 Simulace je orientační: hodnoty luxů jsou přibližné, ale principy (vzdálenost, velikost zdroje,
 směr, stíny, poměr světel) odpovídají realitě. 3D pohled je náhled, ne fotometrický render.

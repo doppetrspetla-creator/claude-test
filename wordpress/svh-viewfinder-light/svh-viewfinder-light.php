@@ -151,7 +151,7 @@ function svhvl_handle_upload() {
 	if ( true !== $zip->open( $_FILES['svhvl_zip']['tmp_name'] ) ) {
 		return new WP_Error( 'svhvl_badzip', 'Soubor se nepodařilo otevřít jako ZIP.' );
 	}
-	$allowed = array( 'html', 'js', 'css', 'json', 'jpg', 'jpeg', 'png', 'webp', 'svg', 'woff', 'woff2', 'md', 'txt' );
+	$allowed = array( 'html', 'js', 'css', 'json', 'jpg', 'jpeg', 'png', 'webp', 'svg', 'woff', 'woff2', 'md', 'txt', 'glb', 'gltf', 'bin' );
 	for ( $i = 0; $i < $zip->numFiles; $i++ ) {
 		$name = $zip->getNameIndex( $i );
 		if ( substr( $name, -1 ) === '/' ) {
@@ -493,6 +493,7 @@ function svhvl_serve_file( $rel ) {
 		'html' => 'text/html; charset=UTF-8', 'js' => 'application/javascript; charset=UTF-8', 'css' => 'text/css; charset=UTF-8',
 		'json' => 'application/json; charset=UTF-8', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
 		'webp' => 'image/webp', 'svg' => 'image/svg+xml', 'woff' => 'font/woff', 'woff2' => 'font/woff2',
+		'glb' => 'model/gltf-binary', 'gltf' => 'model/gltf+json', 'bin' => 'application/octet-stream',
 	);
 	if ( ! isset( $types[ $ext ] ) ) {
 		status_header( 403 );
@@ -524,7 +525,7 @@ function svhvl_rewrite_html( $html ) {
 		return esc_url( add_query_arg( array( SVHVL_QUERY => $file, 'v' => $ver ), home_url( '/' ) ) );
 	};
 	// src="app.js", href="style.css", src="vendor/three-bundle.js" … (jen relativní cesty bez schématu)
-	$html = preg_replace_callback( '#\b(src|href)="(?![a-z]+:|//|\#|data:)([^"]+\.(?:js|css|json|png|jpe?g|webp|svg|woff2?))"#i', function ( $m ) use ( $proxy ) {
+	$html = preg_replace_callback( '#\b(src|href)="(?![a-z]+:|//|\#|data:)([^"]+\.(?:js|css|json|png|jpe?g|webp|svg|woff2?|glb|gltf|bin))"#i', function ( $m ) use ( $proxy ) {
 		return $m[1] . '="' . $proxy( $m[2] ) . '"';
 	}, $html );
 

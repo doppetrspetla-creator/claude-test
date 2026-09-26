@@ -1,7 +1,7 @@
 /* Viewfinder Light – 3D pohled kamery (Three.js). Půdorys (x,y) → 3D (x, výška, z). */
 (function () {
 'use strict';
-const THREE = window.THREE_LIB.THREE, OrbitControls = window.THREE_LIB.OrbitControls, RectAreaLightUniformsLib = window.THREE_LIB.RectAreaLightUniformsLib;
+const THREE = window.THREE_LIB.THREE, OrbitControls = window.THREE_LIB.OrbitControls, RectAreaLightUniformsLib = window.THREE_LIB.RectAreaLightUniformsLib, GLTFLoader = window.THREE_LIB.GLTFLoader, SkeletonUtils = window.THREE_LIB.SkeletonUtils;
 const S = window.LightSim;
 RectAreaLightUniformsLib.init();
 
@@ -277,7 +277,33 @@ function addLight(L, res) {
 function limb(mat, r, len, g, x, y, z, rx, rz) {
   const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
 }
+// ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
+const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
+function modelFor(id) {
+  const m = S.MODELS[id]; if (!m || !m.file) return null;
+  const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
+  modelCache[id] = { loading: true };
+  new GLTFLoader().load(m.file, g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); },
+    undefined, () => { modelCache[id] = { error: true }; });
+  return null;
+}
+function addModelPerson(p, gltf) {
+  const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; group.add(g);
+  const inst = SkeletonUtils.clone(gltf.scene); inst.rotation.y = Math.PI / 2; // model kouká do +Z → náš směr je +X
+  g.add(inst);
+  const sit = p.pose === 'sit', clip = gltf.animations.find(a => a.name === (sit ? 'sit' : 'idle'));
+  if (clip) { const mixer = new THREE.AnimationMixer(inst); const a = mixer.clipAction(clip); a.play(); mixer.setTime(Math.min(clip.duration - 0.01, sit ? 0.9 : 2.0 + ((p.id || 0) % 5) * 1.3)); }
+  inst.updateMatrixWorld(true);
+  if (sit) { // posadit: pánev do výšky sedáku + ~13 cm
+    let hip = null; inst.traverse(o => { if (o.isBone && o.name === 'hip_02') hip = o; });
+    if (hip) { const hy = hip.getWorldPosition(new THREE.Vector3()).y; inst.position.y = (0.45 + 0.13) - hy; }
+    if (!S.seatUnder(lastScene, p)) chairMesh(g, 0.02, 0);
+  }
+}
 function addPerson(p) {
+  const mid = p.model || 'proc';
+  if (mid !== 'proc') { const gl = modelFor(mid); if (gl) { addModelPerson(p, gl); return; } }
+
   const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; group.add(g);
   const sit = p.pose === 'sit', fz = S.faceZ(p), outfit = OUTFITS[p.outfit] || OUTFITS.dark, skinC = SKIN[p.skin] || SKIN.light;
   const skin = new THREE.MeshStandardMaterial({ color: skinC[0], roughness: 0.55 }), skinDark = new THREE.MeshStandardMaterial({ color: skinC[1], roughness: 0.6 });

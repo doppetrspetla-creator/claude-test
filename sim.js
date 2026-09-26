@@ -39,7 +39,14 @@
     shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
     block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false }
   };
-  function faceZ(person) { return person && person.pose === 'sit' ? 1.2 : FACE_Z; }
+  // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
+  var MODELS = {
+    proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
+    muz1:  { name: 'Muž – vesta a kravata', file: 'models/muz1.glb', stand: 1.71, sit: 1.30 },
+    zena1: { name: 'Žena 1 – bílá halenka', file: 'models/zena1.glb', stand: 1.72, sit: 1.23 },
+    zena2: { name: 'Žena 2 – sako', file: 'models/zena2.glb', stand: 1.59, sit: 1.17 }
+  };
+  function faceZ(person) { if (!person) return FACE_Z; var m = MODELS[person.model] || MODELS.proc; return person.pose === 'sit' ? m.sit : m.stand; }
   var SUN_E = 50000, SUN_CCT = 5200, WIN_Z0 = 0.9, WIN_Z1 = 2.1;
   // gobo: name + podíl propuštěného světla (orientačně)
   var GOBOS = {
@@ -347,6 +354,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

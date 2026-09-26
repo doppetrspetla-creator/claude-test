@@ -9,7 +9,7 @@ build v `uploads/` chráněný před přímým přístupem, servírování přes
 
 1. **Plugin:** Pluginy → Přidat → Nahrát: `svh-viewfinder-light.zip` → aktivovat.
 2. **Build aplikace:** v menu **Viewfinder Light** nahrát `viewfinder-light-build.zip`
-   (obsah: `index.html`, `app.js`, `sim.js`, `view3d.js`, `style.css`, `vendor/three-bundle.js`).
+   (obsah: `index.html`, `app.js`, `sim.js`, `view3d.js`, `style.css`, `vendor/three-bundle.js`, `models/*.glb`).
    Verze se rovnou aktivuje. Starší verze zůstávají a jdou přepnout nebo smazat.
 3. **Produkty:** do pole „ID produktů“ zadat ID kurzů (produktů), jejichž koupě aplikaci odemyká,
    oddělené čárkou. Správci WooCommerce mají přístup vždy.
@@ -36,5 +36,5 @@ build v `uploads/` chráněný před přímým přístupem, servírování přes
 Ve složce projektu:
 
 ```
-zip -r viewfinder-light-build.zip index.html style.css sim.js view3d.js app.js vendor
+zip -r viewfinder-light-build.zip index.html style.css sim.js view3d.js app.js vendor models
 ```
