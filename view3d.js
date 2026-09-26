@@ -283,8 +283,9 @@ function modelFor(id) {
   const m = S.MODELS[id]; if (!m || !m.file) return null;
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
   modelCache[id] = { loading: true };
-  new GLTFLoader().load(m.file, g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); },
-    undefined, () => { modelCache[id] = { error: true }; });
+  const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
+  // některé hostingy .glb neservírují – zkusit náhradní název .glb.wasm (obsah je stejný binární glTF)
+  new GLTFLoader().load(m.file, onLoad, undefined, () => { new GLTFLoader().load(m.file + '.wasm', onLoad, undefined, () => { modelCache[id] = { error: true }; }); });
   return null;
 }
 function addModelPerson(p, gltf) {
