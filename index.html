@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LightLab – simulátor nasvícení</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">LightLab</span><span class="pill">v2</span></div>
+    <div class="tabs" id="viewTabs">
+      <button class="tab active" data-view="split" title="Půdorys + kamera (klávesa 1)">Půdorys + kamera</button>
+      <button class="tab" data-view="plan" title="Jen půdorys (2)">Půdorys</button>
+      <button class="tab" data-view="cam" title="Jen pohled kamery (3)">Kamera</button>
+    </div>
+    <div class="sp"></div>
+    <select id="tpl" class="btn">
+      <option value="">Šablona…</option>
+      <option value="window">Rozhovor u okna + odrazka</option>
+      <option value="three">Tříbodové svícení</option>
+      <option value="night">Noční pokoj – praktikál + tuba</option>
+      <option value="rembrandt">Rembrandt – jeden softbox</option>
+      <option value="empty">Prázdná místnost</option>
+    </select>
+    <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
+    <button class="btn" id="bRedo" title="Znovu (Ctrl+Y)">↷</button>
+    <button class="btn" id="bLoad" title="Otevřít scénu (.json)">Otevřít</button><input type="file" id="fLoad" accept=".json" hidden>
+    <button class="btn" id="bSave" title="Uložit scénu (.json)">Uložit</button>
+    <button class="btn" id="bPng" title="Uložit půdorys jako PNG">PNG půdorys</button>
+    <button class="btn gold" id="bShot" title="Uložit záběr kamery jako PNG">Snímek kamery</button>
+  </header>
+
+  <aside class="l">
+    <h3>Přidat do scény</h3>
+    <div class="add">
+      <button class="btn" data-add="cob100"><i>💡</i>COB 100 W</button>
+      <button class="btn" data-add="cob300"><i>💡</i>COB 300 W</button>
+      <button class="btn" data-add="cob600"><i>💡</i>COB 600 W</button>
+      <button class="btn" data-add="tube"><i>🔦</i>LED tuba</button>
+      <button class="btn" data-add="lamp"><i>🛋️</i>Praktikál</button>
+      <button class="btn" data-add="person"><i>🧑</i>Postava</button>
+      <button class="btn" data-add="camera"><i>🎥</i>Kamera</button>
+      <button class="btn" data-add="flag"><i>🏴</i>Vlajka</button>
+      <button class="btn" data-add="bounce"><i>⬜</i>Odrazka</button>
+      <button class="btn" data-add="box"><i>📦</i>Stůl / skříň</button>
+    </div>
+
+    <h3>Objekty ve scéně</h3>
+    <div class="list" id="objList"></div>
+
+    <h3>Místnost</h3>
+    <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="20"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="20"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
+    <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
+    <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
+    <label class="chk"><input type="checkbox" id="winOn"> Okno</label>
+    <div class="row"><div><label>Stěna</label><select id="winWall"><option value="left">vlevo</option><option value="top">nahoře</option><option value="right">vpravo</option><option value="bottom">dole</option></select></div>
+    <div><label>Obloha</label><select id="winSky"><option value="overcast">zataženo</option><option value="sunny">jasno (bez slunce)</option><option value="dusk">soumrak</option></select></div></div>
+    <div class="row"><div><label>Od (m)</label><input type="number" id="winFrom" step="0.1"></div><div><label>Do (m)</label><input type="number" id="winTo" step="0.1"></div></div>
+
+    <h3>Zobrazení</h3>
+    <label>Expozice <span id="evv" class="pill">0 EV</span></label>
+    <input type="range" id="ev" min="-4" max="4" step="0.25" value="0">
+    <label class="chk"><input type="checkbox" id="autoEv" checked> Auto: exponovat na obličej</label>
+    <label class="chk"><input type="checkbox" id="zebra" checked> Zebra – přepal (půdorys)</label>
+    <label class="chk"><input type="checkbox" id="gridOn" checked> Mřížka 1 m</label>
+    <label class="chk"><input type="checkbox" id="beams" checked> Obrysy paprsků a záběru</label>
+    <label class="chk"><input type="checkbox" id="snap"> Přichytávat na 10 cm</label>
+    <label class="chk"><input type="checkbox" id="shadows" checked> Stíny ve 3D</label>
+    <p class="hint">Táhni objekty myší. Otáčení: zlatý bod nebo kolečko myši. Shift = krok 15°. <b>D</b> duplikovat, <b>Delete</b> smazat, <b>H</b> zapnout/vypnout světlo, šipky = posun o 5 cm.</p>
+  </aside>
+
+  <main id="center">
+    <div id="planWrap" class="pane"><div class="paneTitle">Půdorys · 1 díl = 1 m</div><canvas id="stage"></canvas></div>
+    <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
+      <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
+      <div class="camTools"><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
+    </div>
+  </main>
+
+  <aside class="r">
+    <div class="meter">
+      <div class="mut">Obličej – světlá strana</div>
+      <div class="big" id="mLux">–</div>
+      <div class="mut" id="mStop"></div>
+      <div class="mut" style="margin-top:8px">Poměr světlá : stinná strana</div>
+      <div class="ratio" id="mRatio">–</div>
+      <div class="ratiobar"><i id="mBar" style="left:0"></i></div>
+      <div class="row mut"><span>1:1 plochý</span><span style="text-align:center">2–4:1</span><span style="text-align:right">8:1+ drama</span></div>
+      <div class="mut" id="mSide" style="margin-top:6px"></div>
+    </div>
+    <h3>Vybraný objekt <span class="pill" id="selKind"></span></h3>
+    <div id="props"><p class="mut">Klikni na objekt ve scéně nebo v seznamu.</p></div>
+    <h3>Příspěvek světel na obličej</h3>
+    <div class="list" id="contrib"></div>
+    <p class="hint">Orientační simulace: půdorys počítá jeden odraz od odrazek a rozptyl od stěn; 3D pohled je náhled, ne fotometrická render. Hodnoty luxů jsou přibližné, principy (vzdálenost, velikost zdroje, směr, stíny) odpovídají realitě.</p>
+  </aside>
+</div>
+
+<script src="vendor/three-bundle.js"></script>
+<script src="sim.js"></script>
+<script src="view3d.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
