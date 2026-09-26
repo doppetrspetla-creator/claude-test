@@ -25,6 +25,22 @@
     lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' }
   };
   var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 } };
+  // světlo za otevřenými dveřmi (vedlejší místnost / chodba): lux na 1 m od otvoru šířky 0,9 m
+  var DOORLIGHT = { none: { E: 0, cct: 3000 }, dim: { E: 120, cct: 3000 }, bright: { E: 500, cct: 4000 }, day: { E: 900, cct: 6000 } };
+  // nábytek: půdorys w×d (m), výška h (m), tall = stíní ve výšce obličeje
+  var FURNITURE = {
+    chair:    { name: 'Židle', w: 0.45, d: 0.45, h: 0.9, tall: false },
+    sofa:     { name: 'Gauč', w: 2.0, d: 0.9, h: 0.85, tall: false },
+    armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false },
+    table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false },
+    coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false },
+    bed:      { name: 'Postel', w: 1.6, d: 2.0, h: 0.5, tall: false },
+    wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true },
+    shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
+    block:    { name: 'Blok (obecný)', w: 1.2, d: 0.6, h: 0.75, tall: false }
+  };
+  function faceZ(person) { return person && person.pose === 'sit' ? 1.2 : FACE_Z; }
+  var curFaceZ = FACE_Z;
 
   function kelvinRGB(k) {
     var t = k / 100, r, g, b;
@@ -58,12 +74,11 @@
 
   function buildOccluders(scene) {
     var segs = [], circs = [];
-    var W = scene.room.w, H = scene.room.h, win = scene.window;
+    var W = scene.room.w, H = scene.room.h;
     function wall(x1, y1, x2, y2, side) {
-      if (win && win.on && win.wall === side) {
-        if (side === 'left' || side === 'right') { segs.push([x1, y1, x2, Math.min(y2, win.from)]); segs.push([x1, Math.max(y1, win.to), x2, y2]); }
-        else { segs.push([x1, y1, Math.min(x2, win.from), y2]); segs.push([Math.max(x1, win.to), y1, x2, y2]); }
-      } else segs.push([x1, y1, x2, y2]);
+      var ops = openings(scene, side), vert = (side === 'left' || side === 'right'), a = vert ? y1 : x1, b = vert ? y2 : x2, cur = a;
+      ops.forEach(function (o) { if (o[0] > cur) segs.push(vert ? [x1, cur, x2, o[0]] : [cur, y1, o[0], y2]); cur = Math.max(cur, o[1]); });
+      if (cur < b) segs.push(vert ? [x1, cur, x2, b] : [cur, y1, b, y2]);
     }
     wall(0, 0, W, 0, 'top'); wall(0, H, W, H, 'bottom'); wall(0, 0, 0, H, 'left'); wall(W, 0, W, H, 'right');
     scene.items.forEach(function (it) {
@@ -72,13 +87,26 @@
         var h = it.len / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
         segs.push([it.x - c * h, it.y - s * h, it.x + c * h, it.y + s * h]);
       }
-      if (it.kind === 'box' && it.tall) {
-        var w2 = it.w / 2, d2 = it.d / 2;
-        segs.push([it.x - w2, it.y - d2, it.x + w2, it.y - d2], [it.x + w2, it.y - d2, it.x + w2, it.y + d2],
-                  [it.x + w2, it.y + d2, it.x - w2, it.y + d2], [it.x - w2, it.y + d2, it.x - w2, it.y - d2]);
+      if ((it.kind === 'box' || it.kind === 'furniture') && isTall(it)) {
+        var c4 = corners(it);
+        for (var q = 0; q < 4; q++) { var p1 = c4[q], p2 = c4[(q + 1) % 4]; segs.push([p1[0], p1[1], p2[0], p2[1]]); }
       }
     });
     return { segs: segs, circs: circs };
+  }
+  // otvory ve stěně (setříděné intervaly [od, do]) – okno + otevřené dveře
+  function openings(scene, side) {
+    var ops = [], win = scene.window;
+    if (win && win.on && win.wall === side) ops.push([win.from, win.to]);
+    (scene.doors || []).forEach(function (d) { if (d.wall === side && d.open !== false) ops.push([d.at - d.w / 2, d.at + d.w / 2]); });
+    ops.sort(function (p, q) { return p[0] - q[0]; });
+    return ops;
+  }
+  function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; return it.tall != null ? !!it.tall : f.tall; }
+  function corners(it) {
+    var w2 = it.w / 2, d2 = it.d / 2, r = it.kind === 'furniture' ? (it.rot || 0) : 0, c = Math.cos(r), s = Math.sin(r), out = [];
+    [[-w2, -d2], [w2, -d2], [w2, d2], [-w2, d2]].forEach(function (p) { out.push([it.x + p[0] * c - p[1] * s, it.y + p[0] * s + p[1] * c]); });
+    return out;
   }
   function visible(occ, ax, ay, bx, by) {
     var S = occ.segs, i, C = occ.circs, j;
@@ -129,8 +157,25 @@
     return { pts: pts, nx: nx, ny: ny, z: FACE_Z, E1: sk.E * (w.to - w.from) / 1.2, exp: 1, cosCut: 0.02, col: cctColor(sk.cct), hard: false, omni: false, win: true };
   }
 
+  function doorEmitters(scene) {
+    var out = [];
+    (scene.doors || []).forEach(function (d) {
+      var L = DOORLIGHT[d.light] || DOORLIGHT.none; if (d.open === false || L.E <= 0) return;
+      var pts = [], n = 8, nx, ny, from = d.at - d.w / 2, to = d.at + d.w / 2;
+      for (var i = 0; i < n; i++) {
+        var t = from + (i + 0.5) / n * d.w;
+        if (d.wall === 'left') { pts.push([-0.01, t]); nx = 1; ny = 0; }
+        else if (d.wall === 'right') { pts.push([scene.room.w + 0.01, t]); nx = -1; ny = 0; }
+        else if (d.wall === 'top') { pts.push([t, -0.01]); nx = 0; ny = 1; }
+        else { pts.push([t, scene.room.h + 0.01]); nx = 0; ny = -1; }
+      }
+      out.push({ pts: pts, nx: nx, ny: ny, z: 1.3, E1: L.E * d.w / 0.9, exp: 1, cosCut: 0.02, col: cctColor(L.cct), hard: false, omni: false, door: true, id: 'door' + d.id });
+    });
+    return out;
+  }
+
   function illum(em, occ, x, y, snx, sny) {
-    var sum = 0, n = em.pts.length, per = em.E1 / n, dz = (em.z == null ? FACE_Z : em.z) - FACE_Z, dz2 = dz * dz;
+    var sum = 0, n = em.pts.length, per = em.E1 / n, dz = (em.z == null ? curFaceZ : em.z) - curFaceZ, dz2 = dz * dz;
     for (var i = 0; i < n; i++) {
       var p = em.pts[i], dx = x - p[0], dy = y - p[1], d2 = dx * dx + dy * dy;
       if (d2 < 0.0025) d2 = 0.0025;
@@ -151,6 +196,7 @@
     var ems = [];
     scene.items.forEach(function (it) { if (it.kind === 'light' && it.on !== false) ems.push(lightEmitter(it)); });
     var we = windowEmitter(scene); if (we) ems.push(we);
+    doorEmitters(scene).forEach(function (e) { ems.push(e); });
     scene.items.forEach(function (it) {
       if (it.kind !== 'bounce') return;
       var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2);
@@ -174,6 +220,7 @@
   }
 
   function compute(scene, cell) {
+    curFaceZ = faceZ(scene.items.find(function (i) { return i.kind === 'person'; }));
     var occ = buildOccluders(scene), ems = emitters(scene, occ);
     var W = scene.room.w, H = scene.room.h, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell);
     var R = new Float32Array(nx * ny), G = new Float32Array(nx * ny), B = new Float32Array(nx * ny);
@@ -190,18 +237,19 @@
     for (var q = 0; q < n; q++) { mr += R[q]; mg += G[q]; mb += B[q]; }
     var amb = [mr / n * refl, mg / n * refl, mb / n * refl];
     for (var q2 = 0; q2 < n; q2++) { R[q2] += amb[0]; G[q2] += amb[1]; B[q2] += amb[2]; }
-    return { nx: nx, ny: ny, cell: cell, R: R, G: G, B: B, ems: ems, occ: occ, amb: (amb[0] + amb[1] + amb[2]) / 3, ambCol: amb };
+    return { nx: nx, ny: ny, cell: cell, R: R, G: G, B: B, ems: ems, occ: occ, amb: (amb[0] + amb[1] + amb[2]) / 3, ambCol: amb, faceZ: curFaceZ };
   }
 
   // měření na postavě: světlá a stinná strana obličeje (vždy vzhledem k natočení postavy)
   function measure(scene, res) {
     var person = scene.items.find(function (i) { return i.kind === 'person'; });
     if (!person) return null;
+    curFaceZ = faceZ(person);
     var r = 0.125, out = [], base = person.rot;
     [0.75, -0.75].forEach(function (off) {
       var a = base + off, nx = Math.cos(a), ny = Math.sin(a);
       var x = person.x + nx * r, y = person.y + ny * r, E = (res.amb || 0) * 0.5, per = {};
-      res.ems.forEach(function (em) { var v = illum(em, res.occ, x, y, nx, ny); E += v; if (em.id != null) per[em.id] = (per[em.id] || 0) + v; if (em.win) per.win = (per.win || 0) + v; });
+      res.ems.forEach(function (em) { var v = illum(em, res.occ, x, y, nx, ny); E += v; if (em.id != null) per[em.id] = (per[em.id] || 0) + v; if (em.win) per.win = (per.win || 0) + v; if (em.door) per.doors = (per.doors || 0) + v; });
       out.push({ x: x, y: y, E: E, per: per });
     });
     var a = out[0].E, b = out[1].E, hi = Math.max(a, b), lo = Math.max(Math.min(a, b), 0.01);
@@ -209,6 +257,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, FACE_Z: FACE_Z, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

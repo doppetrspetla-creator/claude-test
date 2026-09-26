@@ -22,6 +22,7 @@
       <option value="three">Tříbodové svícení</option>
       <option value="night">Noční pokoj – praktikál + tuba</option>
       <option value="rembrandt">Rembrandt – jeden softbox</option>
+      <option value="living">Obývák – gauč, okno, otevřené dveře</option>
       <option value="empty">Prázdná místnost</option>
     </select>
     <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
@@ -44,7 +45,15 @@
       <button class="btn" data-add="camera"><i>🎥</i>Kamera</button>
       <button class="btn" data-add="flag"><i>🏴</i>Vlajka</button>
       <button class="btn" data-add="bounce"><i>⬜</i>Odrazka</button>
-      <button class="btn" data-add="box"><i>📦</i>Stůl / skříň</button>
+    </div>
+    <h3>Nábytek</h3>
+    <div class="add">
+      <button class="btn" data-add="chair"><i>🪑</i>Židle</button>
+      <button class="btn" data-add="sofa"><i>🛋️</i>Gauč</button>
+      <button class="btn" data-add="armchair"><i>💺</i>Křeslo</button>
+      <button class="btn" data-add="table"><i>🟫</i>Stůl</button>
+      <button class="btn" data-add="wardrobe"><i>🚪</i>Skříň</button>
+      <button class="btn" data-add="bed"><i>🛏️</i>Postel</button>
     </div>
 
     <h3>Objekty ve scéně</h3>
@@ -58,6 +67,8 @@
     <div class="row"><div><label>Stěna</label><select id="winWall"><option value="left">vlevo</option><option value="top">nahoře</option><option value="right">vpravo</option><option value="bottom">dole</option></select></div>
     <div><label>Obloha</label><select id="winSky"><option value="overcast">zataženo</option><option value="sunny">jasno (bez slunce)</option><option value="dusk">soumrak</option></select></div></div>
     <div class="row"><div><label>Od (m)</label><input type="number" id="winFrom" step="0.1"></div><div><label>Do (m)</label><input type="number" id="winTo" step="0.1"></div></div>
+    <h3>Dveře <button class="btn sm" id="bDoor" style="margin-left:auto">+ Dveře</button></h3>
+    <div id="doors"></div>
 
     <h3>Zobrazení</h3>
     <label>Expozice <span id="evv" class="pill">0 EV</span></label>

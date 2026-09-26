@@ -20,7 +20,15 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   při f/2,8 a 1/50 s, příspěvek každého zdroje na světlou i stinnou tvář.
 - **Objekty** – COB 100/300/600 W s modifikátory (reflektor, fresnel se zoomem, softboxy, oktabox,
   lampion, deštník, difuzní rám), LED tuba, praktikál, postava, kamera, vlajka, odrazka
-  (bílá/stříbrná/černá), stůl/skříň. U světel výška, výkon, teplota, voština, difuze, klapky, gel.
+  (bílá/stříbrná/černá). U světel výška, výkon, teplota, voština, difuze, klapky, gel.
+- **Postava** – jednoduchá kloubová figura (trup, paže, nohy, hlava). Umí stát nebo sedět
+  (na židli, která se přikreslí automaticky, nebo ji posaď na gauč či křeslo). Sedící postava má
+  obličej ve výšce 1,2 m, stojící 1,5 m – měřák i kamera to respektují.
+- **Nábytek z boxů** – židle, gauč, křeslo, stůl, konferenční stolek, skříň, postel, regál, obecný
+  blok. Otočitelný, s nastavitelnou šířkou a hloubkou; vysoké kusy (skříň, regál) stíní.
+- **Dveře** – libovolný počet dveří na stěnách, otevřené nebo zavřené. Otevřené dveře jsou otvor
+  ve zdi a mohou propouštět světlo z vedlejší místnosti (tma / slabé teplé / silné / denní),
+  které se počítá v půdorysu i zobrazuje ve 3D (chodba za dveřmi, otevřené křídlo).
 - **Praktické** – seznam objektů s rychlým zapnutím/vypnutím, zpět/znovu, automatické ukládání
   do prohlížeče, šablony, uložení/načtení scény (JSON), export půdorysu a snímku kamery (PNG),
   přichytávání na 10 cm.
