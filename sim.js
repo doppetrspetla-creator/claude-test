@@ -1,4 +1,4 @@
-/* LightLab – simulační jádro (půdorys, 1 jednotka = 1 m; osvětlenost se počítá ve výšce obličeje 1,5 m) */
+/* Viewfinder Light – simulační jádro (půdorys, 1 jednotka = 1 m; osvětlenost se počítá ve výšce obličeje 1,5 m) */
 (function (root) {
   'use strict';
   var FACE_Z = 1.5;

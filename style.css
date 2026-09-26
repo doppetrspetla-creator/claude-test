@@ -86,3 +86,6 @@ canvas#stage.tool{cursor:crosshair}
 .pane canvas.grain{position:absolute;left:0;top:0;pointer-events:none;mix-blend-mode:overlay;opacity:.85;z-index:1;image-rendering:auto}
 canvas#view3d:focus{outline:none}
 .camTools .pill{align-self:center}
+.wpbar{display:flex;gap:6px;align-items:center;margin-right:8px}
+.wpbar:empty{display:none}
+.wpbar a.btn{text-decoration:none}

@@ -1,4 +1,4 @@
-/* LightLab – 3D pohled kamery (Three.js). Půdorys (x,y) → 3D (x, výška, z). */
+/* Viewfinder Light – 3D pohled kamery (Three.js). Půdorys (x,y) → 3D (x, výška, z). */
 (function () {
 'use strict';
 const THREE = window.THREE_LIB.THREE, OrbitControls = window.THREE_LIB.OrbitControls, RectAreaLightUniformsLib = window.THREE_LIB.RectAreaLightUniformsLib;

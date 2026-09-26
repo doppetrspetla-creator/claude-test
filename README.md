@@ -1,4 +1,4 @@
-# LightLab – simulátor nasvícení
+# Viewfinder Light – simulátor nasvícení
 
 Interaktivní nástroj pro plánování svícení scény (rozhovor, portrét, noční interiér).
 Půdorys s orientační fotometrií + 3D náhled toho, co uvidí kamera.
@@ -81,6 +81,15 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 | Přepnout pohled | `1` půdorys + kamera, `2` půdorys, `3` kamera |
 | Nástroje půdorysu | `W` zeď, `O` okno, `Esc` výběr |
 | Pohled kamery | `W A S D` chůze, `Q E` výška, levé tlačítko rozhlížení, kolečko ohnisko |
+
+## Napojení na WordPress (e‑shop)
+
+Ve složce `wordpress/svh-viewfinder-light/` je samostatný plugin pro WooCommerce. Nahraje se jako
+běžný plugin, v administraci (Viewfinder Light) se nahraje ZIP s buildem aplikace a zadají se ID
+produktů, jejichž koupě aplikaci odemyká. Zákazník ji pak najde v „Můj účet“ → „Viewfinder Light“
+a otevře ji tlačítkem na celou obrazovku. Soubory aplikace se servírují přes PHP až po ověření
+nákupu, rozpracovaná scéna se ukládá do účtu (REST), takže je dostupná i z jiného zařízení.
+Podrobnosti v `wordpress/README.md`.
 
 ## Struktura
 

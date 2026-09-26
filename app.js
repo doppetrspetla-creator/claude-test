@@ -1,4 +1,4 @@
-/* LightLab – UI, půdorys, interakce */
+/* Viewfinder Light – UI, půdorys, interakce */
 (function(){
 'use strict';
 var S = window.LightSim, $ = function(id){ return document.getElementById(id); };
@@ -43,7 +43,7 @@ var TEMPL = {
 
 // ---------- undo/redo + autosave ----------
 var hist=[], hpos=-1, histTimer=null;
-function snapshot(){ var j=JSON.stringify(scene); try{ localStorage.setItem('lightlab-scene',j);}catch(e){} if(hist[hpos]===j) return; hist=hist.slice(0,hpos+1); hist.push(j); if(hist.length>80) hist.shift(); hpos=hist.length-1; try{ localStorage.setItem('lightlab-scene',j);}catch(e){} updUndo(); }
+function snapshot(){ var j=JSON.stringify(scene); try{ localStorage.setItem('viewfinder-scene',j); localStorage.setItem('viewfinder-ts',String(Date.now())); }catch(e){} cloudSave(j); if(hist[hpos]===j) return; hist=hist.slice(0,hpos+1); hist.push(j); if(hist.length>80) hist.shift(); hpos=hist.length-1; updUndo(); }
 function snapshotSoon(){ clearTimeout(histTimer); histTimer=setTimeout(snapshot,400); }
 function restore(j){ scene=JSON.parse(j); sel=null; fixIds(); syncRoom(); props(); fit(); schedule(); updUndo(); }
 function flushSnap(){ clearTimeout(histTimer); snapshot(); }
@@ -332,15 +332,15 @@ $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; sc
 ['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });
 ['gridOn','beams','snap'].forEach(function(id){ $(id).addEventListener('input',draw); });
 $('tpl').onchange=function(){ if(!this.value) return; scene=TEMPL[this.value](); sel=null; syncRoom(); props(); fit(); schedule(); this.value=''; };
-$('bSave').onclick=function(){ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(scene,null,1)],{type:'application/json'})); a.download='lightlab-scena.json'; a.click(); };
+$('bSave').onclick=function(){ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(scene,null,1)],{type:'application/json'})); a.download='viewfinder-light-scena.json'; a.click(); };
 $('bLoad').onclick=function(){ $('fLoad').click(); };
 $('fLoad').onchange=function(){ var f=this.files[0]; if(!f) return; f.text().then(function(t){ try{ var sc=JSON.parse(t); if(!sc.room||!sc.items) throw 0; scene=sc; fixIds(); sel=null; syncRoom(); props(); fit(); schedule(); }catch(e){ alert('Soubor nejde načíst.'); } }); $('fLoad').value=''; };
-$('bPng').onclick=function(){ var a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='lightlab-pudorys.png'; a.click(); };
-$('bShot').onclick=function(){ if(!view3dReady) return; var a=document.createElement('a'); a.href=window.View3D.shot(); a.download='lightlab-kamera.png'; a.click(); };
+$('bPng').onclick=function(){ var a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download='viewfinder-light-pudorys.png'; a.click(); };
+$('bShot').onclick=function(){ if(!view3dReady) return; var a=document.createElement('a'); a.href=window.View3D.shot(); a.download='viewfinder-light-kamera.png'; a.click(); };
 $('bUndo').onclick=undo; $('bRedo').onclick=redo;
 $('bOrbit').onclick=function(){ if(!view3dReady) return; var o=window.View3D.toggleOrbit(); $('bOrbit').classList.toggle('gold',o); $('bOrbit').textContent= o?'Zpět do kamery':'Volný pohled'; };
 
-function setView(v){ center.className=v; document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.classList.toggle('active',t.dataset.view===v); }); try{ localStorage.setItem('lightlab-view',v);}catch(e){} requestAnimationFrame(function(){ fit(); if(view3dReady) window.View3D.resize(); }); }
+function setView(v){ center.className=v; document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.classList.toggle('active',t.dataset.view===v); }); try{ localStorage.setItem('viewfinder-view',v);}catch(e){} requestAnimationFrame(function(){ fit(); if(view3dReady) window.View3D.resize(); }); }
 document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.onclick=function(){ setView(t.dataset.view); }; });
 window.addEventListener('resize',function(){ fit(); if(view3dReady) window.View3D.resize(); });
 var camTimer=null;
@@ -349,10 +349,20 @@ window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d'
   if(res) sync3d(); });
 if(window.View3D){ window.dispatchEvent(new Event('view3d-ready')); }
 
+// ---------- napojení na WordPress (plugin Viewfinder Light) ----------
+var VF = window.SVH_VIEWFINDER || null, cloudTimer=null, cloudBusy=false;
+function cloudSave(j){ if(!VF||!VF.rest) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(function(){ if(cloudBusy) return; cloudBusy=true;
+  fetch(VF.rest,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':VF.nonce},body:JSON.stringify({scene:j,ts:Date.now()})}).catch(function(){}).then(function(){ cloudBusy=false; }); },1500); }
+function cloudLoad(cb){ if(!VF||!VF.rest){ cb(null); return; } fetch(VF.rest,{credentials:'same-origin',headers:{'X-WP-Nonce':VF.nonce}}).then(function(r){ return r.ok?r.json():null; }).then(function(d){ cb(d&&d.scene?d:null); }).catch(function(){ cb(null); }); }
+if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.className='btn sm'; a.href=VF.back; a.textContent='← Můj účet'; bar.appendChild(a); }
+  var fs=document.createElement('button'); fs.className='btn sm'; fs.textContent='Celá obrazovka'; fs.title='Přepnout celou obrazovku (F11 / Esc)'; fs.onclick=function(){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen().catch(function(){}); } }; bar.appendChild(fs);
+  document.addEventListener('fullscreenchange',function(){ fs.textContent= document.fullscreenElement?'Ukončit celou obrazovku':'Celá obrazovka'; setTimeout(function(){ fit(); if(view3dReady) window.View3D.resize(); },100); }); }
+
 // start
-var saved=null; try{ saved=localStorage.getItem('lightlab-scene'); }catch(e){}
+var saved=null; try{ saved=localStorage.getItem('viewfinder-scene')||localStorage.getItem('lightlab-scene'); }catch(e){}
 if(saved){ try{ scene=JSON.parse(saved); fixIds(); }catch(e){ scene=null; } }
 if(!scene) scene=TEMPL.window();
-var sv='split'; try{ sv=localStorage.getItem('lightlab-view')||'split'; }catch(e){}
+var sv='split'; try{ sv=localStorage.getItem('viewfinder-view')||localStorage.getItem('lightlab-view')||'split'; }catch(e){}
 setView(sv); syncRoom(); fit(); schedule(); snapshot();
+cloudLoad(function(d){ if(!d) return; var lts=0; try{ lts=parseInt(localStorage.getItem('viewfinder-ts')||'0',10); }catch(e){} if(!(d.ts>lts+2000)) return; try{ var sc=JSON.parse(d.scene); if(!sc.room||!sc.items) return; scene=sc; fixIds(); sel=null; syncRoom(); props(); fit(); schedule(); }catch(e){} });
 })();
