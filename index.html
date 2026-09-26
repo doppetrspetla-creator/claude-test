@@ -9,7 +9,7 @@
 <body>
 <div id="app">
   <header>
-    <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">Viewfinder Light</span><span class="pill">v2</span></div><div id="wpBar" class="wpbar"></div>
+    <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">Viewfinder Light</span><span class="pill">v2</span><button class="btn sm" id="bAbout" title="O aplikaci, licence a autoři modelů">ⓘ</button></div><div id="wpBar" class="wpbar"></div>
     <div class="tabs" id="viewTabs">
       <button class="tab active" data-view="split" title="Půdorys + kamera (klávesa 1)">Půdorys + kamera</button>
       <button class="tab" data-view="plan" title="Jen půdorys (2)">Půdorys</button>
@@ -119,7 +119,7 @@
     </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
-      <div class="camTools"><select id="fmt" class="btn sm" title="Formát záběru"></select><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
+      <div class="camTools"><select id="fmt" class="btn sm" title="Formát záběru"></select><button class="btn sm" id="bPT" title="Vyrenderovat snímek path tracingem: fyzikálně věrné odrazy světla a měkké stíny. Trvá desítky sekund, výsledek zůstane v pohledu, dokud scénu nezměníš.">🎬 Render</button><span class="pill hide" id="ptInfo"></span><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
     </div>
     <div id="strip" class="strip">
       <div class="stripHead"><span class="stripTitle">Cvaky <span id="shotCount" class="pill">0</span></span>
@@ -130,6 +130,17 @@
       <div id="shots" class="shots"></div>
     </div>
   </main>
+  <div id="aboutModal" class="modal hide"><div class="modalBox" style="max-width:640px"><div class="modalHead"><b>Viewfinder Light</b><span class="sp"></span><button class="btn sm" id="bAboutClose">Zavřít</button></div>
+    <div style="padding:14px 16px;line-height:1.6;font-size:13px">
+      <p>Simulátor nasvícení scény. Půdorys s orientační fotometrií a 3D pohled kamery. © Svět v hledáčku / Špetla Film.</p>
+      <p><b>3D postavy</b> (licence CC BY 4.0, použito se zachováním atribuce):<br>
+      • Žena 1 – bílá halenka: autor <b>Renderpeople</b>, zdroj sketchfab.com<br>
+      • Žena 2 – sako: autor <b>Renderpeople</b>, zdroj sketchfab.com<br>
+      • Muž – vesta a kravata: autor <b>1-3D.com</b>, zdroj sketchfab.com<br>
+      Pózy stání a sezení: animace <b>Mixamo</b> (Adobe), přemapované na kostru modelů.</p>
+      <p><b>Knihovny:</b> Three.js (MIT). Textury a nábytek jsou generované procedurálně.</p>
+      <p class="mut">Hodnoty luxů jsou přibližné; principy (vzdálenost, velikost zdroje, směr, stíny, poměry) odpovídají realitě.</p>
+    </div></div></div>
   <div id="shotModal" class="modal hide"><div class="modalBox"><div class="modalHead"><input type="text" id="shotName" class="shotName" placeholder="Název záběru"><span class="sp"></span><button class="btn sm" id="bShotRestore" title="Vrátit scénu do stavu, kdy byl cvak pořízen">Obnovit scénu</button><button class="btn sm" id="bShotPng">Uložit PNG</button><button class="btn sm danger" id="bShotDel">Smazat</button><button class="btn sm" id="bShotClose">Zavřít</button></div>
     <div class="modalBody"><img id="shotImg" alt=""><div class="modalSide"><img id="shotPlan" alt=""><div id="shotMeta" class="mut"></div><textarea id="shotNote" placeholder="Poznámka k záběru (objeví se v PDF)"></textarea></div></div></div></div>
 

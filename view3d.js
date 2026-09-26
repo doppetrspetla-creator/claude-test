@@ -4,11 +4,13 @@
 const THREE = window.THREE_LIB.THREE, OrbitControls = window.THREE_LIB.OrbitControls, RectAreaLightUniformsLib = window.THREE_LIB.RectAreaLightUniformsLib, GLTFLoader = window.THREE_LIB.GLTFLoader, SkeletonUtils = window.THREE_LIB.SkeletonUtils;
 const S = window.LightSim;
 RectAreaLightUniformsLib.init();
+// kompatibilita: path tracer čeká Scene.backgroundRotation / environmentRotation (Three.js ≥ 0.162)
+['backgroundRotation', 'environmentRotation'].forEach(k => { if (!(k in THREE.Scene.prototype) && !(k in new THREE.Scene())) Object.defineProperty(THREE.Scene.prototype, k, { configurable: true, get() { return this['_' + k] || (this['_' + k] = new THREE.Euler()); }, set(v) { this['_' + k] = v; } }); });
 
 let renderer, scene3, camera, orbitCam, controls, wrap, canvas, group, floorRing, orbit = false, camMesh, grainCv, grainCtx, over = false, keys = {}, lastT = 0, camItem = null, lookDrag = null, onCamera = null;
 let lastScene = null, lastRes = null, lastOpts = {}, selId = null, dirty = false, region = null; // region = {x,y,w,h} v px (viewport formátu)
 
-function lum(color, nits) { return new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(nits), toneMapped: true }); }
+function lum(color, nits) { const m = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(nits), toneMapped: true }); m.userData.lum = { color: color.clone(), nits: nits }; return m; }
 function col3(c) { return new THREE.Color(c[0], c[1], c[2]); }
 function kel(k) { const c = S.cctColor(k); const m = Math.max(c[0], c[1], c[2]); return { color: new THREE.Color(c[0] / m, c[1] / m, c[2] / m), gain: m }; }
 
@@ -109,7 +111,7 @@ function init(cv) {
   window.addEventListener('keydown', e => { if (!wantsKeys()) return; const k = e.key.toLowerCase(); if ('wasdqe'.includes(k) || e.key.startsWith('Arrow')) { keys[k === ' ' ? k : (e.key.startsWith('Arrow') ? e.key : k)] = true; e.preventDefault(); } });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); delete keys[k]; delete keys[e.key]; });
   resize();
-  (function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t; if (orbit) controls.update(); if (walk(dt)) dirty = true; if (dirty) { dirty = false; render(); } drawGrain(t); })(0);
+  (function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t; if (orbit) controls.update(); if (walk(dt)) { stopPT(); dirty = true; } if (pt.active) { ptStep(); dirty = false; } else if (pt.done) { dirty = false; } else if (dirty) { dirty = false; render(); } drawGrain(t); })(0);
 }
 // profil kvality: náhled (rychlý), standard, ultra (měkké stíny z více vzorků, jemnější mlha, plné rozlišení)
 function Q() { const q = lastOpts.quality || 'mid'; return q === 'low' ? { spot: 512, soft: 0, softMap: 512, winMap: 512, beams: 3, pr: Math.min(devicePixelRatio, 1) * 0.8, sunMap: 1024 }
@@ -200,7 +202,7 @@ function addBeam(g, pos, tgt, halfAngle, color, E1, soft) {
   for (let i = 0; i < layers; i++) {
     const k = 1 - i / layers * 0.85, geo = fadeCone(r * k, L, 1.0, 0.12);
     const cone = new THREE.Mesh(geo, beamMat(color, E1 * haze * 0.002 / layers * (soft ? 0.4 : 1)));
-    cone.position.copy(pos).add(dir.clone().multiplyScalar(L / 2)); cone.lookAt(tgt); cone.rotateX(-Math.PI / 2); cone.renderOrder = 5; g.add(cone);
+    cone.position.copy(pos).add(dir.clone().multiplyScalar(L / 2)); cone.lookAt(tgt); cone.rotateX(-Math.PI / 2); cone.renderOrder = 5; cone.userData.beam = true; g.add(cone);
   }
 }
 function addSunBeams(sc) {
@@ -219,7 +221,7 @@ function addSunBeams(sc) {
     const geo = new THREE.BufferGeometry().setFromPoints(verts), col = new Float32Array(verts.length * 3);
     verts.forEach((v, i) => { const t = far.indexOf(v) >= 0 ? 0.35 : 1.0; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = t; });
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(geo, beamMat(k.color, S.SUN_E * haze * 0.00012)); m.renderOrder = 5; group.add(m);
+    const m = new THREE.Mesh(geo, beamMat(k.color, S.SUN_E * haze * 0.00012)); m.renderOrder = 5; m.userData.beam = true; group.add(m);
   });
 }
 function addLight(L, res) {
@@ -550,6 +552,7 @@ function addDoor(sc, d) {
 function sync(sc, res, meas, opts) {
   if (!renderer) return;
   lastScene = sc; lastRes = res; lastOpts = opts || {};
+  stopPT();
   applyQualityRatio();
   clear(group);
   scene3.background = new THREE.Color(0x000000); addExterior(sc); addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
@@ -588,7 +591,7 @@ function setSel(id) {
   const it = lastScene && lastScene.items.find(i => i.id === id);
   floorRing.visible = !!it && orbit; if (it) floorRing.position.set(it.x, 0.005, it.y); dirty = true;
 }
-function toggleOrbit() { orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
+function toggleOrbit() { stopPT(); orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
 function isOrbit() { return orbit; }
 function render() { if (!renderer || !lastScene) return;
   const pr = renderer.getPixelRatio(), cw = canvas.width, ch = canvas.height;
@@ -597,7 +600,7 @@ function render() { if (!renderer || !lastScene) return;
   const bg = scene3.background; // letterbox: černé okolí, obloha jen uvnitř záběru
   renderer.setViewport(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissor(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissorTest(true);
   renderer.render(scene3, camera); renderer.setScissorTest(false); }
-function shot() { render();
+function shot() { if (!pt.done && !pt.active) render();
   const pr = renderer.getPixelRatio(), crop = (!orbit && region && formatAspect() > 0) ? { x: region.x * pr, y: region.y * pr, w: region.w * pr, h: region.h * pr } : { x: 0, y: 0, w: canvas.width, h: canvas.height };
   const c = document.createElement('canvas'); c.width = crop.w; c.height = crop.h; const g = c.getContext('2d'); g.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
   if (lastOpts.grain > 0 && grainCv.width) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, crop.x / pr / 2, crop.y / pr / 2, crop.w / pr / 2, crop.h / pr / 2, 0, 0, crop.w, crop.h); }
@@ -605,6 +608,46 @@ function shot() { render();
 function setCameraCallback(fn) { onCamera = fn; }
 function hasCamera() { return !!(lastScene && lastScene.items.some(i => i.kind === 'camera')); }
 
-window.View3D = { init, resize, sync, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
+// ---------- path tracing (three-gpu-pathtracer) – render snímku na tlačítko ----------
+const pt = { active: false, done: false, tracer: null, samples: 0, target: 0, onProgress: null, restore: null, loading: null };
+function ptSupported() { try { const c = document.createElement('canvas'); const gl = c.getContext('webgl2'); return !!(gl && gl.getExtension('EXT_color_buffer_float')); } catch (e) { return false; } }
+function loadPTLib() { if (window.PT_LIB) return Promise.resolve(); if (pt.loading) return pt.loading; pt.loading = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'vendor/pathtracer-bundle.js'; sc.onload = res; sc.onerror = () => rej(new Error('load')); document.head.appendChild(sc); }); return pt.loading; }
+// scéna pro tracer: bez mlhových kuželů a pomocných objektů, svítící panely jako emisivní materiály, bez mlhy
+function ptPrepare() {
+  const removed = [], swapped = [];
+  group.traverse(o => { if (o.userData.beam) removed.push([o, o.parent]); });
+  removed.forEach(([o, par]) => par.remove(o));
+  group.traverse(o => { if (o.isMesh && o.material && o.material.userData.lum) { const L = o.material.userData.lum; const m = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: L.color, emissiveIntensity: L.nits * 0.12, roughness: 1 }); swapped.push([o, o.material]); o.material = m; } });
+  const ring = floorRing.visible; floorRing.visible = false; const cm = camMesh ? camMesh.visible : false; if (camMesh) camMesh.visible = false;
+  const fog = scene3.fog; scene3.fog = null;
+  const hidden = []; group.traverse(o => { if (o.isMesh && o.material && (o.material.transparent && o.material.blending === THREE.AdditiveBlending)) { hidden.push([o, o.parent]); } });
+  hidden.forEach(([o, par]) => par.remove(o));
+  return () => { removed.concat(hidden).forEach(([o, par]) => par.add(o)); swapped.forEach(([o, m]) => { o.material = m; }); floorRing.visible = ring; if (camMesh) camMesh.visible = cm; scene3.fog = fog; };
+}
+async function startPT(opts) {
+  if (!lastScene || orbit) return false;
+  stopPT();
+  await loadPTLib();
+  if (!pt.tracer) { pt.tracer = new window.PT_LIB.WebGLPathTracer(renderer); pt.tracer.tiles.set(2, 2); pt.tracer.textureSize.set(1024, 1024); pt.tracer.filterGlossyFactor = 0.5; pt.tracer.renderToCanvas = false; }
+  const q = (opts && opts.quality) || 'mid';
+  pt.tracer.bounces = q === 'low' ? 3 : q === 'high' ? 8 : 5; pt.tracer.renderScale = (opts && opts.scale) || (q === 'low' ? 0.5 : 1);
+  pt.target = (opts && opts.samples) || (q === 'low' ? 32 : q === 'high' ? 512 : 128);
+  pt.onProgress = opts && opts.onProgress;
+  pt.restore = ptPrepare();
+  try { pt.tracer.setScene(scene3, camera); } catch (e) { pt.restore(); pt.restore = null; throw e; }
+  pt.samples = 0; pt.active = true; pt.done = false; return true;
+}
+function ptDraw() { const t = pt.tracer.target; const pr = renderer.getPixelRatio(), cw = canvas.width / pr, ch = canvas.height / pr; renderer.setScissorTest(false); renderer.setViewport(0, 0, cw, ch); renderer.setClearColor(0x000000, 1); renderer.clear();
+  const rg = (!orbit && region && formatAspect() > 0) ? region : { x: 0, y: 0, w: cw, h: ch }; renderer.setViewport(rg.x, ch - rg.y - rg.h, rg.w, rg.h); renderer.setScissor(rg.x, ch - rg.y - rg.h, rg.w, rg.h); renderer.setScissorTest(true);
+  if (!pt.quad) { pt.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: t.texture, transparent: false })); pt.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); pt.quadScene = new THREE.Scene(); pt.quadScene.add(pt.quad); }
+  pt.quad.material.map = t.texture; renderer.render(pt.quadScene, pt.quadCam); renderer.setScissorTest(false); }
+function ptStep() { if (!pt.active) return; if (pt.tracer.isCompiling) { if (pt.onProgress) pt.onProgress({ compiling: true }); return; }
+  const t0 = performance.now(); do { pt.tracer.renderSample(); pt.samples = pt.tracer.samples; } while (performance.now() - t0 < 40 && pt.samples < pt.target);
+  ptDraw(); if (pt.onProgress) pt.onProgress({ samples: Math.floor(pt.samples), target: pt.target });
+  if (pt.samples >= pt.target) { pt.active = false; pt.done = true; if (pt.restore) { pt.restore(); pt.restore = null; } if (pt.onProgress) pt.onProgress({ done: true, samples: Math.floor(pt.samples) }); } }
+function stopPT() { if (!pt.active && !pt.done) return; const was = pt.active; pt.active = false; pt.done = false; if (pt.restore) { pt.restore(); pt.restore = null; } if (was && pt.onProgress) pt.onProgress({ stopped: true }); dirty = true; }
+function ptState() { return { active: pt.active, done: pt.done, samples: Math.floor(pt.samples), target: pt.target, supported: ptSupported() }; }
+
+window.View3D = { init, resize, sync, startPT, stopPT, ptState, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

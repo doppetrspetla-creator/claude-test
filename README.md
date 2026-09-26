@@ -73,6 +73,12 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   ohnisko, formát, varianta, seznam světel, poznámka. Bez externí knihovny, plná diakritika.
 - **Varianty nasvícení** – v hlavičce „+ Varianta“ uloží aktuální stav, výběrem se přepíná,
   „Aktualizovat“ přepíše, „✕“ smaže. Varianty jsou součástí scény (JSON, účet).
+- **Render (path tracing)** – tlačítko 🎬 Render v pohledu kamery vyrenderuje snímek fyzikálně
+  (three-gpu-pathtracer): skutečné odrazy světla od stěn a podlahy, měkké stíny podle velikosti
+  zdroje, správně prosvětlené rohy. Běží progresivně (vzorky podle zvolené kvality: náhled 32,
+  standard 128, ultra 512), na běžné grafice desítky sekund. Výsledek zůstane v pohledu, dokud se
+  scéna nezmění; cvak (C) a PNG ho uloží. Vyžaduje WebGL 2 s float texturami (Safari 15+,
+  Chrome, Firefox, Edge). Mlha a zrno se do renderu nepromítají.
 - **Kvalita zobrazení** – náhled (rychlé rozestavování: nižší rozlišení, malé stínové mapy, hrubší
   výpočet mapy), standard, ultra (měkké stíny softboxů ze čtyř vzorků, ostřejší stíny reflektorů
   a slunce, jemnější mlha, jemnější výpočet mapy). Nastavení kvality nemění výsledky měření.
@@ -106,6 +112,16 @@ a otevře ji tlačítkem na celou obrazovku. Soubory aplikace se servírují př
 nákupu, rozpracovaná scéna se ukládá do účtu (REST), takže je dostupná i z jiného zařízení.
 Podrobnosti v `wordpress/README.md`.
 
+## Licence a autoři 3D postav
+
+Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (aplikace to dělá v dialogu
+ⓘ, u výběru postavy a v patičce PDF):
+
+- Žena 1 – bílá halenka: **Renderpeople**, sketchfab.com
+- Žena 2 – sako: **Renderpeople**, sketchfab.com
+- Muž – vesta a kravata: **1-3D.com**, sketchfab.com
+- Pózy: animace Mixamo (Adobe), přemapované na kostru modelů
+
 ## Struktura
 
 - `index.html`, `style.css` – rozhraní
@@ -113,6 +129,7 @@ Podrobnosti v `wordpress/README.md`.
 - `view3d.js` – 3D pohled (Three.js)
 - `app.js` – půdorys, interakce, panely
 - `vendor/three-bundle.js` – Three.js 0.160 + OrbitControls + RectAreaLight + GLTFLoader + SkeletonUtils (esbuild)
+- `vendor/pathtracer-bundle.js` – three-gpu-pathtracer 0.0.23 (MIT), načítá se až při prvním renderu
 - `models/*.glb` – 3D postavy s animačními klipy `idle` a `sit`
 
 Simulace je orientační: hodnoty luxů jsou přibližné, ale principy (vzdálenost, velikost zdroje,
