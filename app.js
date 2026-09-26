@@ -369,14 +369,14 @@ function dbPut(sh){ dbOpen(function(db){ if(!db) return; db.transaction('shots',
 function dbDel(id){ dbOpen(function(db){ if(!db) return; db.transaction('shots','readwrite').objectStore('shots').delete(id); }); }
 function scaleImg(dataUrl, maxW, q, cb){ var im=new Image(); im.onload=function(){ var k=Math.min(1,maxW/im.width), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); var g=c.getContext('2d'); g.fillStyle='#000'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height); cb(c.toDataURL('image/jpeg',q)); }; im.src=dataUrl; }
 function lightsSummary(){ return scene.items.filter(function(i){return i.kind==='light';}).map(function(L){ var P=S.lightParams(L); return (L.label?L.label+' – ':'')+S.FIXTURES[L.fixture].name+', '+S.MODS[L.mod].name+', '+L.power+' %, '+Math.round(P.cct)+' K, výška '+fmt(P.h,1)+' m'+(L.on===false?' (vypnuto)':''); }); }
-function takeShot(){ if(!view3dReady||!window.View3D.hasCamera()){ alert('Přidej do scény kameru.'); return; } var cam=scene.items.find(function(i){return i.kind==='camera';});
+function takeShot(suffix){ if(!view3dReady||!window.View3D.hasCamera()){ alert('Přidej do scény kameru.'); return; } suffix=typeof suffix==='string'?suffix:''; var cam=scene.items.find(function(i){return i.kind==='camera';});
   var camUrl=window.View3D.shot(); draw();
   // ořez půdorysu na místnost (+ okolí se sluncem / zahradou) – bez prázdných okrajů
   var ex=(scene.exterior&&scene.exterior.on)?4.2:(S.sunOn(scene)?1.6:0.5), a=toPx(-ex,-ex), b2=toPx(scene.room.w+ex,scene.room.h+ex+0.5), dpr=devicePixelRatio;
   var cx0=Math.max(0,a[0]*dpr), cy0=Math.max(0,a[1]*dpr), cw=Math.min(cv.width,b2[0]*dpr)-cx0, chh=Math.min(cv.height,b2[1]*dpr)-cy0;
   var pc=document.createElement('canvas'); pc.width=Math.max(2,Math.round(cw)); pc.height=Math.max(2,Math.round(chh)); pc.getContext('2d').drawImage(cv,cx0,cy0,cw,chh,0,0,pc.width,pc.height); var planUrl=pc.toDataURL('image/png');
   scaleImg(camUrl,1400,0.86,function(camJ){ scaleImg(planUrl,1000,0.85,function(planJ){
-    var sh={id:Date.now(), order:shots.length?shots[shots.length-1].order+1:1, name:'Záběr '+(shots.length+1), note:'', ts:Date.now(), cam:camJ, plan:planJ,
+    var sh={id:Date.now(), order:shots.length?shots[shots.length-1].order+1:1, name:'Záběr '+(shots.length+1)+suffix, note:'', ts:Date.now(), cam:camJ, plan:planJ,
       meta:{lux:meas?Math.round(meas.lux):0, ratio:meas?fmt(meas.ratio,1):'-', stops:meas?fmt(meas.stops,1):'-', focal:cam.focal||35, format:(S.FORMATS[scene.format]||S.FORMATS.free).name, variant:(function(){ var v=(scene.variants||[]).find(function(x){return x.id===scene.variantId;}); return v?v.name:''; })(), lights:lightsSummary()},
       scene:JSON.stringify(sceneCore())};
     shots.push(sh); dbPut(sh); renderShots(); curShotFlash(sh.id); }); }); }
@@ -390,18 +390,17 @@ function moveShot(sh,dir){ var i=shots.indexOf(sh), j=i+dir; if(j<0||j>=shots.le
 function delShot(sh){ if(!confirm('Smazat cvak „'+sh.name+'“?')) return; shots=shots.filter(function(x){return x!==sh;}); dbDel(sh.id); renderShots(); if(curShot===sh) closeShot(); }
 function openShot(sh){ curShot=sh; $('shotName').value=sh.name; $('shotNote').value=sh.note||''; $('shotImg').src=sh.cam; $('shotPlan').src=sh.plan; var m=sh.meta||{}; $('shotMeta').innerHTML='<b>'+m.lux+' lx</b> · poměr '+m.ratio+' : 1 ('+m.stops+' EV) · '+m.focal+' mm · '+m.format+(m.variant?' · '+m.variant:'')+'<br>'+(m.lights||[]).map(function(t){return '• '+t;}).join('<br>')+'<br><span class="mut">'+new Date(sh.ts).toLocaleString('cs-CZ')+'</span>'; $('shotModal').classList.remove('hide'); }
 function closeShot(){ if(curShot){ curShot.name=$('shotName').value.slice(0,80)||curShot.name; curShot.note=$('shotNote').value.slice(0,1000); dbPut(curShot); renderShots(); } curShot=null; $('shotModal').classList.add('hide'); }
-// ---------- path tracing ----------
-var ptRunning=false;
-function ptUI(st){ var info=$('ptInfo'), b=$('bPT');
-  if(st.compiling){ info.textContent='Připravuji shader…'; info.classList.remove('hide'); return; }
-  if(st.stopped){ info.classList.add('hide'); b.classList.remove('on'); b.textContent='🎬 Render'; ptRunning=false; if(st.lost) alert('Prohlížeč přerušil grafiku (došla paměť). Zkus nižší kvalitu, nebo menší okno prohlížeče.'); return; }
-  if(st.done){ info.textContent='Hotovo · '+st.samples+' vzorků · uložit cvakem (C)'; b.classList.remove('on'); b.textContent='🎬 Render'; ptRunning=false; return; }
-  info.textContent='Vzorek '+st.samples+' / '+st.target; info.classList.remove('hide'); }
-$('bPT').onclick=function(){ if(!view3dReady) return; if(ptRunning){ window.View3D.stopPT(); return; }
-  if(!window.View3D.ptState().supported){ alert('Path tracing vyžaduje WebGL 2 s podporou float textur (novější prohlížeč a grafiku).'); return; }
+// ---------- HQ render → rovnou do lišty cvaků ----------
+var hqRunning=false;
+function hqUI(st){ var info=$('ptInfo'), b=$('bPT');
+  if(st.stopped){ info.classList.add('hide'); b.classList.remove('on'); b.textContent='🎬 Render'; hqRunning=false; return; }
+  if(st.done){ info.textContent='Hotovo · uloženo do cvaků'; b.classList.remove('on'); b.textContent='🎬 Render'; hqRunning=false; takeShot(' (HQ)'); setTimeout(function(){ if(!hqRunning) info.classList.add('hide'); },4000); return; }
+  info.textContent='Render '+st.pass+' / '+st.passes; info.classList.remove('hide'); }
+$('bPT').onclick=function(){ if(!view3dReady) return; if(hqRunning){ window.View3D.stopHQ(); return; }
   if(!window.View3D.hasCamera()){ alert('Přidej do scény kameru.'); return; }
-  ptRunning=true; $('bPT').classList.add('on'); $('bPT').textContent='■ Zastavit'; $('ptInfo').textContent='Načítám…'; $('ptInfo').classList.remove('hide');
-  window.View3D.startPT({quality:$('quality').value, onProgress:ptUI}).catch(function(e){ ptUI({stopped:true}); alert('Render se nepodařilo spustit: '+(e&&e.message||e)); }); };
+  var q=$('quality').value, passes= q==='low'?12: q==='high'?48:24;
+  hqRunning=true; $('bPT').classList.add('on'); $('bPT').textContent='■ Zastavit'; $('ptInfo').textContent='Render…'; $('ptInfo').classList.remove('hide');
+  if(!window.View3D.renderHQ({passes:passes, onProgress:hqUI})) hqUI({stopped:true}); };
 $('bAbout').onclick=function(){ $('aboutModal').classList.remove('hide'); }; $('bAboutClose').onclick=function(){ $('aboutModal').classList.add('hide'); }; $('aboutModal').addEventListener('click',function(e){ if(e.target===this) this.classList.add('hide'); });
 $('bSnap').onclick=takeShot; $('bShotClose').onclick=closeShot; $('shotModal').addEventListener('click',function(e){ if(e.target===this) closeShot(); });
 $('bShotDel').onclick=function(){ if(curShot) delShot(curShot); };

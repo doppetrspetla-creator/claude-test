@@ -73,12 +73,11 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   ohnisko, formát, varianta, seznam světel, poznámka. Bez externí knihovny, plná diakritika.
 - **Varianty nasvícení** – v hlavičce „+ Varianta“ uloží aktuální stav, výběrem se přepíná,
   „Aktualizovat“ přepíše, „✕“ smaže. Varianty jsou součástí scény (JSON, účet).
-- **Render (path tracing)** – tlačítko 🎬 Render v pohledu kamery vyrenderuje snímek fyzikálně
-  (three-gpu-pathtracer): skutečné odrazy světla od stěn a podlahy, měkké stíny podle velikosti
-  zdroje, správně prosvětlené rohy. Běží progresivně (vzorky podle zvolené kvality: náhled 32,
-  standard 128, ultra 512), na běžné grafice desítky sekund. Výsledek zůstane v pohledu, dokud se
-  scéna nezmění; cvak (C) a PNG ho uloží. Vyžaduje WebGL 2 s float texturami (Safari 15+,
-  Chrome, Firefox, Edge). Mlha a zrno se do renderu nepromítají.
+- **Render** – tlačítko 🎬 Render v pohledu kamery spočítá kvalitní snímek: 12/24/48 průchodů
+  (podle kvality) s náhodně posunutými zdroji světla a subpixelovým posunem kamery, zprůměrované do
+  jednoho obrazu. Výsledkem jsou vyhlazené hrany a měkké stíny odpovídající velikosti zdrojů (softbox,
+  okno, slunce). Trvá pár sekund, nezatěžuje paměť, snímek se rovnou uloží do lišty cvaků jako
+  „Záběr n (HQ)“ a zůstane v pohledu, dokud se scéna nezmění.
 - **Kvalita zobrazení** – náhled (rychlé rozestavování: nižší rozlišení, malé stínové mapy, hrubší
   výpočet mapy), standard, ultra (měkké stíny softboxů ze čtyř vzorků, ostřejší stíny reflektorů
   a slunce, jemnější mlha, jemnější výpočet mapy). Nastavení kvality nemění výsledky měření.
@@ -129,7 +128,6 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - `view3d.js` – 3D pohled (Three.js)
 - `app.js` – půdorys, interakce, panely
 - `vendor/three-bundle.js` – Three.js 0.160 + OrbitControls + RectAreaLight + GLTFLoader + SkeletonUtils (esbuild)
-- `vendor/pathtracer-bundle.js` – three-gpu-pathtracer 0.0.23 (MIT), načítá se až při prvním renderu
 - `models/*.glb.js` – 3D postavy (glTF zabalené v base64 skriptu, aby se načetly i z disku přes file://) s klipy `idle` a `sit`; zdrojové `.glb` se v repozitáři neverzují
 
 Simulace je orientační: hodnoty luxů jsou přibližné, ale principy (vzdálenost, velikost zdroje,
