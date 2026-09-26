@@ -33,7 +33,7 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   se stane oknem (parapet 0,9 m, nadpraží 2,1 m). Oken může být libovolný počet, seznam je v panelu
   „Okna a obloha“. Okna ve vnějších stěnách svítí oblohou, okna v příčkách jsou průhledný otvor.
 - **Slunce** – zapni „Přímé slunce“, nastav výšku nad obzorem a směr (posuvník, nebo chyť žlutý
-  kotouč vně místnosti v půdorysu a táhni ho). Slunce svítí okny dovnitř: v půdorysu vzniká
+  kotouč vně místnosti v půdorysu a táhni ho). Barva slunce se mění s výškou (u obzoru teplá zlatá hodinka, od 25° denní). Slunce svítí okny dovnitř: v půdorysu vzniká
   sluneční skvrna (počítá se výška okna i výška obličeje), ve 3D vrhá ostré stíny. Odrazka umí
   slunce odrazit.
 - **Rolety** – u každého okna zvlášť: otevřená, napůl, zatažená. Roleta stahuje okno shora,

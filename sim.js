@@ -75,6 +75,8 @@
   function wallPoint(w, t) { var L = wallLen(w) || 1; return [w.x1 + (w.x2 - w.x1) / L * t, w.y1 + (w.y2 - w.y1) / L * t]; }
   function sunDir(scene) { var a = scene.sun ? scene.sun.az || 0 : 0; return [Math.cos(a), Math.sin(a)]; }
   function sunOn(scene) { return !!(scene.sun && scene.sun.on); }
+  // barva slunce podle výšky: u obzoru teplé (zlatá hodinka ~3000 K), od 25° denní 5200 K
+  function sunCCT(scene) { var e = scene.sun && scene.sun.elev != null ? scene.sun.elev : 35; return e >= 25 ? SUN_CCT : Math.round(2900 + (SUN_CCT - 2900) * Math.max(0, e) / 25); }
   var curFaceZ = FACE_Z;
 
   function kelvinRGB(k) {
@@ -297,7 +299,7 @@
     scene.items.forEach(function (it) { if (it.kind === 'light' && it.on !== false) ems.push(lightEmitter(it)); });
     windowEmitters(scene).forEach(function (e) { ems.push(e); });
     doorEmitters(scene).forEach(function (e) { ems.push(e); });
-    var sd = sunDir(scene), sunCol = cctColor(SUN_CCT);
+    var sd = sunDir(scene), sunCol = cctColor(sunCCT(scene));
     scene.items.forEach(function (it) {
       if (it.kind !== 'bounce') return;
       var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2);
@@ -323,7 +325,7 @@
 
   function compute(scene, cell) {
     curFaceZ = faceZ(scene.items.find(function (i) { return i.kind === 'person'; }));
-    var occ = buildOccluders(scene), ems = emitters(scene, occ), sun = sunOn(scene), sunCol = cctColor(SUN_CCT);
+    var occ = buildOccluders(scene), ems = emitters(scene, occ), sun = sunOn(scene), sunCol = cctColor(sunCCT(scene));
     var skD = SKY[scene.sky] || SKY.overcast, skyE = scene.outdoor ? skD.E * 2.2 : 0, skyCol = cctColor(skD.cct);
     var W = scene.room.w, H = scene.room.h, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell);
     var R = new Float32Array(nx * ny), G = new Float32Array(nx * ny), B = new Float32Array(nx * ny);
@@ -364,6 +366,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

@@ -217,7 +217,7 @@ function addBeam(g, pos, tgt, halfAngle, color, E1, soft) {
 }
 function addSunBeams(sc) {
   const haze = lastOpts.haze || 0; if (haze <= 0 || !S.sunOn(sc)) return;
-  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.SUN_CCT);
+  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.sunCCT(sc));
   const dirIn = new THREE.Vector3(-d[0] * Math.cos(el), -Math.sin(el), -d[1] * Math.cos(el)); // směr paprsků do místnosti
   (sc.windows || []).forEach(w => {
     if (typeof w.wall !== 'string') return; const fr = wallFrame(sc, w.wall); if (fr.inward[0] * dirIn.x + fr.inward[1] * dirIn.z <= 0.05) return;
@@ -492,7 +492,12 @@ function addExterior(sc) {
   const ex = sc.exterior; if (!(ex && ex.on) && !sc.outdoor) return;
   const sk = S.SKY[sc.sky] || S.SKY.overcast, W = sc.room.w, H = sc.room.h, k = kel(sk.cct), Lsky = sk.E / Math.PI;
   const skyTint = sc.sky === 'sunny' ? new THREE.Color(0.55, 0.72, 1.0) : sc.sky === 'dusk' ? new THREE.Color(0.55, 0.5, 0.75) : new THREE.Color(0.85, 0.87, 0.9);
-  scene3.background = skyTint.multiplyScalar(Lsky * 0.45);
+  // obloha jako kopule (tone-mapovaná spolu se scénou – barva pozadí by expozici ignorovala), přechod obzor → zenit
+  { const R = 48, geo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+    const zen = skyTint.clone().multiplyScalar(Lsky * 0.32), hor = skyTint.clone().lerp(new THREE.Color(1, 0.97, 0.92), 0.55).multiplyScalar(Lsky * 0.55);
+    for (let i = 0; i < pos.count; i++) { const t = Math.max(0, pos.getY(i) / R); const c = hor.clone().lerp(zen, Math.pow(t, 0.6)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const dome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); dome.position.set(W / 2, -1, H / 2); dome.renderOrder = -1; dome.userData.noShadow = true; group.add(dome); }
   // materiál venku: obloha „zapečená“ do emissive (aby nesvítila dovnitř), slunce navíc přes DirectionalLight
   const ext = (color, kind, rep) => { const m = texMat(kind || 'cloth', color, { roughness: 1, bumpScale: 0.2 }); const c = new THREE.Color(color); m.emissive = c.clone().multiply(k.color); m.emissiveIntensity = Lsky * 0.45; if (rep) { m.map = m.map.clone(); m.map.repeat.set(rep, rep); m.map.needsUpdate = true; } return m; };
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), ext(0x4e6b34, 'fabric', 40)); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
@@ -548,7 +553,7 @@ function addWallItem(sc, it) {
 }
 function addSun(sc) {
   if (!S.sunOn(sc)) return;
-  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.SUN_CCT), W = sc.room.w, H = sc.room.h, R = Math.max(W, H);
+  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.sunCCT(sc)), W = sc.room.w, H = sc.room.h, R = Math.max(W, H);
   const sun = new THREE.DirectionalLight(k.color, S.SUN_E * k.gain);
   sun.position.set(W / 2 + d[0] * Math.cos(el) * 25, Math.sin(el) * 25 + 1.5, H / 2 + d[1] * Math.cos(el) * 25); if (hq.active) sun.position.add(new THREE.Vector3(jit(), jit(), jit()).multiplyScalar(0.25)); sun.target.position.set(W / 2, 1.2, H / 2);
   sun.castShadow = !!lastOpts.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
@@ -713,6 +718,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
+window.View3D = { init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();
