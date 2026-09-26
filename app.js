@@ -394,7 +394,7 @@ function closeShot(){ if(curShot){ curShot.name=$('shotName').value.slice(0,80)|
 var ptRunning=false;
 function ptUI(st){ var info=$('ptInfo'), b=$('bPT');
   if(st.compiling){ info.textContent='Připravuji shader…'; info.classList.remove('hide'); return; }
-  if(st.stopped){ info.classList.add('hide'); b.classList.remove('on'); b.textContent='🎬 Render'; ptRunning=false; return; }
+  if(st.stopped){ info.classList.add('hide'); b.classList.remove('on'); b.textContent='🎬 Render'; ptRunning=false; if(st.lost) alert('Prohlížeč přerušil grafiku (došla paměť). Zkus nižší kvalitu, nebo menší okno prohlížeče.'); return; }
   if(st.done){ info.textContent='Hotovo · '+st.samples+' vzorků · uložit cvakem (C)'; b.classList.remove('on'); b.textContent='🎬 Render'; ptRunning=false; return; }
   info.textContent='Vzorek '+st.samples+' / '+st.target; info.classList.remove('hide'); }
 $('bPT').onclick=function(){ if(!view3dReady) return; if(ptRunning){ window.View3D.stopPT(); return; }

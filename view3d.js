@@ -100,6 +100,9 @@ function init(cv) {
   floorRing = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.26, 40), MAT.gold); floorRing.rotation.x = -Math.PI / 2; floorRing.visible = false; scene3.add(floorRing);
   // zrno (overlay canvas)
   grainCv = document.createElement('canvas'); grainCv.className = 'grain'; wrap.appendChild(grainCv); grainCtx = grainCv.getContext('2d');
+  // hotový render se drží jako 2D kopie – Safari po dokončení může obsah WebGL plátna zahodit
+  pt.result = document.createElement('canvas'); pt.result.className = 'ptResult'; pt.result.style.display = 'none'; wrap.insertBefore(pt.result, grainCv);
+  cv.addEventListener('webglcontextlost', e => { e.preventDefault(); if (pt.active) { pt.active = false; if (pt.onProgress) pt.onProgress({ stopped: true, lost: true }); } });
   // FPS ovládání kamery: hover + klávesy + myš
   cv.tabIndex = 0;
   cv.addEventListener('pointerenter', () => { over = true; }); cv.addEventListener('pointerleave', () => { over = false; keys = {}; });
@@ -158,6 +161,7 @@ function resize() {
   if (!renderer) return;
   const r = wrap.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
   if (grainCv) { grainCv.style.width = r.width + 'px'; grainCv.style.height = r.height + 'px'; }
+  if (pt.result) { pt.result.style.width = r.width + 'px'; pt.result.style.height = r.height + 'px'; }
   renderer.setSize(r.width, r.height, false); canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px';
   const A = formatAspect(); let w = r.width, h = r.height;
   if (A > 0) { if (w / h > A) w = h * A; else h = w / A; }
@@ -607,8 +611,9 @@ function render() { if (!renderer || !lastScene) return;
   renderer.setViewport(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissor(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissorTest(true);
   renderer.render(scene3, camera); renderer.setScissorTest(false); }
 function shot() { if (!pt.done && !pt.active) render();
+  const src = pt.done ? pt.result : canvas;
   const pr = renderer.getPixelRatio(), crop = (!orbit && region && formatAspect() > 0) ? { x: region.x * pr, y: region.y * pr, w: region.w * pr, h: region.h * pr } : { x: 0, y: 0, w: canvas.width, h: canvas.height };
-  const c = document.createElement('canvas'); c.width = crop.w; c.height = crop.h; const g = c.getContext('2d'); g.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+  const c = document.createElement('canvas'); c.width = crop.w; c.height = crop.h; const g = c.getContext('2d'); g.drawImage(src, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
   if (lastOpts.grain > 0 && grainCv.width) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, crop.x / pr / 2, crop.y / pr / 2, crop.w / pr / 2, crop.h / pr / 2, 0, 0, crop.w, crop.h); }
   return c.toDataURL('image/png'); }
 function setCameraCallback(fn) { onCamera = fn; }
@@ -650,8 +655,10 @@ function ptDraw() { const t = pt.tracer.target; const pr = renderer.getPixelRati
 function ptStep() { if (!pt.active) return; if (pt.tracer.isCompiling) { if (pt.onProgress) pt.onProgress({ compiling: true }); return; }
   const t0 = performance.now(); do { pt.tracer.renderSample(); pt.samples = pt.tracer.samples; } while (performance.now() - t0 < 40 && pt.samples < pt.target);
   ptDraw(); if (pt.onProgress) pt.onProgress({ samples: Math.floor(pt.samples), target: pt.target });
-  if (pt.samples >= pt.target) { pt.active = false; pt.done = true; if (pt.restore) { pt.restore(); pt.restore = null; } if (pt.onProgress) pt.onProgress({ done: true, samples: Math.floor(pt.samples) }); } }
-function stopPT() { if (!pt.active && !pt.done) return; const was = pt.active; pt.active = false; pt.done = false; if (pt.restore) { pt.restore(); pt.restore = null; } if (was && pt.onProgress) pt.onProgress({ stopped: true }); dirty = true; }
+  if (pt.samples >= pt.target) { pt.active = false; pt.done = true;
+    try { pt.result.width = canvas.width; pt.result.height = canvas.height; pt.result.getContext('2d').drawImage(canvas, 0, 0); pt.result.style.display = 'block'; } catch (e) {}
+    if (pt.restore) { pt.restore(); pt.restore = null; } if (pt.onProgress) pt.onProgress({ done: true, samples: Math.floor(pt.samples) }); } }
+function stopPT() { if (!pt.active && !pt.done) return; const was = pt.active; pt.active = false; pt.done = false; if (pt.result) pt.result.style.display = 'none'; if (pt.restore) { pt.restore(); pt.restore = null; } if (was && pt.onProgress) pt.onProgress({ stopped: true }); dirty = true; }
 function ptState() { return { active: pt.active, done: pt.done, samples: Math.floor(pt.samples), target: pt.target, supported: ptSupported() }; }
 
 window.View3D = { init, resize, sync, startPT, stopPT, ptState, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
