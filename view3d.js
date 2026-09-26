@@ -34,17 +34,52 @@ function goboTexture(name) {
   else if (name === 'cross') { g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; g.fillRect(N * 0.44, N * 0.1, N * 0.12, N * 0.8); g.fillRect(N * 0.1, N * 0.44, N * 0.8, N * 0.12); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; goboCache[name] = t; return t;
 }
+// ---------- procedurální textury ----------
+const texCache = {};
+function noiseCanvas(N, fn) { const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'); fn(g, N); return c; }
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function grain(g, N, amount, seed) { const img = g.getImageData(0, 0, N, N), d = img.data, r = mulberry(seed || 1); for (let i = 0; i < d.length; i += 4) { const v = (r() - 0.5) * amount; d[i] += v; d[i + 1] += v; d[i + 2] += v; } g.putImageData(img, 0, 0); }
+function blotches(g, N, n, alpha, seed, size) { const r = mulberry(seed); for (let i = 0; i < n; i++) { const x = r() * N, y = r() * N, rad = (0.5 + r()) * size, v = 128 + (r() - 0.5) * 60; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(${v},${v},${v},${alpha})`); gr.addColorStop(1, 'rgba(128,128,128,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); } }
+function texture(kind) {
+  if (texCache[kind]) return texCache[kind];
+  const N = 512; let c, rep = [1, 1];
+  if (kind === 'plaster') { c = noiseCanvas(N, (g) => { g.fillStyle = '#c8c4bc'; g.fillRect(0, 0, N, N); blotches(g, N, 60, 0.25, 3, 90); grain(g, N, 26, 5); }); rep = [1.5, 1.5]; }
+  else if (kind === 'ceiling') { c = noiseCanvas(N, (g) => { g.fillStyle = '#d2cec6'; g.fillRect(0, 0, N, N); blotches(g, N, 30, 0.15, 9, 120); grain(g, N, 14, 7); }); rep = [1.5, 1.5]; }
+  else if (kind === 'wood') { c = noiseCanvas(N, (g) => { const r = mulberry(11); const rows = 6, pw = N / rows; for (let i = 0; i < rows; i++) { const off = (i % 2) * N / 3; const tone = 150 + (r() - 0.5) * 50; for (let k = -1; k < 3; k++) { const x0 = off + k * N / 1.5, x1 = x0 + N / 1.5; g.fillStyle = `rgb(${tone + 30},${tone - 10},${tone - 50})`; g.fillRect(x0 + 2, i * pw + 2, x1 - x0 - 4, pw - 4); } g.fillStyle = 'rgba(40,25,10,0.9)'; g.fillRect(0, i * pw, N, 2); }
+      // léta dřeva
+      g.strokeStyle = 'rgba(60,35,15,0.25)'; g.lineWidth = 1; for (let i = 0; i < 260; i++) { const y = r() * N; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= N; x += 32) g.lineTo(x, y + Math.sin(x / 40 + i) * 3 * r()); g.stroke(); }
+      grain(g, N, 18, 13); }); rep = [1, 1]; }
+  else if (kind === 'concrete') { c = noiseCanvas(N, (g) => { g.fillStyle = '#8f8f8f'; g.fillRect(0, 0, N, N); blotches(g, N, 90, 0.3, 21, 70); grain(g, N, 34, 23); g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 2; g.strokeRect(1, 1, N - 2, N - 2); }); rep = [1, 1]; }
+  else if (kind === 'darkfloor') { c = noiseCanvas(N, (g) => { g.fillStyle = '#3a3532'; g.fillRect(0, 0, N, N); blotches(g, N, 60, 0.25, 31, 80); grain(g, N, 22, 33); const r = mulberry(35); g.strokeStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(0, i * N / 4); g.lineTo(N, i * N / 4); g.stroke(); } }); rep = [1, 1]; }
+  else if (kind === 'fabric') { c = noiseCanvas(N, (g) => { g.fillStyle = '#9a9a9a'; g.fillRect(0, 0, N, N); grain(g, N, 40, 41); g.globalAlpha = 0.25; g.fillStyle = '#777'; for (let y = 0; y < N; y += 3) g.fillRect(0, y, N, 1); for (let x = 0; x < N; x += 3) g.fillRect(x, 0, 1, N); g.globalAlpha = 1; }); rep = [4, 4]; }
+  else if (kind === 'metal') { c = noiseCanvas(N, (g) => { g.fillStyle = '#9a9a9a'; g.fillRect(0, 0, N, N); grain(g, N, 30, 51); }); rep = [2, 2]; }
+  else if (kind === 'cloth') { c = noiseCanvas(N, (g) => { g.fillStyle = '#9a9a9a'; g.fillRect(0, 0, N, N); grain(g, N, 24, 61); }); rep = [6, 6]; }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const b = new THREE.CanvasTexture(c); b.wrapS = b.wrapT = THREE.RepeatWrapping; b.repeat.set(rep[0], rep[1]);
+  texCache[kind] = { map: t, bump: b }; return texCache[kind];
+}
+function texMat(kind, color, opts) { const t = texture(kind); return new THREE.MeshStandardMaterial(Object.assign({ color: color, map: t.map, bumpMap: t.bump, bumpScale: 0.6, roughness: 0.9 }, opts || {})); }
+function surfMat(kind, color, repeatX, repeatY, opts) { const m = texMat(kind, color, opts); m.map = m.map.clone(); m.bumpMap = m.bumpMap.clone(); m.map.repeat.set(repeatX, repeatY); m.bumpMap.repeat.set(repeatX, repeatY); m.map.needsUpdate = m.bumpMap.needsUpdate = true; return m; }
+
 const MAT = {
-  skin: new THREE.MeshStandardMaterial({ color: 0xd9b597, roughness: 0.65 }),
-  hair: new THREE.MeshStandardMaterial({ color: 0x3b2a1c, roughness: 0.85 }),
-  cloth: new THREE.MeshStandardMaterial({ color: 0x3b3f4a, roughness: 0.95 }),
-  metal: new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.6 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xdcb59a, roughness: 0.55 }),
+  skinDark: new THREE.MeshStandardMaterial({ color: 0xc89b7e, roughness: 0.6 }),
+  hair: new THREE.MeshStandardMaterial({ color: 0x3a2818, roughness: 0.7 }),
+  eyeWhite: new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.3 }),
+  eye: new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.2 }),
+  mouth: new THREE.MeshStandardMaterial({ color: 0x8a4a44, roughness: 0.6 }),
+  shoe: new THREE.MeshStandardMaterial({ color: 0x1c1a18, roughness: 0.5 }),
+  metal: texMat('metal', 0x2b2b2d, { roughness: 0.45, metalness: 0.7, bumpScale: 0.2 }),
+  chrome: new THREE.MeshStandardMaterial({ color: 0x8c8c90, roughness: 0.35, metalness: 0.9 }),
   flag: new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1, side: THREE.DoubleSide }),
-  wood: new THREE.MeshStandardMaterial({ color: 0x4a3526, roughness: 0.85 }),
+  wood: texMat('wood', 0x8a6a4a, { roughness: 0.6, bumpScale: 0.5 }),
+  woodDark: texMat('wood', 0x5a4030, { roughness: 0.6, bumpScale: 0.5 }),
   gold: new THREE.MeshBasicMaterial({ color: 0xd4b071 })
 };
-const WALLCOL = { dark: 0x2a2724, normal: 0x8c8378, white: 0xd8d3c8 };
-const FLOORCOL = { wood: 0x6b4a2f, grey: 0x5a5a5a, dark: 0x1f1d1b };
+const OUTFITS = { dark: [0x2f3340, 0x25262b], light: [0xd9d5cc, 0x6b6f78], blue: [0x3a5f9a, 0x2b2b30], red: [0x9a3a34, 0x2b2b30], green: [0x4f6b45, 0x3a3a3c] };
+const WALLCOL = { dark: 0x3a3532, normal: 0xa39a8d, white: 0xe6e1d6 };
+const FLOORCOL = { wood: 0x8a6444, grey: 0x777777, dark: 0x44403c };
+const FLOORTEX = { wood: 'wood', grey: 'concrete', dark: 'darkfloor' };
 
 function init(cv) {
   canvas = cv; wrap = cv.parentElement;
@@ -118,11 +153,63 @@ function resize() {
 
 function clear(g) { while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
 
+// C-stand: „želví“ základna se třemi nohami v různých výškách, sloupek, kolínko
 function stand(x, z, h, g) {
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, h, 8), MAT.metal); pole.position.set(x, h / 2, z); g.add(pole);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.02, 12), MAT.metal); base.position.set(x, 0.01, z); g.add(base);
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, h, 10), MAT.chrome); col.position.set(x, h / 2, z); g.add(col);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 10), MAT.metal); hub.position.set(x, 0.12, z); g.add(hub);
+  [0, 2.094, 4.189].forEach((a, i) => { const top = 0.06 + i * 0.07, len = 0.5, lx = Math.cos(a), lz = Math.sin(a), L = Math.hypot(len, top);
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(L, 0.02, 0.03), MAT.metal); leg.position.set(x + lx * len / 2, top / 2 + 0.01, z + lz * len / 2); leg.rotation.y = -a; leg.rotation.z = Math.atan2(top, len); g.add(leg);
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 8), MAT.shoe); foot.position.set(x + lx * len, 0.01, z + lz * len); g.add(foot); });
+  const knob = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.06), MAT.metal); knob.position.set(x, h - 0.03, z); g.add(knob);
+}
+// stativ kamery: tři nohy do rozkroku, středový sloupek, fluidní hlava
+function tripod(g, h) {
+  const hubH = Math.max(0.5, h - 0.25);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 10), MAT.metal); hub.position.set(0, hubH, 0); g.add(hub);
+  for (let i = 0; i < 3; i++) { const a = Math.PI / 2 + i * 2.094, r = 0.42, lx = Math.cos(a) * r, lz = Math.sin(a) * r, L = Math.hypot(r, hubH);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, L, 8), MAT.metal); leg.position.set(lx / 2, hubH / 2, lz / 2); leg.lookAt(lx, 0, lz); leg.rotateX(Math.PI / 2); g.add(leg);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), MAT.shoe); foot.position.set(lx, 0.02, lz); g.add(foot); }
+  const colm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, h - hubH + 0.1, 10), MAT.chrome); colm.position.set(0, (h + hubH) / 2 - 0.03, 0); g.add(colm);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.1), MAT.metal); head.position.set(0, h - 0.04, 0); g.add(head);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.35, 6), MAT.metal); handle.position.set(-0.2, h - 0.12, 0.05); handle.rotation.z = Math.PI / 2 - 0.5; g.add(handle);
 }
 
+// světelný kužel v mlze (aditivní, průhledný) – viditelný jen při zapnutém mlhostroji
+function beamMat(color, radiance) { return new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(radiance), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, vertexColors: true }); }
+// kužel s jasem klesajícím od zdroje (vertex colors) – několik vnořených vrstev dá měkký, „objemový“ dojem
+function fadeCone(r, L, near, far) {
+  const geo = new THREE.ConeGeometry(r, L, 48, 6, true), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) { const t = (pos.getY(i) + L / 2) / L; const v = far + (near - far) * t * t; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = v; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); return geo;
+}
+function addBeam(g, pos, tgt, halfAngle, color, E1, soft) {
+  const haze = lastOpts.haze || 0; if (haze <= 0) return;
+  const dir = tgt.clone().sub(pos).normalize(), L = 6, r = Math.tan(Math.min(halfAngle, 1.2)) * L, layers = 7;
+  for (let i = 0; i < layers; i++) {
+    const k = 1 - i / layers * 0.85, geo = fadeCone(r * k, L, 1.0, 0.12);
+    const cone = new THREE.Mesh(geo, beamMat(color, E1 * haze * 0.002 / layers * (soft ? 0.4 : 1)));
+    cone.position.copy(pos).add(dir.clone().multiplyScalar(L / 2)); cone.lookAt(tgt); cone.rotateX(-Math.PI / 2); cone.renderOrder = 5; g.add(cone);
+  }
+}
+function addSunBeams(sc) {
+  const haze = lastOpts.haze || 0; if (haze <= 0 || !S.sunOn(sc)) return;
+  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.SUN_CCT);
+  const dirIn = new THREE.Vector3(-d[0] * Math.cos(el), -Math.sin(el), -d[1] * Math.cos(el)); // směr paprsků do místnosti
+  (sc.windows || []).forEach(w => {
+    if (typeof w.wall !== 'string') return; const fr = wallFrame(sc, w.wall); if (fr.inward[0] * dirIn.x + fr.inward[1] * dirIn.z <= 0.05) return;
+    const bl = S.blindOf(w), z1 = S.WIN_Z1 - bl * (S.WIN_Z1 - S.WIN_Z0); if (z1 - S.WIN_Z0 < 0.05) return;
+    const c = [fr.at(w.from, z1), fr.at(w.to, z1), fr.at(w.to, S.WIN_Z0), fr.at(w.from, S.WIN_Z0)].map(a => new THREE.Vector3(a[0], a[1], a[2]));
+    const far = c.map(v => { const t = v.y / Math.max(0.05, -dirIn.y); return v.clone().add(dirIn.clone().multiplyScalar(Math.min(t, 12))); });
+    const verts = [];
+    const quad = (a, b, cc, dd) => { verts.push(a, b, cc, a, cc, dd); };
+    for (let i = 0; i < 4; i++) quad(c[i], c[(i + 1) % 4], far[(i + 1) % 4], far[i]);
+    quad(far[0], far[1], far[2], far[3]);
+    const geo = new THREE.BufferGeometry().setFromPoints(verts), col = new Float32Array(verts.length * 3);
+    verts.forEach((v, i) => { const t = far.indexOf(v) >= 0 ? 0.35 : 1.0; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = t; });
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const m = new THREE.Mesh(geo, beamMat(k.color, S.SUN_E * haze * 0.00012)); m.renderOrder = 5; group.add(m);
+  });
+}
 function addLight(L, res) {
   const P = S.lightParams(L); if (L.on === false) return;
   const k = kel(P.cct), dir = new THREE.Vector3(Math.cos(L.rot), 0, Math.sin(L.rot));
@@ -148,7 +235,7 @@ function addLight(L, res) {
   }
   const w = P.size, h = P.size * (L.mod === 'frame' ? 1.0 : 0.75);
   if (P.soft) {
-    const rl = new THREE.RectAreaLight(k.color, E1 * (lastOpts.shadows ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl);
+    const rl = new THREE.RectAreaLight(k.color, E1 * (lastOpts.shadows ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl); addBeam(g, pos, tgt, P.beam / 2 * Math.PI / 180 * 0.6, k.color, E1, true);
     // vizuální panel softboxu
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lum(k.color, E1 / (w * h)));
     panel.position.copy(pos); panel.lookAt(tgt); panel.position.add(dir.clone().multiplyScalar(-0.01)); g.add(panel);
@@ -161,7 +248,7 @@ function addLight(L, res) {
     const sp = new THREE.SpotLight(k.color, E1, 16, Math.min(half * 1.3, 1.5), L.barn ? 0.15 : (L.diff ? 0.8 : 0.45), 2);
     sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(2048, 2048); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
     if (L.gobo && L.gobo !== 'none' && S.GOBOS[L.gobo]) { sp.map = goboTexture(L.gobo); sp.castShadow = true; sp.shadow.focus = 1; }
-    g.add(sp); g.add(sp.target);
+    g.add(sp); g.add(sp.target); addBeam(g, pos, tgt, half, k.color, E1, false);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body);
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.075, 16), lum(k.color, E1 / 0.018)); face.position.copy(pos).add(dir.clone().multiplyScalar(0.115)); face.lookAt(tgt); g.add(face);
     if (L.diff) { const d = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), lum(k.color, E1 / 0.35)); d.material.transparent = true; d.material.opacity = 0.7; d.material.side = THREE.DoubleSide; d.position.copy(pos).add(dir.clone().multiplyScalar(0.18)); d.lookAt(tgt); g.add(d); }
@@ -170,51 +257,96 @@ function addLight(L, res) {
 }
 
 function limb(mat, r, len, g, x, y, z, rx, rz) {
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 3, 10), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
 }
 function addPerson(p) {
   const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; group.add(g);
-  const sit = p.pose === 'sit', fz = S.faceZ(p);
-  const shoulder = sit ? 1.02 : 1.38, hip = sit ? 0.5 : 0.85;
-  // trup
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, shoulder - hip - 0.1, 4, 14), MAT.cloth); torso.position.y = (shoulder + hip) / 2; torso.scale.set(1, 1, 1.45); torso.castShadow = torso.receiveShadow = true; g.add(torso);
-  const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.34), MAT.cloth); pelvis.position.y = hip; pelvis.castShadow = true; g.add(pelvis);
-  // ramena + paže (osa Y = dolů/nahoru; local +x = dopředu, ±z = do stran)
+  const sit = p.pose === 'sit', fz = S.faceZ(p), outfit = OUTFITS[p.outfit] || OUTFITS.dark;
+  const shirt = texMat('cloth', outfit[0], { roughness: 0.95, bumpScale: 0.15 }), pants = texMat('cloth', outfit[1], { roughness: 0.95, bumpScale: 0.15 });
+  const shoulder = sit ? 1.02 : 1.38, hip = sit ? 0.5 : 0.85, seatY = sit ? 0.45 : 0;
+  // trup: hrudník (širší) + pas + boky
+  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, shoulder - hip - 0.16, 6, 16), shirt); chest.position.y = (shoulder + hip) / 2 + 0.02; chest.scale.set(1, 1, 1.4); g.add(chest);
+  const belly = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.1, 6, 16), shirt); belly.position.y = hip + 0.1; belly.scale.set(1, 1, 1.35); g.add(belly);
+  const pelvis = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.12, 6, 16), pants); pelvis.position.y = hip - 0.02; pelvis.rotation.x = Math.PI / 2; pelvis.scale.set(1, 1, 1); g.add(pelvis);
   [-1, 1].forEach(side => {
-    const z = side * 0.2;
+    const z = side * 0.19;
+    const shoulderBall = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), shirt); shoulderBall.position.set(0, shoulder - 0.04, z + side * 0.01); g.add(shoulderBall);
     if (sit) {
-      // nadloktí dolů, předloktí dopředu na stehna
-      limb(MAT.cloth, 0.045, 0.24, g, 0.02, shoulder - 0.15, z, 0, 0.15);
-      limb(MAT.skin, 0.04, 0.22, g, 0.16, shoulder - 0.3, z, 0, Math.PI / 2 - 0.1);
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), MAT.skin); hand.position.set(0.3, shoulder - 0.3, z); g.add(hand);
-      // stehno dopředu, bérec dolů
-      limb(MAT.cloth, 0.07, 0.3, g, 0.2, hip - 0.02, side * 0.1, 0, Math.PI / 2);
-      limb(MAT.cloth, 0.055, 0.32, g, 0.4, hip - 0.25, side * 0.1, 0, 0.1);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.09), MAT.hair); foot.position.set(0.47, 0.03, side * 0.1); g.add(foot);
+      limb(shirt, 0.045, 0.24, g, 0.03, shoulder - 0.17, z + side * 0.03, 0, 0.12);
+      limb(MAT.skin, 0.038, 0.22, g, 0.17, shoulder - 0.33, z + side * 0.02, 0, Math.PI / 2 - 0.08);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), MAT.skin); hand.position.set(0.31, shoulder - 0.33, z + side * 0.02); hand.scale.set(1.2, 0.7, 0.9); g.add(hand);
+      limb(pants, 0.075, 0.3, g, 0.2, hip - 0.02, side * 0.1, 0, Math.PI / 2);
+      limb(pants, 0.058, 0.32, g, 0.4, hip - 0.25, side * 0.1, 0, 0.1);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.1), MAT.shoe); foot.position.set(0.48, 0.035, side * 0.1); g.add(foot);
     } else {
-      limb(MAT.cloth, 0.045, 0.26, g, 0, shoulder - 0.17, z + side * 0.03, 0, side * 0.06);
-      limb(MAT.skin, 0.04, 0.24, g, 0.02, shoulder - 0.45, z + side * 0.05, 0, 0);
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), MAT.skin); hand.position.set(0.03, shoulder - 0.62, z + side * 0.05); g.add(hand);
-      limb(MAT.cloth, 0.07, 0.32, g, 0, hip - 0.22, side * 0.1, 0, 0);
-      limb(MAT.cloth, 0.055, 0.3, g, 0, hip - 0.6, side * 0.1, 0, 0);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.09), MAT.hair); foot.position.set(0.05, 0.03, side * 0.1); g.add(foot);
+      limb(shirt, 0.045, 0.26, g, 0, shoulder - 0.19, z + side * 0.04, 0, side * 0.08);
+      limb(MAT.skin, 0.038, 0.24, g, 0.02, shoulder - 0.47, z + side * 0.07, 0, side * 0.02);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), MAT.skin); hand.position.set(0.03, shoulder - 0.64, z + side * 0.07); hand.scale.set(0.8, 1.2, 0.9); g.add(hand);
+      limb(pants, 0.075, 0.32, g, 0, hip - 0.22, side * 0.1, 0, 0);
+      limb(pants, 0.058, 0.3, g, 0, hip - 0.6, side * 0.1, 0, 0);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.1), MAT.shoe); foot.position.set(0.06, 0.035, side * 0.1); g.add(foot);
     }
   });
   // krk + hlava
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 10), MAT.skin); neck.position.y = shoulder + 0.03; g.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 24, 18), MAT.skin); head.position.y = fz; head.scale.set(0.92, 1.12, 1); head.castShadow = head.receiveShadow = true; g.add(head);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.118, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.40), MAT.hair); cap.position.set(-0.02, fz + 0.012, 0); cap.scale.set(0.95, 1.12, 1.02); cap.castShadow = true; g.add(cap);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.045, 8), MAT.skin); nose.position.set(0.105, fz - 0.01, 0); nose.rotation.z = -Math.PI / 2; nose.castShadow = true; g.add(nose);
-  [-0.04, 0.04].forEach(z => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), MAT.hair); e.position.set(0.1, fz + 0.03, z); g.add(e); });
-  [-0.11, 0.11].forEach(z => { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), MAT.skin); ear.position.set(0, fz, z); g.add(ear); });
-  if (sit) chairMesh(g, 0.02, 0);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.14, 12), MAT.skin); neck.position.y = shoulder + 0.03; g.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 24), MAT.skin); head.position.y = fz; head.scale.set(0.92, 1.14, 1); g.add(head);
+  const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 14), MAT.skin); jaw.position.set(0.02, fz - 0.07, 0); jaw.scale.set(1, 0.8, 1.05); g.add(jaw);
+  // vlasy: temeno + zadní polovina až k šíji
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.118, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.34), MAT.hair); cap.position.set(-0.02, fz + 0.02, 0); cap.scale.set(0.96, 1.14, 1.03); g.add(cap);
+  const back = new THREE.Mesh(new THREE.SphereGeometry(0.118, 32, 16, Math.PI * 1.5, Math.PI, Math.PI * 0.3, Math.PI * 0.36), MAT.hair); back.position.set(-0.02, fz + 0.02, 0); back.scale.set(0.96, 1.14, 1.03); g.add(back);
+  // obličej
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 10), MAT.skinDark); nose.position.set(0.105, fz - 0.015, 0); nose.rotation.z = -Math.PI / 2; g.add(nose);
+  [-0.037, 0.037].forEach(z => {
+    const ew = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), MAT.eyeWhite); ew.position.set(0.094, fz + 0.025, z); ew.scale.set(0.6, 1, 1); g.add(ew);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), MAT.eye); pupil.position.set(0.105, fz + 0.025, z); g.add(pupil);
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.007, 0.04), MAT.hair); brow.position.set(0.098, fz + 0.052, z); brow.rotation.x = z > 0 ? 0.15 : -0.15; g.add(brow);
+  });
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, 0.045), MAT.mouth); mouth.position.set(0.1, fz - 0.052, 0); g.add(mouth);
+  [-0.106, 0.106].forEach(z => { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), MAT.skin); ear.position.set(-0.01, fz + 0.005, z); ear.scale.set(0.5, 1.2, 1); g.add(ear); });
+  if (sit && !S.seatUnder(lastScene, p)) chairMesh(g, 0.02, 0);
 }
 // jednoduchá židle (sedák 0,45 m, opěradlo vzadu = -x)
 function chairMesh(g, x, z) {
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.04, 0.45), MAT.wood); seat.position.set(x, 0.45, z); seat.castShadow = seat.receiveShadow = true; g.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.45, 0.45), MAT.wood); back.position.set(x - 0.2, 0.7, z); back.castShadow = true; g.add(back);
-  [[-0.2, -0.2], [-0.2, 0.2], [0.2, -0.2], [0.2, 0.2]].forEach(o => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.45, 0.035), MAT.wood); l.position.set(x + o[0], 0.225, z + o[1]); g.add(l); });
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.04, 0.45), MAT.wood); seat.position.set(x, 0.45, z); g.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.42, 0.42), MAT.wood); back.position.set(x - 0.21, 0.7, z); g.add(back);
+  [[-0.2, -0.2], [-0.2, 0.2], [0.2, -0.2], [0.2, 0.2]].forEach(o => { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.45, 8), MAT.woodDark); l.position.set(x + o[0], 0.225, z + o[1]); g.add(l); });
 }
+function box(g, mat, w, h, d, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; }
+// polštář: kapsle zploštělá do kvádru s oblými hranami
+function cushion(g, mat, w, h, d, x, y, z) { const r = Math.min(w, h) / 2; const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.01, d - 2 * r), 4, 14), mat); m.rotation.x = Math.PI / 2; m.scale.set(w / (2 * r), h / (2 * r), 1); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; }
+function addFurniture(it) {
+  const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -(it.rot || 0); group.add(g);
+  const f = S.FURNITURE[it.type] || S.FURNITURE.block, w = it.w || f.w, d = it.d || f.d, t = it.type;
+  const fabric = texMat('fabric', 0x4e5a70, { roughness: 1, bumpScale: 0.3 }), fabric2 = texMat('fabric', 0x5b6780, { roughness: 1, bumpScale: 0.3 }), bedding = texMat('cloth', 0xe4dfd3, { roughness: 1, bumpScale: 0.2 }), blanket = texMat('fabric', 0x7a6a5a, { roughness: 1, bumpScale: 0.3 });
+  if (t === 'sofa' || t === 'armchair') {
+    box(g, fabric, w, 0.22, d, 0, 0.16, 0);                                   // rám
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(o => { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.06, 8), MAT.woodDark); l.position.set(o[0] * (w / 2 - 0.06), 0.03, o[1] * (d / 2 - 0.06)); g.add(l); });
+    const n = t === 'sofa' ? Math.max(2, Math.round(d / 0.7)) : 1, cw = (d - 0.36) / n;             // sedáky podél délky (délka gauče = d, opěradlo vzadu = -x)
+    for (let i = 0; i < n; i++) { const zc = -d / 2 + 0.18 + cw * (i + 0.5); cushion(g, fabric2, w - 0.24, 0.16, cw - 0.03, 0.05, 0.35, zc); cushion(g, fabric2, 0.16, 0.5, cw - 0.03, -w / 2 + 0.2, 0.62, zc).rotation.z = 0.12; }
+    box(g, fabric, 0.18, 0.75, d, -w / 2 + 0.09, 0.37, 0);                  // opěradlo
+    cushion(g, fabric, w - 0.1, 0.18, 0.2, 0.05, 0.5, -d / 2 + 0.09);      // područky
+    cushion(g, fabric, w - 0.1, 0.18, 0.2, 0.05, 0.5, d / 2 - 0.09);
+  } else if (t === 'chair') { chairMesh(g, 0, 0); }
+  else if (t === 'table' || t === 'coffee') {
+    const h = f.h; box(g, MAT.wood, w, 0.035, d, 0, h - 0.018, 0);
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(o => { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, h - 0.035, 10), MAT.woodDark); l.position.set(o[0] * (w / 2 - 0.06), (h - 0.035) / 2, o[1] * (d / 2 - 0.06)); l.castShadow = true; g.add(l); });
+  } else if (t === 'bed') {
+    box(g, MAT.woodDark, w, 0.22, d, 0, 0.11, 0); cushion(g, bedding, w - 0.06, 0.2, d - 0.06, 0, 0.32, 0);
+    cushion(g, blanket, w - 0.14, 0.08, d * 0.62, 0.02, 0.43, d * 0.15);   // deka
+    box(g, MAT.wood, 0.05, 0.9, d, -w / 2 + 0.025, 0.45, 0);              // čelo (vzadu = -x)
+    [-0.22, 0.22].forEach(z => cushion(g, bedding, 0.4, 0.1, Math.min(0.5, d * 0.22), -w / 2 + 0.32, 0.47, z * d));
+  } else if (t === 'wardrobe') {
+    box(g, MAT.wood, w, f.h, d, 0, f.h / 2, 0);
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.006, f.h - 0.1, 0.012), MAT.shoe); line.position.set(w / 2 + 0.003, f.h / 2, 0); g.add(line);
+    [-0.06, 0.06].forEach(z => { const kn = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), MAT.chrome); kn.position.set(w / 2 + 0.015, 1.0, z); g.add(kn); });
+  } else if (t === 'shelf') {
+    box(g, MAT.woodDark, w, f.h, 0.03, 0, f.h / 2, -d / 2 + 0.015);
+    [0.03, 0.4, 0.8, 1.2, 1.6, f.h - 0.03].forEach(y => box(g, MAT.wood, w, 0.03, d, 0, y, 0));
+    box(g, MAT.wood, 0.03, f.h, d, -w / 2 + 0.015, f.h / 2, 0); box(g, MAT.wood, 0.03, f.h, d, w / 2 - 0.015, f.h / 2, 0);
+    const r = mulberry(77); [0.4, 0.8, 1.2, 1.6].forEach(y => { let x = -w / 2 + 0.06; while (x < w / 2 - 0.08) { const bw = 0.025 + r() * 0.03, bh = 0.2 + r() * 0.13; const bk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d * 0.7), new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(r(), 0.4, 0.3 + r() * 0.3), roughness: 0.8 })); bk.position.set(x + bw / 2, y + bh / 2 + 0.015, 0); g.add(bk); x += bw + 0.004; if (r() < 0.15) x += 0.08; } });
+  } else { const hh = it.tall ? 2.0 : 0.75; box(g, MAT.wood, w, hh, d, 0, hh / 2, 0); }
+}
+
 function addBounce(b, res) {
   const g = new THREE.Group(); g.position.set(b.x, 0, b.y); g.rotation.y = -b.rot; group.add(g);
   const mat = new THREE.MeshStandardMaterial({ color: b.black ? 0x050505 : (b.silver ? 0xc9ccd1 : 0xf4f1e8), roughness: b.silver ? 0.3 : 1, metalness: b.silver ? 0.6 : 0, side: THREE.DoubleSide });
@@ -225,34 +357,6 @@ function addBounce(b, res) {
     const rl = new THREE.RectAreaLight(col3(em.col), em.E1 / (b.len * 1.0), b.len, 1.0);
     rl.position.set(b.x + em.nx * 0.03, 1.5, b.y + em.ny * 0.03); rl.lookAt(b.x + em.nx * 2, 1.5, b.y + em.ny * 2); group.add(rl);
   }
-}
-
-function box(g, mat, w, h, d, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; }
-function addFurniture(it) {
-  const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -(it.rot || 0); group.add(g);
-  const f = S.FURNITURE[it.type] || S.FURNITURE.block, w = it.w || f.w, d = it.d || f.d, t = it.type;
-  const fabric = new THREE.MeshStandardMaterial({ color: 0x4b5568, roughness: 1 }), bedding = new THREE.MeshStandardMaterial({ color: 0xd9d4c7, roughness: 1 });
-  if (t === 'sofa' || t === 'armchair') {
-    box(g, fabric, w, 0.42, d, 0, 0.21, 0);                       // sedák
-    box(g, fabric, 0.22, 0.85, d, -w / 2 + 0.11, 0.425, 0);        // opěradlo (vzadu = -x)
-    box(g, fabric, w, 0.6, 0.18, 0, 0.3, -d / 2 + 0.09);           // područky
-    box(g, fabric, w, 0.6, 0.18, 0, 0.3, d / 2 - 0.09);
-  } else if (t === 'chair') { chairMesh(g, 0, 0); }
-  else if (t === 'table' || t === 'coffee') {
-    const h = f.h; box(g, MAT.wood, w, 0.04, d, 0, h - 0.02, 0);
-    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(o => box(g, MAT.wood, 0.05, h - 0.04, 0.05, o[0] * (w / 2 - 0.05), (h - 0.04) / 2, o[1] * (d / 2 - 0.05)));
-  } else if (t === 'bed') {
-    box(g, MAT.wood, w, 0.25, d, 0, 0.125, 0); box(g, bedding, w - 0.04, 0.22, d - 0.04, 0, 0.36, 0);
-    box(g, MAT.wood, 0.05, 0.9, d, -w / 2 + 0.025, 0.45, 0);        // čelo (vzadu = -x)
-    box(g, bedding, 0.45, 0.12, d * 0.4, -w / 2 + 0.35, 0.53, 0);   // polštář
-  } else if (t === 'wardrobe') {
-    box(g, MAT.wood, w, f.h, d, 0, f.h / 2, 0);
-    const line = new THREE.Mesh(new THREE.BoxGeometry(0.005, f.h - 0.1, 0.01), MAT.hair); line.position.set(w / 2 + 0.003, f.h / 2, 0); g.add(line);
-  } else if (t === 'shelf') {
-    box(g, MAT.wood, w, f.h, 0.03, 0, f.h / 2, -d / 2 + 0.015);
-    [0.03, 0.4, 0.8, 1.2, 1.6, f.h - 0.03].forEach(y => box(g, MAT.wood, w, 0.03, d, 0, y, 0));
-    box(g, MAT.wood, 0.03, f.h, d, -w / 2 + 0.015, f.h / 2, 0); box(g, MAT.wood, 0.03, f.h, d, w / 2 - 0.015, f.h / 2, 0);
-  } else { const hh = it.tall ? 2.0 : 0.75; box(g, MAT.wood, w, hh, d, 0, hh / 2, 0); }
 }
 
 function addWindow(sc, w) {
@@ -289,9 +393,9 @@ function wallFrame(sc, side) {
 }
 function addRoom(sc) {
   const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7;
-  const wallMat = new THREE.MeshStandardMaterial({ color: WALLCOL[sc.walls || 'normal'], roughness: 0.95 });
-  const floorMat = new THREE.MeshStandardMaterial({ color: FLOORCOL[sc.floor || 'wood'], roughness: 0.8 });
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0xbdb8ae, roughness: 1 });
+  const wallMat = surfMat('plaster', WALLCOL[sc.walls || 'normal'], W / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
+  const floorMat = surfMat(FLOORTEX[sc.floor || 'wood'], FLOORCOL[sc.floor || 'wood'], W / 2, H / 2, { roughness: sc.floor === 'wood' ? 0.55 : 0.85, bumpScale: 0.5 });
+  const ceilMat = surfMat('ceiling', 0xd0cbc2, W / 2.5, H / 2.5, { roughness: 1, bumpScale: 0.2 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, H / 2); floor.receiveShadow = true; group.add(floor);
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); ceil.castShadow = true; group.add(ceil);
   ['top', 'bottom', 'left', 'right'].forEach(side => {
@@ -312,7 +416,7 @@ function addRoom(sc) {
 // nakreslená zeď (box, tloušťka 0,12 m) s otvory oken
 function addWallItem(sc, it) {
   const L = S.wallLen(it); if (L < 0.05) return;
-  const Z = sc.room.z || 2.7, mat = new THREE.MeshStandardMaterial({ color: WALLCOL[sc.walls || 'normal'], roughness: 0.95 });
+  const Z = sc.room.z || 2.7, mat = surfMat('plaster', WALLCOL[sc.walls || 'normal'], L / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
   const g = new THREE.Group(); g.position.set(it.x1, 0, it.y1); g.rotation.y = -Math.atan2(it.y2 - it.y1, it.x2 - it.x1); group.add(g);
   const ops = []; (sc.windows || []).forEach(w => { if (w.wall === it.id) ops.push([w.from, w.to]); }); ops.sort((a, b) => a[0] - b[0]);
   const pieces = []; let cur = 0;
@@ -334,7 +438,7 @@ function addSun(sc) {
 function addDoor(sc, d) {
   const fr = wallFrame(sc, d.wall), L = S.DOORLIGHT[d.light] || S.DOORLIGHT.none, k = kel(L.cct), open = d.open !== false;
   const inX = fr.inward[0], inZ = fr.inward[1], c = fr.at(d.at, 1.025);
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), leafMat = new THREE.MeshStandardMaterial({ color: 0xd8cfbf, roughness: 0.7 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), leafMat = texMat('wood', 0xcdbba0, { roughness: 0.6, bumpScale: 0.3 });
   const g = new THREE.Group(); g.position.set(c[0], 0, c[2]); g.rotation.y = fr.ry; group.add(g);
   // zárubeň (lokálně: x podél stěny, z = dovnitř místnosti)
   [-1, 1].forEach(sd => box(g, frameMat, 0.06, 2.1, 0.14, sd * (d.w / 2 + 0.03), 1.05, 0));
@@ -344,8 +448,8 @@ function addDoor(sc, d) {
     const leaf = new THREE.Group(); leaf.position.set(-d.w / 2, 0, 0.05); leaf.rotation.y = -Math.PI * 0.47; g.add(leaf);
     box(leaf, leafMat, d.w, 2.02, 0.04, d.w / 2, 1.01, 0);
     // prostor za dveřmi: podlaha + stěny chodby, na konci svítící / tmavá stěna
-    const hallMat = new THREE.MeshStandardMaterial({ color: WALLCOL[sc.walls || 'normal'], roughness: 1, side: THREE.DoubleSide });
-    const hf = new THREE.Mesh(new THREE.PlaneGeometry(d.w + 0.6, 1.6), new THREE.MeshStandardMaterial({ color: FLOORCOL[sc.floor || 'wood'], roughness: 0.9 })); hf.rotation.x = -Math.PI / 2; hf.position.set(0, 0.001, -0.8); g.add(hf);
+    const hallMat = texMat('plaster', WALLCOL[sc.walls || 'normal'], { roughness: 1, side: THREE.DoubleSide, bumpScale: 0.3 });
+    const hf = new THREE.Mesh(new THREE.PlaneGeometry(d.w + 0.6, 1.6), texMat(FLOORTEX[sc.floor || 'wood'], FLOORCOL[sc.floor || 'wood'], { roughness: 0.8 })); hf.rotation.x = -Math.PI / 2; hf.position.set(0, 0.001, -0.8); g.add(hf);
     [-1, 1].forEach(sd => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.6), hallMat); m.position.set(sd * (d.w / 2 + 0.3), 1.3, -0.8); m.rotation.y = Math.PI / 2; g.add(m); });
     const ceilH = new THREE.Mesh(new THREE.PlaneGeometry(d.w + 0.6, 1.6), hallMat); ceilH.rotation.x = Math.PI / 2; ceilH.position.set(0, 2.6, -0.8); g.add(ceilH);
     if (L.E > 0) {
@@ -361,14 +465,14 @@ function sync(sc, res, meas, opts) {
   if (!renderer) return;
   lastScene = sc; lastRes = res; lastOpts = opts || {};
   clear(group);
-  addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
+  addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
     if (it.kind === 'light') addLight(it, res);
     else if (it.kind === 'person') addPerson(it);
     else if (it.kind === 'bounce') addBounce(it, res);
     else if (it.kind === 'flag') { const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -it.rot; const m = new THREE.Mesh(new THREE.PlaneGeometry(it.len, 0.9), MAT.flag); m.position.y = 1.5; m.castShadow = true; g.add(m); stand(0, 0, 1.05, g); group.add(g); }
     else if (it.kind === 'box' || it.kind === 'furniture') addFurniture(it);
-    else if (it.kind === 'camera') { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; const b = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.12), MAT.metal); b.position.y = 1.5; camMesh.add(b); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.12, 12), MAT.metal); l.position.set(0.16, 1.5, 0); l.rotation.z = -Math.PI / 2; camMesh.add(l); stand(0, 0, 1.43, camMesh); group.add(camMesh); }
+    else if (it.kind === 'camera') { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; const ch = it.h == null ? 1.5 : it.h; const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.13), MAT.metal); b.position.y = ch + 0.07; camMesh.add(b); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.047, 0.14, 14), MAT.metal); l.position.set(0.18, ch + 0.07, 0); l.rotation.z = -Math.PI / 2; camMesh.add(l); const lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 12), MAT.eye); lens.position.set(0.251, ch + 0.07, 0); lens.rotation.y = Math.PI / 2; camMesh.add(lens); const mon = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.14), MAT.metal); mon.position.set(-0.1, ch + 0.2, 0.05); camMesh.add(mon); tripod(camMesh, ch); group.add(camMesh); }
   });
   // všechny plné objekty přijímají i vrhají stíny (jinak by je slunce prosvítilo skrz strop)
   group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = true; } });
@@ -381,7 +485,7 @@ function sync(sc, res, meas, opts) {
   if (cam) { applyCamera(); if (camMesh) camMesh.visible = orbit; }
   // mlhostroj: zešednutí (fog v jednotkách scény, barva podle rozptýleného světla) – zrno kreslí overlay
   const haze = lastOpts.haze || 0, refL = lastOpts.ref || 300;
-  if (haze > 0) { const ac = res ? res.ambCol : [1, 1, 1], am = Math.max(1e-3, (ac[0] + ac[1] + ac[2]) / 3), fc = new THREE.Color(ac[0] / am, ac[1] / am, ac[2] / am).multiplyScalar(refL * 0.07 * (0.3 + haze)); scene3.fog = new THREE.FogExp2(fc, 0.03 + haze * 0.13); }
+  if (haze > 0) { const ac = res ? res.ambCol : [1, 1, 1], am = Math.max(1e-3, (ac[0] + ac[1] + ac[2]) / 3), fc = new THREE.Color(ac[0] / am, ac[1] / am, ac[2] / am).multiplyScalar(refL * 0.03 * (0.1 + haze)); scene3.fog = new THREE.FogExp2(fc, 0.01 + haze * 0.06); }
   else scene3.fog = null;
   if (!orbitInit) { orbitInit = true; orbitCam.position.set(sc.room.w / 2 + 3, 3.2, sc.room.h + 4); controls.target.set(sc.room.w / 2, 1.2, sc.room.h / 2); }
   // expozice: obličej (albedo ~0,5) při referenční osvětlenosti → střední šeď

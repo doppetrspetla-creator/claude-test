@@ -41,8 +41,12 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Gobo** – u tvrdých světel (reflektor, fresnel, holá hlava) volba promítaného tvaru: okno se
   4 nebo 6 tabulkami, žaluzie, lamely, listí, větve, kruh, mříž, tečky, kříž. Ve 3D se promítá
   na stěnu i postavu, půdorys počítá s propuštěným podílem světla.
-- **Mlhostroj** – posuvníky „Mlha“ a „Zrno“ v Zobrazení: mlha zešedí obraz do dálky v tónu
-  převládajícího světla, zrno přidá filmový šum (i do exportu snímku).
+- **Mlhostroj** – posuvníky „Mlha“ a „Zrno“ v Zobrazení: mlha lehce zešedí obraz do dálky
+  v tónu převládajícího světla, tvrdá i měkká světla v ní ukážou světelný kužel a slunce
+  paprsek oknem, zrno přidá filmový šum (i do exportu snímku).
+- **Vzhled 3D** – procedurální textury omítky, dřevěných prken, betonu a látek; postava s trupem,
+  pažemi, nohama, obličejem a volbou barvy oblečení; světla a odrazky na C‑stojanech, kamera na
+  stativu; gauč a křeslo s polštáři, postel s dekou, regál s knihami.
 - **Chůze kamerou** – v pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru,
   levé tlačítko myši = rozhlížení, kolečko = ohnisková vzdálenost. Kamera v půdorysu se
   posouvá s tebou.

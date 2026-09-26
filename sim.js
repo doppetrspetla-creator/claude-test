@@ -30,7 +30,7 @@
   // nábytek: půdorys w×d (m), výška h (m), tall = stíní ve výšce obličeje
   var FURNITURE = {
     chair:    { name: 'Židle', w: 0.45, d: 0.45, h: 0.9, tall: false },
-    sofa:     { name: 'Gauč', w: 2.0, d: 0.9, h: 0.85, tall: false },
+    sofa:     { name: 'Gauč', w: 0.9, d: 2.0, h: 0.85, tall: false },
     armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false },
     table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false },
     coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false },
@@ -132,6 +132,17 @@
     (scene.doors || []).forEach(function (d) { if (d.wall === side && d.open !== false) ops.push([d.at - d.w / 2, d.at + d.w / 2]); });
     ops.sort(function (p, q) { return p[0] - q[0]; });
     return ops;
+  }
+  // nábytek, na kterém postava sedí (gauč, křeslo, židle, postel) – pak se nekreslí automatická židle
+  function seatUnder(scene, person) {
+    if (!person || person.pose !== 'sit') return null;
+    var found = null;
+    scene.items.forEach(function (it) {
+      if (found || it.kind !== 'furniture' || ['sofa', 'armchair', 'chair', 'bed'].indexOf(it.type) < 0) return;
+      var r = it.rot || 0, c = Math.cos(r), sn = Math.sin(r), dx = person.x - it.x, dy = person.y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
+      if (Math.abs(u) <= it.w / 2 + 0.05 && Math.abs(v) <= it.d / 2 + 0.05) found = it;
+    });
+    return found;
   }
   function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; return it.tall != null ? !!it.tall : f.tall; }
   function corners(it) {
@@ -318,6 +329,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
