@@ -124,6 +124,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Žena 2 – sako: **Renderpeople**, sketchfab.com
 - Muž – vesta a kravata: **1-3D.com**, sketchfab.com
 - Pózy: animace Mixamo (Adobe), přemapované na kostru modelů
+- Auto „Classic Muscle car“: **Lexyc16**, sketchfab.com, CC BY 4.0
 
 ## Struktura
 

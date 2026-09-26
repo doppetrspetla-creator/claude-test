@@ -289,10 +289,13 @@ function addLight(L, res) {
 function limb(mat, r, len, g, x, y, z, rx, rz) {
   const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
 }
+// adresa souboru aplikace: na e-shopu se servíruje přes PHP (?svhvl_app=…), jinak relativně
+function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', encodeURIComponent(p)) : p; }
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
+const EXTRA_MODELS = { car: { file: 'models/car.glb' } };
 function modelFor(id) {
-  const m = S.MODELS[id]; if (!m || !m.file) return null;
+  const m = S.MODELS[id] || EXTRA_MODELS[id]; if (!m || !m.file) return null;
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
   modelCache[id] = { loading: true };
   const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
@@ -300,9 +303,9 @@ function modelFor(id) {
   const fail = () => { modelCache[id] = { error: true }; };
   const fromB64 = b64 => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); new GLTFLoader().parse(u8.buffer, '', onLoad, fail); };
   if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) { fromB64(window.VF_MODEL_DATA[id]); return null; }
-  const sc = document.createElement('script'); sc.src = m.file + '.js';
+  const sc = document.createElement('script'); sc.src = assetUrl(m.file + '.js');
   sc.onload = () => { if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) fromB64(window.VF_MODEL_DATA[id]); else fail(); };
-  sc.onerror = () => { new GLTFLoader().load(m.file, onLoad, undefined, fail); };
+  sc.onerror = () => { new GLTFLoader().load(assetUrl(m.file), onLoad, undefined, fail); };
   document.head.appendChild(sc);
   return null;
 }
@@ -321,7 +324,8 @@ function addModelPerson(p, gltf) {
   }
   if (sit) { // posadit: pánev do výšky sedáku + ~13 cm
     let hip = null; inst.traverse(o => { if (o.isBone && o.name === 'hip_02') hip = o; });
-    if (hip) { const hy = hip.getWorldPosition(new THREE.Vector3()).y; inst.position.y = (0.45 + 0.13) - hy; }
+    const seatIt = S.seatUnder(lastScene, p), seatH = seatIt && seatIt.type === 'car' ? 0.36 : 0.45;
+    if (hip) { const hy = hip.getWorldPosition(new THREE.Vector3()).y; inst.position.y = (seatH + 0.13) - hy; }
     if (!S.seatUnder(lastScene, p)) chairMesh(g, 0.02, 0);
   }
 }
@@ -412,6 +416,11 @@ function addFurniture(it) {
     box(g, fabric, 0.18, 0.75, d, -w / 2 + 0.09, 0.37, 0);                  // opěradlo
     cushion(g, fabric, w - 0.1, 0.18, 0.2, 0.05, 0.5, -d / 2 + 0.09);      // područky
     cushion(g, fabric, w - 0.1, 0.18, 0.2, 0.05, 0.5, d / 2 - 0.09);
+  } else if (t === 'car' && modelFor('car')) {
+    const src = modelFor('car').scene, inst = src.clone(true);
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material = o.material.clone(); if (o.material.name === 'Material' && it.color) o.material.color.set(it.color); if (o.material.transparent) { o.material.depthWrite = false; o.castShadow = false; } } });
+    const bb = new THREE.Box3().setFromObject(inst), sz = bb.getSize(new THREE.Vector3()), ctr = bb.getCenter(new THREE.Vector3()), k = w / sz.z;
+    const holder = new THREE.Group(); holder.rotation.y = Math.PI / 2; holder.scale.setScalar(k); inst.position.set(-ctr.x, -bb.min.y, -ctr.z); holder.add(inst); g.add(holder);
   } else if (t === 'car') {
     const paint = new THREE.MeshStandardMaterial({ color: it.color ? parseInt(it.color.replace('#', ''), 16) : 0x9a2a2a, roughness: 0.35, metalness: 0.6 }), glass = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.55 }), tire = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
     const L = w, Wd = d; // délka podél x, šířka podél z

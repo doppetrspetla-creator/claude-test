@@ -537,6 +537,8 @@ function svhvl_rewrite_html( $html ) {
 			'rest'    => esc_url_raw( rest_url( 'svhvl/v1/scene' ) ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'version' => $ver,
+			// dynamicky načítané soubory (modely postav a auta) – JS nahradí __FILE__ cestou
+			'asset'   => esc_url_raw( add_query_arg( array( SVHVL_QUERY => '__FILE__', 'v' => $ver ), home_url( '/' ) ) ),
 			'email'   => $user->user_email,
 		) ) . ';</script>';
 	$wm = '<div style="position:fixed;right:10px;bottom:6px;z-index:60;font:11px -apple-system,sans-serif;color:rgba(160,160,160,.55);pointer-events:none">'

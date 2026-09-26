@@ -38,7 +38,7 @@
     wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true },
     shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
     block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false },
-    car:      { name: 'Auto (osobní)', w: 4.4, d: 1.8, h: 1.45, tall: true }
+    car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false }
   };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
@@ -48,7 +48,7 @@
     muz1:  { name: 'Muž – vesta a kravata', file: 'models/muz1.glb', stand: 1.71, sit: 1.30, credit: '1-3D.com', license: 'CC BY 4.0', source: 'sketchfab.com' }
   };
   // atribuce pro použité modely (CC BY vyžaduje uvedení autora)
-  function credits(scene) { var out = [], seen = {}; (scene.items || []).forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); }); out.push('Animace: Mixamo (Adobe)'); return out; }
+  function credits(scene) { var out = [], seen = {}; (scene.items || []).forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); }); if ((scene.items || []).some(function (i) { return i.kind === 'furniture' && i.type === 'car'; })) out.push('3D model auta „Classic Muscle car“: Lexyc16 (sketchfab.com), licence CC BY 4.0'); out.push('Animace: Mixamo (Adobe)'); return out; }
   // pózy = klipy v modelech; sit: obličej ve výšce sedu
   var POSES = { stand: { name: 'Stojí (klid)', clip: 'idle', sit: false }, sit: { name: 'Sedí', clip: 'sit', sit: true }, talk: { name: 'Mluví (gesta)', clip: 'talk', sit: false }, point: { name: 'Ukazuje', clip: 'point', sit: false }, phone: { name: 'Telefonuje', clip: 'phone', sit: false }, type: { name: 'Píše na klávesnici (sedí)', clip: 'type', sit: true }, walk: { name: 'Jde', clip: 'walk', sit: false }, clap: { name: 'Tleská', clip: 'clap', sit: false }, lean: { name: 'Opírá se (zády ke zdi)', clip: 'lean', sit: false, face: 0.94 }, look: { name: 'Rozhlíží se', clip: 'look', sit: false }, crouch: { name: 'Dřepí', clip: 'crouch', sit: false, face: 0.68 }, lay: { name: 'Leží (na zádech)', clip: 'lay', sit: false, face: 0.13, lay: true } };
   function faceZ(person) { if (!person) return FACE_Z; var m = MODELS[person.model] || MODELS.proc, ps = POSES[person.pose] || POSES.stand; return ps.sit ? m.sit : (ps.face ? m.stand * ps.face : m.stand); }
@@ -152,12 +152,14 @@
     if (!person || !(POSES[person.pose] || POSES.stand).sit) return null;
     var found = null;
     scene.items.forEach(function (it) {
-      if (found || it.kind !== 'furniture' || ['sofa', 'armchair', 'chair', 'bed'].indexOf(it.type) < 0) return;
+      if (found || it.kind !== 'furniture' || ['sofa', 'armchair', 'chair', 'bed', 'car'].indexOf(it.type) < 0) return;
       var r = it.rot || 0, c = Math.cos(r), sn = Math.sin(r), dx = person.x - it.x, dy = person.y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
       if (Math.abs(u) <= it.w / 2 + 0.05 && Math.abs(v) <= it.d / 2 + 0.05) found = it;
     });
     return found;
   }
+  // sedadla v autě (poměr k délce/šířce auta): řidič vlevo, spolujezdec vpravo
+  function carSeat(car, which) { var fx = -0.04 * car.w, fy = (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: r }; }
   function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
   // zorné úhly kamery (rad) pro ohnisko (mm, full frame 36×24) a poměr stran záběru
   var FORMATS = { free: { name: 'volný (podle okna)', a: 0 }, '43': { name: '4:3', a: 4 / 3 }, '169': { name: '16:9', a: 16 / 9 }, '916': { name: '9:16 (na výšku)', a: 9 / 16 }, scope: { name: '2.39:1 cinemascope', a: 2.39 } };
@@ -366,6 +368,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
