@@ -83,3 +83,6 @@ canvas#view3d{cursor:crosshair}
 .win label{margin:4px 0 2px}
 #tools .btn{margin:0}
 canvas#stage.tool{cursor:crosshair}
+.pane canvas.grain{position:absolute;left:0;top:0;pointer-events:none;mix-blend-mode:overlay;opacity:.85;z-index:1;image-rendering:auto}
+canvas#view3d:focus{outline:none}
+.camTools .pill{align-self:center}

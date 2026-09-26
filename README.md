@@ -36,6 +36,16 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   kotouč vně místnosti v půdorysu a táhni ho). Slunce svítí okny dovnitř: v půdorysu vzniká
   sluneční skvrna (počítá se výška okna i výška obličeje), ve 3D vrhá ostré stíny. Odrazka umí
   slunce odrazit.
+- **Rolety** – u každého okna zvlášť: otevřená, napůl, zatažená. Roleta stahuje okno shora,
+  omezuje světlo oblohy i slunce a ve 3D je vidět jako panel s lamelami.
+- **Gobo** – u tvrdých světel (reflektor, fresnel, holá hlava) volba promítaného tvaru: okno se
+  4 nebo 6 tabulkami, žaluzie, lamely, listí, větve, kruh, mříž, tečky, kříž. Ve 3D se promítá
+  na stěnu i postavu, půdorys počítá s propuštěným podílem světla.
+- **Mlhostroj** – posuvníky „Mlha“ a „Zrno“ v Zobrazení: mlha zešedí obraz do dálky v tónu
+  převládajícího světla, zrno přidá filmový šum (i do exportu snímku).
+- **Chůze kamerou** – v pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru,
+  levé tlačítko myši = rozhlížení, kolečko = ohnisková vzdálenost. Kamera v půdorysu se
+  posouvá s tebou.
 - **Dveře** – libovolný počet dveří na stěnách, otevřené nebo zavřené. Otevřené dveře jsou otvor
   ve zdi a mohou propouštět světlo z vedlejší místnosti (tma / slabé teplé / silné / denní),
   které se počítá v půdorysu i zobrazuje ve 3D (chodba za dveřmi, otevřené křídlo).
@@ -54,6 +64,7 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 | Zpět / znovu | `Ctrl+Z` / `Ctrl+Y` |
 | Přepnout pohled | `1` půdorys + kamera, `2` půdorys, `3` kamera |
 | Nástroje půdorysu | `W` zeď, `O` okno, `Esc` výběr |
+| Pohled kamery | `W A S D` chůze, `Q E` výška, levé tlačítko rozhlížení, kolečko ohnisko |
 
 ## Struktura
 

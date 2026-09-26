@@ -87,6 +87,10 @@
     <label class="chk"><input type="checkbox" id="beams" checked> Obrysy paprsků a záběru</label>
     <label class="chk"><input type="checkbox" id="snap"> Přichytávat na 10 cm</label>
     <label class="chk"><input type="checkbox" id="shadows" checked> Stíny ve 3D</label>
+    <label>Mlhostroj – mlha (3D) <span id="hazeV" class="pill">0 %</span></label>
+    <input type="range" id="haze" min="0" max="100" step="1" value="0">
+    <label>Zrno (3D) <span id="grainV" class="pill">0 %</span></label>
+    <input type="range" id="grain" min="0" max="100" step="1" value="0">
     <p class="hint">Táhni objekty myší. Otáčení: zlatý bod nebo kolečko myši. Shift = krok 15°. <b>D</b> duplikovat, <b>Delete</b> smazat, <b>H</b> zapnout/vypnout světlo, šipky = posun o 5 cm.</p>
   </aside>
 
@@ -96,7 +100,7 @@
     </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
-      <div class="camTools"><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
+      <div class="camTools"><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
     </div>
   </main>
 

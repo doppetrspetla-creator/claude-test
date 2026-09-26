@@ -5,13 +5,35 @@ const THREE = window.THREE_LIB.THREE, OrbitControls = window.THREE_LIB.OrbitCont
 const S = window.LightSim;
 RectAreaLightUniformsLib.init();
 
-let renderer, scene3, camera, orbitCam, controls, wrap, canvas, group, floorRing, orbit = false, camMesh;
+let renderer, scene3, camera, orbitCam, controls, wrap, canvas, group, floorRing, orbit = false, camMesh, grainCv, grainCtx, over = false, keys = {}, lastT = 0, camItem = null, lookDrag = null, onCamera = null;
 let lastScene = null, lastRes = null, lastOpts = {}, selId = null, dirty = false;
 
 function lum(color, nits) { return new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(nits), toneMapped: true }); }
 function col3(c) { return new THREE.Color(c[0], c[1], c[2]); }
 function kel(k) { const c = S.cctColor(k); const m = Math.max(c[0], c[1], c[2]); return { color: new THREE.Color(c[0] / m, c[1] / m, c[2] / m), gain: m }; }
 
+// gobo: procedurální textura (černá = stín, průhledná = světlo), viz SpotLight.map
+const goboCache = {};
+function goboTexture(name) {
+  if (goboCache[name]) return goboCache[name];
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+  // SpotLight.map násobí barvu světla RGB texturou: bílá = propouští, černá = stíní
+  g.fillStyle = '#fff'; g.fillRect(0, 0, N, N); g.fillStyle = '#000';
+  const block = (x, y, w, h) => g.fillRect(x, y, w, h);
+  const ring = () => { g.fillStyle = '#000'; g.beginPath(); g.rect(0, 0, N, N); g.arc(N / 2, N / 2, N * 0.48, 0, Math.PI * 2, true); g.fill(); };
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  if (name === 'window4') { block(N * 0.47, 0, N * 0.06, N); block(0, N * 0.47, N, N * 0.06); block(0, 0, N, N * 0.08); block(0, N * 0.92, N, N * 0.08); block(0, 0, N * 0.08, N); block(N * 0.92, 0, N * 0.08, N); }
+  else if (name === 'window6') { block(N * 0.31, 0, N * 0.05, N); block(N * 0.64, 0, N * 0.05, N); block(0, N * 0.48, N, N * 0.05); block(0, 0, N, N * 0.07); block(0, N * 0.93, N, N * 0.07); block(0, 0, N * 0.07, N); block(N * 0.93, 0, N * 0.07, N); }
+  else if (name === 'blinds') { for (let y = 0; y < N; y += N / 14) block(0, y, N, N / 28); ring(); }
+  else if (name === 'slats') { for (let x = 0; x < N; x += N / 12) block(x, 0, N / 24, N); ring(); }
+  else if (name === 'leaves') { g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; for (let i = 0; i < 260; i++) { const x = rnd() * N, y = rnd() * N, r = 6 + rnd() * 22; g.beginPath(); g.ellipse(x, y, r, r * 0.55, rnd() * Math.PI, 0, Math.PI * 2); g.fill(); } ring(); }
+  else if (name === 'branches') { g.lineCap = 'round'; g.strokeStyle = '#000'; const br = (x, y, a, len, w, d) => { if (d > 5 || len < 8) return; const nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len; g.lineWidth = w; g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke(); const k = 2 + Math.floor(rnd() * 2); for (let i = 0; i < k; i++) br(nx, ny, a + (rnd() - 0.5) * 1.4, len * (0.6 + rnd() * 0.25), w * 0.65, d + 1); }; br(N * 0.1, N * 0.9, -0.9, N * 0.3, 18, 0); br(N * 0.9, N * 0.85, -2.3, N * 0.28, 16, 0); br(N * 0.5, N, -1.6, N * 0.25, 14, 0); }
+  else if (name === 'circle') { g.beginPath(); g.rect(0, 0, N, N); g.arc(N / 2, N / 2, N * 0.34, 0, Math.PI * 2, true); g.fill(); }
+  else if (name === 'bars') { for (let x = 0; x < N; x += N / 6) block(x, 0, N / 18, N); for (let y = 0; y < N; y += N / 6) block(0, y, N, N / 18); ring(); }
+  else if (name === 'dots') { g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; for (let i = 0; i < 90; i++) { const x = rnd() * N, y = rnd() * N, r = 8 + rnd() * 30; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); } ring(); }
+  else if (name === 'cross') { g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; g.fillRect(N * 0.44, N * 0.1, N * 0.12, N * 0.8); g.fillRect(N * 0.1, N * 0.44, N * 0.8, N * 0.12); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; goboCache[name] = t; return t;
+}
 const MAT = {
   skin: new THREE.MeshStandardMaterial({ color: 0xd9b597, roughness: 0.65 }),
   hair: new THREE.MeshStandardMaterial({ color: 0x3b2a1c, roughness: 0.85 }),
@@ -37,13 +59,59 @@ function init(cv) {
   controls.addEventListener('change', () => { dirty = true; });
   group = new THREE.Group(); scene3.add(group);
   floorRing = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.26, 40), MAT.gold); floorRing.rotation.x = -Math.PI / 2; floorRing.visible = false; scene3.add(floorRing);
+  // zrno (overlay canvas)
+  grainCv = document.createElement('canvas'); grainCv.className = 'grain'; wrap.appendChild(grainCv); grainCtx = grainCv.getContext('2d');
+  // FPS ovládání kamery: hover + klávesy + myš
+  cv.tabIndex = 0;
+  cv.addEventListener('pointerenter', () => { over = true; }); cv.addEventListener('pointerleave', () => { over = false; keys = {}; });
+  cv.addEventListener('pointerdown', e => { cv.focus(); if (orbit || e.button !== 0 || !camItem) return; lookDrag = { x: e.clientX, y: e.clientY, rot: camItem.rot, tilt: camItem.tilt || 0 }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (!lookDrag || !camItem) return; const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y, f = (camItem.focal || 35);
+    const k = 0.0025 * 35 / f; camItem.rot = lookDrag.rot + dx * k; camItem.tilt = Math.max(-1.2, Math.min(1.2, lookDrag.tilt - dy * k)); camItem.aim = false; emitCam(false); });
+  cv.addEventListener('pointerup', () => { if (lookDrag) { lookDrag = null; emitCam(true); } });
+  cv.addEventListener('wheel', e => { if (orbit || !camItem) return; e.preventDefault(); camItem.focal = Math.round(Math.max(14, Math.min(135, (camItem.focal || 35) * (e.deltaY > 0 ? 0.92 : 1.087)))); emitCam(true); }, { passive: false });
+  window.addEventListener('keydown', e => { if (!wantsKeys()) return; const k = e.key.toLowerCase(); if ('wasdqe'.includes(k) || e.key.startsWith('Arrow')) { keys[k === ' ' ? k : (e.key.startsWith('Arrow') ? e.key : k)] = true; e.preventDefault(); } });
+  window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); delete keys[k]; delete keys[e.key]; });
   resize();
-  (function loop() { requestAnimationFrame(loop); if (orbit) controls.update(); if (dirty) { dirty = false; render(); } })();
+  (function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t; if (orbit) controls.update(); if (walk(dt)) dirty = true; if (dirty) { dirty = false; render(); } drawGrain(t); })(0);
+}
+function wantsKeys() { return !!(camItem && !orbit && (over || document.activeElement === canvas)); }
+// pohyb WASD (W/S vpřed/vzad, A/D do stran, Q/E dolů/nahoru), v m/s
+function walk(dt) {
+  if (!camItem || orbit || !dt) return false; let mv = false; const sp = 1.6 * dt, fx = Math.cos(camItem.rot), fz = Math.sin(camItem.rot), rx = -fz, rz = fx;
+  let dx = 0, dz = 0, dy = 0;
+  if (keys.w || keys.ArrowUp) { dx += fx; dz += fz; } if (keys.s || keys.ArrowDown) { dx -= fx; dz -= fz; }
+  if (keys.d || keys.ArrowRight) { dx += rx; dz += rz; } if (keys.a || keys.ArrowLeft) { dx -= rx; dz -= rz; }
+  if (keys.e) dy += 1; if (keys.q) dy -= 1;
+  if (dx || dz || dy) { const L = Math.hypot(dx, dz) || 1; camItem.x = Math.max(0.1, Math.min(lastScene.room.w - 0.1, camItem.x + dx / L * sp)); camItem.y = Math.max(0.1, Math.min(lastScene.room.h - 0.1, camItem.y + dz / L * sp)); camItem.h = Math.max(0.2, Math.min((lastScene.room.z || 2.7) - 0.1, (camItem.h == null ? 1.5 : camItem.h) + dy * sp)); mv = true; }
+  if (mv) emitCam(false);
+  return mv;
+}
+function emitCam(final) { applyCamera(); dirty = true; if (onCamera) onCamera(camItem, final); }
+let walkTimer = null;
+function applyCamera() {
+  const cam = camItem, sc = lastScene; if (!cam || !sc) return;
+  const person = sc.items.find(i => i.kind === 'person'), f = cam.focal || 35, ch = cam.h == null ? 1.5 : cam.h;
+  camera.fov = 2 * Math.atan(12 / f) * 180 / Math.PI; camera.updateProjectionMatrix();
+  camera.position.set(cam.x, ch, cam.y);
+  const tgt = new THREE.Vector3(cam.x + Math.cos(cam.rot) * Math.cos(cam.tilt || 0) * 3, ch + Math.sin(cam.tilt || 0) * 3, cam.y + Math.sin(cam.rot) * Math.cos(cam.tilt || 0) * 3);
+  if (cam.aim !== false && person) tgt.set(person.x, S.faceZ(person), person.y);
+  camera.lookAt(tgt);
+  if (camMesh) { camMesh.position.set(cam.x, 0, cam.y); camMesh.rotation.y = -cam.rot; }
+}
+function drawGrain(t) {
+  const g = lastOpts.grain || 0; if (!grainCv) return;
+  if (g <= 0) { if (grainCv.width) { grainCv.width = 0; } return; }
+  const r = wrap.getBoundingClientRect(), w = Math.max(2, Math.floor(r.width / 2)), h = Math.max(2, Math.floor(r.height / 2));
+  if (grainCv.width !== w || grainCv.height !== h) { grainCv.width = w; grainCv.height = h; }
+  if (!drawGrain.last || t - drawGrain.last > 80) { drawGrain.last = t; const img = grainCtx.createImageData(w, h), d = img.data; let sd = (t | 0) + 1;
+    for (let i = 0; i < d.length; i += 4) { sd = (sd * 1103515245 + 12345) & 0x7fffffff; const v = 128 + ((sd >> 8) % 256 - 128) * g * 0.45; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    grainCtx.putImageData(img, 0, 0); }
 }
 
 function resize() {
   if (!renderer) return;
   const r = wrap.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
+  if (grainCv) { grainCv.style.width = r.width + 'px'; grainCv.style.height = r.height + 'px'; }
   renderer.setSize(r.width, r.height, false); canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px';
   camera.aspect = orbitCam.aspect = r.width / r.height; camera.updateProjectionMatrix(); orbitCam.updateProjectionMatrix(); dirty = true;
 }
@@ -91,7 +159,9 @@ function addLight(L, res) {
   } else {
     const half = P.beam / 2 * Math.PI / 180;
     const sp = new THREE.SpotLight(k.color, E1, 16, Math.min(half * 1.3, 1.5), L.barn ? 0.15 : (L.diff ? 0.8 : 0.45), 2);
-    sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(2048, 2048); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2; g.add(sp); g.add(sp.target);
+    sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(2048, 2048); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
+    if (L.gobo && L.gobo !== 'none' && S.GOBOS[L.gobo]) { sp.map = goboTexture(L.gobo); sp.castShadow = true; sp.shadow.focus = 1; }
+    g.add(sp); g.add(sp.target);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body);
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.075, 16), lum(k.color, E1 / 0.018)); face.position.copy(pos).add(dir.clone().multiplyScalar(0.115)); face.lookAt(tgt); g.add(face);
     if (L.diff) { const d = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), lum(k.color, E1 / 0.35)); d.material.transparent = true; d.material.opacity = 0.7; d.material.side = THREE.DoubleSide; d.position.copy(pos).add(dir.clone().multiplyScalar(0.18)); d.lookAt(tgt); g.add(d); }
@@ -191,14 +261,22 @@ function addWindow(sc, w) {
   let pos, look;
   if (w.wall === 'left') { pos = [0.005, 1.5, mid]; look = [1, 1.5, mid]; } else if (w.wall === 'right') { pos = [W - 0.005, 1.5, mid]; look = [W - 1, 1.5, mid]; }
   else if (w.wall === 'top') { pos = [mid, 1.5, 0.005]; look = [mid, 1.5, 1]; } else { pos = [mid, 1.5, H - 0.005]; look = [mid, 1.5, H - 1]; }
-  const E1 = sk.E * len / 1.2 * k.gain;
-  const rl = new THREE.RectAreaLight(k.color, E1 / (len * 1.2), len, 1.2); rl.position.set(...pos); rl.lookAt(...look); group.add(rl);
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.2), lum(k.color, E1 / (len * 1.2)));
-  glass.position.set(...pos); glass.lookAt(...look); group.add(glass);
+  const bl = S.blindOf(w), openH = 1.2 * (1 - bl), E1 = sk.E * len / 1.2 * k.gain * (1 - bl * 0.97);
+  if (openH > 0.01) {
+    const rl = new THREE.RectAreaLight(k.color, E1 / (len * openH), len, openH); rl.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); rl.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(rl);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, openH), lum(k.color, sk.E * len / 1.2 * k.gain / (len * 1.2)));
+    glass.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); glass.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(glass);
+  }
+  if (bl > 0) { // roleta: světlý panel shora, propouští trochu světla
+    const bh = 1.2 * bl, bm = new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 1, emissive: k.color, emissiveIntensity: sk.E * 0.02 });
+    const bg = new THREE.Group(); bg.position.set(pos[0], 0, pos[2]); bg.rotation.y = wallFrame(sc, w.wall).ry; group.add(bg);
+    box(bg, bm, len, bh, 0.02, 0, S.WIN_Z1 - bh / 2, 0.04);
+    for (let y = S.WIN_Z1 - 0.06; y > S.WIN_Z1 - bh; y -= 0.08) box(bg, MAT.hair, len, 0.006, 0.03, 0, y, 0.04);
+  }
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), fg = new THREE.Group(); fg.position.set(pos[0], 0, pos[2]); fg.rotation.y = wallFrame(sc, w.wall).ry; group.add(fg);
   [-1, 1].forEach(sd => box(fg, frameMat, 0.06, 1.3, 0.12, sd * (len / 2 + 0.03), 1.5, 0)); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 0.87, 0); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 2.13, 0);
   // měkký stín okna
-  if (lastOpts.shadows) { const sp = new THREE.SpotLight(k.color, E1 * 0.3, 14, 0.9, 1, 2); sp.position.set(pos[0] + (look[0] - pos[0]) * -0.3, 1.5, pos[2] + (look[2] - pos[2]) * -0.3); sp.target.position.set(look[0], 1.2, look[2]); sp.castShadow = true; sp.shadow.mapSize.set(1024, 1024); sp.shadow.radius = 10; sp.shadow.bias = -0.002; group.add(sp); group.add(sp.target); }
+  if (lastOpts.shadows && openH > 0.01) { const sp = new THREE.SpotLight(k.color, E1 * 0.3, 14, 0.9, 1, 2); sp.position.set(pos[0] + (look[0] - pos[0]) * -0.3, S.WIN_Z0 + openH / 2, pos[2] + (look[2] - pos[2]) * -0.3); sp.target.position.set(look[0], 1.2, look[2]); sp.castShadow = true; sp.shadow.mapSize.set(1024, 1024); sp.shadow.radius = 10; sp.shadow.bias = -0.002; group.add(sp); group.add(sp.target); }
 }
 
 // souřadnice na stěně: s = poloha podél stěny (m), y = výška; vrací [x,z] v místnosti a směr dovnitř
@@ -298,20 +376,18 @@ function sync(sc, res, meas, opts) {
   const amb = res ? res.ambCol : [5, 5, 5];
   const hemi = new THREE.HemisphereLight(new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(1.2), new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(0.6), 1); group.add(hemi);
   // kamera
-  const cam = sc.items.find(i => i.kind === 'camera'), person = sc.items.find(i => i.kind === 'person');
-  if (cam) {
-    const f = cam.focal || 35, ch = cam.h == null ? 1.5 : cam.h;
-    camera.fov = 2 * Math.atan(12 / f) * 180 / Math.PI; camera.updateProjectionMatrix();
-    camera.position.set(cam.x, ch, cam.y);
-    const tgt = new THREE.Vector3(cam.x + Math.cos(cam.rot) * 3, ch + (cam.tilt || 0) * 3, cam.y + Math.sin(cam.rot) * 3);
-    if (cam.aim !== false && person) { tgt.set(person.x, S.faceZ(person), person.y); }
-    camera.lookAt(tgt);
-    if (camMesh) camMesh.visible = orbit;
-  }
+  const cam = sc.items.find(i => i.kind === 'camera');
+  camItem = cam || null;
+  if (cam) { applyCamera(); if (camMesh) camMesh.visible = orbit; }
+  // mlhostroj: zešednutí (fog v jednotkách scény, barva podle rozptýleného světla) – zrno kreslí overlay
+  const haze = lastOpts.haze || 0, refL = lastOpts.ref || 300;
+  if (haze > 0) { const ac = res ? res.ambCol : [1, 1, 1], am = Math.max(1e-3, (ac[0] + ac[1] + ac[2]) / 3), fc = new THREE.Color(ac[0] / am, ac[1] / am, ac[2] / am).multiplyScalar(refL * 0.07 * (0.3 + haze)); scene3.fog = new THREE.FogExp2(fc, 0.03 + haze * 0.13); }
+  else scene3.fog = null;
   if (!orbitInit) { orbitInit = true; orbitCam.position.set(sc.room.w / 2 + 3, 3.2, sc.room.h + 4); controls.target.set(sc.room.w / 2, 1.2, sc.room.h / 2); }
   // expozice: obličej (albedo ~0,5) při referenční osvětlenosti → střední šeď
   const ref = lastOpts.ref || 300;
   renderer.toneMappingExposure = 2.6 / ref * Math.pow(2, lastOpts.ev || 0);
+  drawGrain.last = 0;
   setSel(selId); dirty = true;
 }
 let orbitInit = false;
@@ -324,9 +400,11 @@ function setSel(id) {
 function toggleOrbit() { orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
 function isOrbit() { return orbit; }
 function render() { if (!renderer || !lastScene) return; renderer.render(scene3, orbit ? orbitCam : camera); }
-function shot() { render(); return canvas.toDataURL('image/png'); }
+function shot() { render(); if (!(lastOpts.grain > 0) || !grainCv.width) return canvas.toDataURL('image/png');
+  const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; const g = c.getContext('2d'); g.drawImage(canvas, 0, 0); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, 0, 0, c.width, c.height); return c.toDataURL('image/png'); }
+function setCameraCallback(fn) { onCamera = fn; }
 function hasCamera() { return !!(lastScene && lastScene.items.some(i => i.kind === 'camera')); }
 
-window.View3D = { init, resize, sync, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, _dbg: () => ({ scene3, renderer, group, camera }) };
+window.View3D = { init, resize, sync, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

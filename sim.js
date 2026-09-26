@@ -41,6 +41,23 @@
   };
   function faceZ(person) { return person && person.pose === 'sit' ? 1.2 : FACE_Z; }
   var SUN_E = 50000, SUN_CCT = 5200, WIN_Z0 = 0.9, WIN_Z1 = 2.1;
+  // gobo: name + podíl propuštěného světla (orientačně)
+  var GOBOS = {
+    none:     { name: 'bez goba', open: 1 },
+    window4:  { name: 'Okno – 4 tabulky', open: 0.7 },
+    window6:  { name: 'Okno – 6 tabulek', open: 0.62 },
+    blinds:   { name: 'Žaluzie (vodorovné)', open: 0.5 },
+    slats:    { name: 'Lamely (svislé)', open: 0.5 },
+    leaves:   { name: 'Listí', open: 0.45 },
+    branches: { name: 'Větve', open: 0.7 },
+    circle:   { name: 'Kruh (iris)', open: 0.5 },
+    bars:     { name: 'Mříž', open: 0.6 },
+    dots:     { name: 'Tečky (breakup)', open: 0.4 },
+    cross:    { name: 'Kříž', open: 0.15 }
+  };
+  // roleta: podíl zakrytí okna shora (0 = otevřeno, 1 = zavřeno)
+  var BLINDS = { none: 0, half: 0.5, closed: 1 };
+  function blindOf(w) { return BLINDS[w.blind] || 0; }
   // nakreslená zeď: úsek p1→p2, parametr t = vzdálenost od p1 (m)
   function wallLen(w) { return Math.hypot(w.x2 - w.x1, w.y2 - w.y1); }
   function wallPoint(w, t) { var L = wallLen(w) || 1; return [w.x1 + (w.x2 - w.x1) / L * t, w.y1 + (w.y2 - w.y1) / L * t]; }
@@ -141,6 +158,7 @@
     if (L.gel === 'cto') { cct = cct * 3200 / 5600; mult *= 0.55; }
     if (L.gel === 'ctb') { cct = Math.min(9000, cct * 5600 / 3200); mult *= 0.4; }
     if (L.diff) mult *= 0.6;
+    if (!m.soft && L.gobo && GOBOS[L.gobo]) mult *= GOBOS[L.gobo].open;
     var size = m.size + (L.diff && !m.soft ? 0.25 : 0);
     return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, E1: fx.lux1m * mult * ((L.power == null ? 70 : L.power) / 100), soft: m.soft, omni: beam >= 300, h: L.h == null ? 1.7 : L.h };
   }
@@ -169,7 +187,8 @@
         else if (w.wall === 'top') { pts.push([t, -0.01]); nx = 0; ny = 1; }
         else { pts.push([t, scene.room.h + 0.01]); nx = 0; ny = -1; }
       }
-      out.push({ pts: pts, nx: nx, ny: ny, z: FACE_Z, E1: sk.E * (w.to - w.from) / 1.2, exp: 1, cosCut: 0.02, col: cctColor(sk.cct), hard: false, omni: false, win: true, id: 'win' + w.id });
+      var open = 1 - blindOf(w) * 0.97; if (open <= 0.001) return;
+      out.push({ pts: pts, nx: nx, ny: ny, z: FACE_Z - blindOf(w) * 0.4, E1: sk.E * (w.to - w.from) / 1.2 * open, exp: 1, cosCut: 0.02, col: cctColor(sk.cct), hard: false, omni: false, win: true, id: 'win' + w.id });
     });
     return out;
   }
@@ -183,10 +202,9 @@
     if (d[1] < -1e-9) hit((0 - y) / d[1], 'top', x + (0 - y) / d[1] * d[0]);
     if (d[1] > 1e-9) hit((H - y) / d[1], 'bottom', x + (H - y) / d[1] * d[0]);
     if (!best) return 0;
-    var ok = (scene.windows || []).some(function (w) { return w.wall === best.side && best.c >= w.from && best.c <= w.to; });
-    if (!ok) return 0;
     var z = curFaceZ + best.t * Math.tan((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180);
-    if (z < WIN_Z0 || z > WIN_Z1) return 0;
+    var ok = (scene.windows || []).some(function (w) { return w.wall === best.side && best.c >= w.from && best.c <= w.to && z >= WIN_Z0 && z <= WIN_Z1 - blindOf(w) * (WIN_Z1 - WIN_Z0); });
+    if (!ok) return 0;
     var ex = x + d[0] * best.t * 0.999, ey = y + d[1] * best.t * 0.999;
     return visible(occ, x, y, ex, ey) ? 1 : 0;
   }
@@ -300,6 +318,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
