@@ -37,7 +37,7 @@
     bed:      { name: 'Postel', w: 1.6, d: 2.0, h: 0.5, tall: false },
     wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true },
     shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
-    block:    { name: 'Blok (obecný)', w: 1.2, d: 0.6, h: 0.75, tall: false }
+    block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false }
   };
   function faceZ(person) { return person && person.pose === 'sit' ? 1.2 : FACE_Z; }
   var SUN_E = 50000, SUN_CCT = 5200, WIN_Z0 = 0.9, WIN_Z1 = 2.1;
@@ -144,7 +144,25 @@
     });
     return found;
   }
-  function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; return it.tall != null ? !!it.tall : f.tall; }
+  function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
+  // zorné úhly kamery (rad) pro ohnisko (mm, full frame 36×24) a poměr stran záběru
+  var FORMATS = { free: { name: 'volný (podle okna)', a: 0 }, '43': { name: '4:3', a: 4 / 3 }, '169': { name: '16:9', a: 16 / 9 }, '916': { name: '9:16 (na výšku)', a: 9 / 16 }, scope: { name: '2.39:1 cinemascope', a: 2.39 } };
+  function fovs(focal, aspect) {
+    var f = focal || 35, A = aspect || 1.5, hw = A >= 1 ? 18 : 18 * A, hh = A >= 1 ? 18 / A : 18;
+    return { h: 2 * Math.atan(hw / f), v: 2 * Math.atan(hh / f) };
+  }
+  // exteriér: stromy kolem domu (deterministicky podle rozměrů místnosti a počtu)
+  function exteriorTrees(scene) {
+    var ex = scene.exterior; if (!ex || !ex.on) return [];
+    var n = ex.trees == null ? 6 : ex.trees, W = scene.room.w, H = scene.room.h, out = [], seed = 12345 + Math.round(W * 7 + H * 13);
+    function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    for (var i = 0; i < n; i++) {
+      var a = (i + 0.5) / n * Math.PI * 2 + (rnd() - 0.5) * 0.6, r = 2.5 + rnd() * 4;
+      var cx = W / 2 + Math.cos(a) * (W / 2 + r), cy = H / 2 + Math.sin(a) * (H / 2 + r);
+      out.push({ x: cx, y: cy, h: 3.5 + rnd() * 3, r: 1.2 + rnd() * 1.2, kind: rnd() < 0.3 ? 'conifer' : 'leaf' });
+    }
+    return out;
+  }
   function corners(it) {
     var w2 = it.w / 2, d2 = it.d / 2, r = it.kind === 'furniture' ? (it.rot || 0) : 0, c = Math.cos(r), s = Math.sin(r), out = [];
     [[-w2, -d2], [w2, -d2], [w2, d2], [-w2, d2]].forEach(function (p) { out.push([it.x + p[0] * c - p[1] * s, it.y + p[0] * s + p[1] * c]); });
@@ -329,6 +347,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, seatUnder: seatUnder, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

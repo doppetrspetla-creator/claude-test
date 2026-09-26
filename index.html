@@ -24,6 +24,7 @@
       <option value="rembrandt">Rembrandt – jeden softbox</option>
       <option value="living">Obývák – gauč, okno, otevřené dveře</option>
       <option value="sun">Dvě místnosti – příčka, slunce oknem</option>
+      <option value="house">Dům s garáží – kuchyně, obývák, ložnice, zahrada</option>
       <option value="empty">Prázdná místnost</option>
     </select>
     <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
@@ -55,6 +56,8 @@
       <button class="btn" data-add="table"><i>🟫</i>Stůl</button>
       <button class="btn" data-add="wardrobe"><i>🚪</i>Skříň</button>
       <button class="btn" data-add="bed"><i>🛏️</i>Postel</button>
+      <button class="btn" data-add="block" title="Obecný box s libovolnou šířkou, hloubkou a výškou (kuchyňská linka, lednice, auto…)"><i>📦</i>Box (Š×H×V)</button>
+      <button class="btn" data-add="shelf"><i>📚</i>Regál</button>
     </div>
 
     <h3>Objekty ve scéně</h3>
@@ -64,6 +67,10 @@
     <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="20"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="20"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
     <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
+    <h3>Exteriér</h3>
+    <label class="chk"><input type="checkbox" id="exOn"> Zahrada kolem domu (tráva, stromy, obloha)</label>
+    <label>Počet stromů <span id="exTreesV" class="pill">6</span></label>
+    <input type="range" id="exTrees" min="0" max="14" step="1" value="6">
     <h3>Okna a obloha</h3>
     <label>Obloha</label><select id="sky"><option value="overcast">zataženo</option><option value="sunny">jasno</option><option value="dusk">soumrak</option></select>
     <div id="windows"></div>
@@ -100,7 +107,7 @@
     </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
-      <div class="camTools"><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
+      <div class="camTools"><select id="fmt" class="btn sm" title="Formát záběru"></select><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
     </div>
   </main>
 

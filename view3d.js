@@ -6,7 +6,7 @@ const S = window.LightSim;
 RectAreaLightUniformsLib.init();
 
 let renderer, scene3, camera, orbitCam, controls, wrap, canvas, group, floorRing, orbit = false, camMesh, grainCv, grainCtx, over = false, keys = {}, lastT = 0, camItem = null, lookDrag = null, onCamera = null;
-let lastScene = null, lastRes = null, lastOpts = {}, selId = null, dirty = false;
+let lastScene = null, lastRes = null, lastOpts = {}, selId = null, dirty = false, region = null; // region = {x,y,w,h} v px (viewport formátu)
 
 function lum(color, nits) { return new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(nits), toneMapped: true }); }
 function col3(c) { return new THREE.Color(c[0], c[1], c[2]); }
@@ -76,6 +76,8 @@ const MAT = {
   woodDark: texMat('wood', 0x5a4030, { roughness: 0.6, bumpScale: 0.5 }),
   gold: new THREE.MeshBasicMaterial({ color: 0xd4b071 })
 };
+const HAIRCOL = { dark: 0x2a1c12, brown: 0x5a3a22, blond: 0xc9a25a, red: 0x8a3a1a, grey: 0x9a9a96, black: 0x141210 };
+const SKIN = { light: [0xe8c4a6, 0xd4a888], medium: [0xc79c7a, 0xb08464], tan: [0xa8734f, 0x8f5f3f], dark: [0x6b4a34, 0x563a28] };
 const OUTFITS = { dark: [0x2f3340, 0x25262b], light: [0xd9d5cc, 0x6b6f78], blue: [0x3a5f9a, 0x2b2b30], red: [0x9a3a34, 0x2b2b30], green: [0x4f6b45, 0x3a3a3c] };
 const WALLCOL = { dark: 0x3a3532, normal: 0xa39a8d, white: 0xe6e1d6 };
 const FLOORCOL = { wood: 0x8a6444, grey: 0x777777, dark: 0x44403c };
@@ -86,7 +88,7 @@ function init(cv) {
   renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.localClippingEnabled = true;
   scene3 = new THREE.Scene(); scene3.background = new THREE.Color(0x000000);
   camera = new THREE.PerspectiveCamera(40, 1, 0.05, 60);
   orbitCam = new THREE.PerspectiveCamera(50, 1, 0.05, 80);
@@ -109,6 +111,7 @@ function init(cv) {
   resize();
   (function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t; if (orbit) controls.update(); if (walk(dt)) dirty = true; if (dirty) { dirty = false; render(); } drawGrain(t); })(0);
 }
+function formatAspect() { const f = lastScene && lastScene.format, F = S.FORMATS[f]; return F ? F.a : 0; }
 function wantsKeys() { return !!(camItem && !orbit && (over || document.activeElement === canvas)); }
 // pohyb WASD (W/S vpřed/vzad, A/D do stran, Q/E dolů/nahoru), v m/s
 function walk(dt) {
@@ -126,7 +129,7 @@ let walkTimer = null;
 function applyCamera() {
   const cam = camItem, sc = lastScene; if (!cam || !sc) return;
   const person = sc.items.find(i => i.kind === 'person'), f = cam.focal || 35, ch = cam.h == null ? 1.5 : cam.h;
-  camera.fov = 2 * Math.atan(12 / f) * 180 / Math.PI; camera.updateProjectionMatrix();
+  camera.fov = S.fovs(f, region ? region.w / region.h : 1.5).v * 180 / Math.PI; camera.updateProjectionMatrix();
   camera.position.set(cam.x, ch, cam.y);
   const tgt = new THREE.Vector3(cam.x + Math.cos(cam.rot) * Math.cos(cam.tilt || 0) * 3, ch + Math.sin(cam.tilt || 0) * 3, cam.y + Math.sin(cam.rot) * Math.cos(cam.tilt || 0) * 3);
   if (cam.aim !== false && person) tgt.set(person.x, S.faceZ(person), person.y);
@@ -148,7 +151,10 @@ function resize() {
   const r = wrap.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
   if (grainCv) { grainCv.style.width = r.width + 'px'; grainCv.style.height = r.height + 'px'; }
   renderer.setSize(r.width, r.height, false); canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px';
-  camera.aspect = orbitCam.aspect = r.width / r.height; camera.updateProjectionMatrix(); orbitCam.updateProjectionMatrix(); dirty = true;
+  const A = formatAspect(); let w = r.width, h = r.height;
+  if (A > 0) { if (w / h > A) w = h * A; else h = w / A; }
+  region = { x: Math.round((r.width - w) / 2), y: Math.round((r.height - h) / 2), w: Math.round(w), h: Math.round(h) };
+  camera.aspect = region.w / region.h; orbitCam.aspect = r.width / r.height; camera.updateProjectionMatrix(); orbitCam.updateProjectionMatrix(); applyCamera(); dirty = true;
 }
 
 function clear(g) { while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
@@ -261,7 +267,9 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 }
 function addPerson(p) {
   const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; group.add(g);
-  const sit = p.pose === 'sit', fz = S.faceZ(p), outfit = OUTFITS[p.outfit] || OUTFITS.dark;
+  const sit = p.pose === 'sit', fz = S.faceZ(p), outfit = OUTFITS[p.outfit] || OUTFITS.dark, skinC = SKIN[p.skin] || SKIN.light;
+  const skin = new THREE.MeshStandardMaterial({ color: skinC[0], roughness: 0.55 }), skinDark = new THREE.MeshStandardMaterial({ color: skinC[1], roughness: 0.6 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: HAIRCOL[p.hairColor] || HAIRCOL.dark, roughness: 0.6 });
   const shirt = texMat('cloth', outfit[0], { roughness: 0.95, bumpScale: 0.15 }), pants = texMat('cloth', outfit[1], { roughness: 0.95, bumpScale: 0.15 });
   const shoulder = sit ? 1.02 : 1.38, hip = sit ? 0.5 : 0.85, seatY = sit ? 0.45 : 0;
   // trup: hrudník (širší) + pas + boky
@@ -273,36 +281,51 @@ function addPerson(p) {
     const shoulderBall = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), shirt); shoulderBall.position.set(0, shoulder - 0.04, z + side * 0.01); g.add(shoulderBall);
     if (sit) {
       limb(shirt, 0.045, 0.24, g, 0.03, shoulder - 0.17, z + side * 0.03, 0, 0.12);
-      limb(MAT.skin, 0.038, 0.22, g, 0.17, shoulder - 0.33, z + side * 0.02, 0, Math.PI / 2 - 0.08);
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), MAT.skin); hand.position.set(0.31, shoulder - 0.33, z + side * 0.02); hand.scale.set(1.2, 0.7, 0.9); g.add(hand);
+      limb(skin, 0.038, 0.22, g, 0.17, shoulder - 0.33, z + side * 0.02, 0, Math.PI / 2 - 0.08);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), skin); hand.position.set(0.31, shoulder - 0.33, z + side * 0.02); hand.scale.set(1.2, 0.7, 0.9); g.add(hand);
       limb(pants, 0.075, 0.3, g, 0.2, hip - 0.02, side * 0.1, 0, Math.PI / 2);
       limb(pants, 0.058, 0.32, g, 0.4, hip - 0.25, side * 0.1, 0, 0.1);
       const foot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.1), MAT.shoe); foot.position.set(0.48, 0.035, side * 0.1); g.add(foot);
     } else {
       limb(shirt, 0.045, 0.26, g, 0, shoulder - 0.19, z + side * 0.04, 0, side * 0.08);
-      limb(MAT.skin, 0.038, 0.24, g, 0.02, shoulder - 0.47, z + side * 0.07, 0, side * 0.02);
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), MAT.skin); hand.position.set(0.03, shoulder - 0.64, z + side * 0.07); hand.scale.set(0.8, 1.2, 0.9); g.add(hand);
+      limb(skin, 0.038, 0.24, g, 0.02, shoulder - 0.47, z + side * 0.07, 0, side * 0.02);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), skin); hand.position.set(0.03, shoulder - 0.64, z + side * 0.07); hand.scale.set(0.8, 1.2, 0.9); g.add(hand);
       limb(pants, 0.075, 0.32, g, 0, hip - 0.22, side * 0.1, 0, 0);
       limb(pants, 0.058, 0.3, g, 0, hip - 0.6, side * 0.1, 0, 0);
       const foot = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.1), MAT.shoe); foot.position.set(0.06, 0.035, side * 0.1); g.add(foot);
     }
   });
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.012, 6, 24), MAT.shoe); belt.position.y = hip + 0.02; belt.rotation.x = Math.PI / 2; belt.scale.set(1, 1.3, 1); g.add(belt);
   // krk + hlava
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.14, 12), MAT.skin); neck.position.y = shoulder + 0.03; g.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 24), MAT.skin); head.position.y = fz; head.scale.set(0.92, 1.14, 1); g.add(head);
-  const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 14), MAT.skin); jaw.position.set(0.02, fz - 0.07, 0); jaw.scale.set(1, 0.8, 1.05); g.add(jaw);
-  // vlasy: temeno + zadní polovina až k šíji
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.118, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.34), MAT.hair); cap.position.set(-0.02, fz + 0.02, 0); cap.scale.set(0.96, 1.14, 1.03); g.add(cap);
-  const back = new THREE.Mesh(new THREE.SphereGeometry(0.118, 32, 16, Math.PI * 1.5, Math.PI, Math.PI * 0.3, Math.PI * 0.36), MAT.hair); back.position.set(-0.02, fz + 0.02, 0); back.scale.set(0.96, 1.14, 1.03); g.add(back);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.14, 12), skin); neck.position.y = shoulder + 0.03; g.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 24), skin); head.position.y = fz; head.scale.set(0.92, 1.14, 1); g.add(head);
+  const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 14), skin); jaw.position.set(0.02, fz - 0.07, 0); jaw.scale.set(1, 0.8, 1.05); g.add(jaw);
+  // vlasy: koule přes hlavu oříznutá šikmou rovinou (vlasová linie vpředu výš, vzadu níž)
+  const style = p.hair || 'short';
+  if (style !== 'bald') {
+    const hairGeo = new THREE.SphereGeometry(0.1185, 40, 28);
+    const hm = hairMat.clone(); hm.clippingPlanes = []; hm.clipShadows = true;
+    const hairM = new THREE.Mesh(hairGeo, hm); hairM.position.set(-0.012, fz + 0.018, 0); hairM.scale.set(0.95, 1.14, 1.03); g.add(hairM);
+    // rovina v souřadnicích světa: normála nahoru + kousek dopředu → vpředu je linie vysoko (čelo), vzadu nízko (šíje)
+    g.updateMatrixWorld(true);
+    const c = new THREE.Vector3(0.0, fz + (style === 'long' ? -0.015 : 0.0), 0).applyMatrix4(g.matrixWorld);
+    const n = new THREE.Vector3(style === 'long' ? -0.95 : -0.8, 1, 0).applyQuaternion(g.getWorldQuaternion(new THREE.Quaternion())).normalize();
+    hm.clippingPlanes = [new THREE.Plane(n, -n.dot(c))];
+    if (style === 'long') { // dlouhé vlasy: závěs vzadu a po stranách k ramenům
+      const cape = new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.145, 0.36, 24, 1, true, Math.PI, Math.PI), hairMat); cape.position.set(-0.01, fz - 0.13, 0); cape.material = hairMat.clone(); cape.material.side = THREE.DoubleSide; g.add(cape);
+    }
+    if (style === 'bun') { const bun = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), hairMat); bun.position.set(-0.1, fz + 0.06, 0); g.add(bun); }
+  }
   // obličej
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 10), MAT.skinDark); nose.position.set(0.105, fz - 0.015, 0); nose.rotation.z = -Math.PI / 2; g.add(nose);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 10), skinDark); nose.position.set(0.105, fz - 0.015, 0); nose.rotation.z = -Math.PI / 2; g.add(nose);
   [-0.037, 0.037].forEach(z => {
     const ew = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), MAT.eyeWhite); ew.position.set(0.094, fz + 0.025, z); ew.scale.set(0.6, 1, 1); g.add(ew);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), MAT.eye); pupil.position.set(0.105, fz + 0.025, z); g.add(pupil);
-    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.007, 0.04), MAT.hair); brow.position.set(0.098, fz + 0.052, z); brow.rotation.x = z > 0 ? 0.15 : -0.15; g.add(brow);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 10, 8), new THREE.MeshStandardMaterial({ color: p.hairColor === 'blond' ? 0x4a7aa8 : 0x4a3a2a, roughness: 0.3 })); iris.position.set(0.1035, fz + 0.025, z); g.add(iris);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 8, 6), MAT.eye); pupil.position.set(0.109, fz + 0.025, z); g.add(pupil);
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.007, 0.04), hairMat); brow.position.set(0.098, fz + 0.052, z); brow.rotation.x = z > 0 ? 0.15 : -0.15; g.add(brow);
   });
   const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, 0.045), MAT.mouth); mouth.position.set(0.1, fz - 0.052, 0); g.add(mouth);
-  [-0.106, 0.106].forEach(z => { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), MAT.skin); ear.position.set(-0.01, fz + 0.005, z); ear.scale.set(0.5, 1.2, 1); g.add(ear); });
+  [-0.106, 0.106].forEach(z => { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skin); ear.position.set(-0.01, fz + 0.005, z); ear.scale.set(0.5, 1.2, 1); g.add(ear); });
   if (sit && !S.seatUnder(lastScene, p)) chairMesh(g, 0.02, 0);
 }
 // jednoduchá židle (sedák 0,45 m, opěradlo vzadu = -x)
@@ -344,7 +367,9 @@ function addFurniture(it) {
     [0.03, 0.4, 0.8, 1.2, 1.6, f.h - 0.03].forEach(y => box(g, MAT.wood, w, 0.03, d, 0, y, 0));
     box(g, MAT.wood, 0.03, f.h, d, -w / 2 + 0.015, f.h / 2, 0); box(g, MAT.wood, 0.03, f.h, d, w / 2 - 0.015, f.h / 2, 0);
     const r = mulberry(77); [0.4, 0.8, 1.2, 1.6].forEach(y => { let x = -w / 2 + 0.06; while (x < w / 2 - 0.08) { const bw = 0.025 + r() * 0.03, bh = 0.2 + r() * 0.13; const bk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d * 0.7), new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(r(), 0.4, 0.3 + r() * 0.3), roughness: 0.8 })); bk.position.set(x + bw / 2, y + bh / 2 + 0.015, 0); g.add(bk); x += bw + 0.004; if (r() < 0.15) x += 0.08; } });
-  } else { const hh = it.tall ? 2.0 : 0.75; box(g, MAT.wood, w, hh, d, 0, hh / 2, 0); }
+  } else { const hh = it.h == null ? (it.tall ? 2.0 : f.h) : it.h;
+    const mats = { wood: MAT.wood, white: texMat('plaster', 0xe8e4dc, { roughness: 0.6, bumpScale: 0.1 }), dark: texMat('plaster', 0x2c2a28, { roughness: 0.7, bumpScale: 0.1 }), metal: MAT.chrome, concrete: texMat('concrete', 0x8a8a8a, { roughness: 0.9 }), fabric: texMat('fabric', 0x6a6f7a, { roughness: 1 }) };
+    box(g, mats[it.mat] || MAT.wood, w, hh, d, 0, hh / 2, 0); }
 }
 
 function addBounce(b, res) {
@@ -368,7 +393,8 @@ function addWindow(sc, w) {
   const bl = S.blindOf(w), openH = 1.2 * (1 - bl), E1 = sk.E * len / 1.2 * k.gain * (1 - bl * 0.97);
   if (openH > 0.01) {
     const rl = new THREE.RectAreaLight(k.color, E1 / (len * openH), len, openH); rl.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); rl.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(rl);
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, openH), lum(k.color, sk.E * len / 1.2 * k.gain / (len * 1.2)));
+    const exOn = sc.exterior && sc.exterior.on;
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, openH), exOn ? new THREE.MeshBasicMaterial({ color: k.color.clone().multiplyScalar(sk.E / Math.PI * 0.15), transparent: true, opacity: 0.35, depthWrite: false }) : lum(k.color, sk.E * len / 1.2 * k.gain / (len * 1.2)));
     glass.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); glass.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(glass);
   }
   if (bl > 0) { // roleta: světlý panel shora, propouští trochu světla
@@ -390,6 +416,27 @@ function wallFrame(sc, side) {
   if (side === 'bottom') return { len: W, at: (s, y) => [s, y, H], inward: [0, -1], ry: Math.PI };
   if (side === 'left') return { len: H, at: (s, y) => [0, y, s], inward: [1, 0], ry: Math.PI / 2 };
   return { len: H, at: (s, y) => [W, y, s], inward: [-1, 0], ry: -Math.PI / 2 };
+}
+function addExterior(sc) {
+  const ex = sc.exterior; if (!ex || !ex.on) return;
+  const sk = S.SKY[sc.sky] || S.SKY.overcast, W = sc.room.w, H = sc.room.h, k = kel(sk.cct), Lsky = sk.E / Math.PI;
+  const skyTint = sc.sky === 'sunny' ? new THREE.Color(0.55, 0.72, 1.0) : sc.sky === 'dusk' ? new THREE.Color(0.55, 0.5, 0.75) : new THREE.Color(0.85, 0.87, 0.9);
+  scene3.background = skyTint.multiplyScalar(Lsky * 0.45);
+  // materiál venku: obloha „zapečená“ do emissive (aby nesvítila dovnitř), slunce navíc přes DirectionalLight
+  const ext = (color, kind, rep) => { const m = texMat(kind || 'cloth', color, { roughness: 1, bumpScale: 0.2 }); const c = new THREE.Color(color); m.emissive = c.clone().multiply(k.color); m.emissiveIntensity = Lsky * 0.45; if (rep) { m.map = m.map.clone(); m.map.repeat.set(rep, rep); m.map.needsUpdate = true; } return m; };
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), ext(0x4e6b34, 'fabric', 40)); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
+  // obrubník / základová deska domu
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.12, H + 0.6), ext(0x8c8880, 'concrete', 4)); slab.position.set(W / 2, -0.06, H / 2); group.add(slab);
+  const trunkMat = ext(0x5a4030, 'wood', 1), leafMat = ext(0x3f7a33, 'fabric', 3), conMat = ext(0x2f5a2c, 'fabric', 3);
+  S.exteriorTrees(sc).forEach(t => {
+    const g = new THREE.Group(); g.position.set(t.x, 0, t.y); group.add(g);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, t.h * 0.45, 8), trunkMat); trunk.position.y = t.h * 0.225; g.add(trunk);
+    if (t.kind === 'conifer') { [0, 1, 2].forEach(i => { const c = new THREE.Mesh(new THREE.ConeGeometry(t.r * (1 - i * 0.25), t.h * 0.35, 10), conMat); c.position.y = t.h * 0.35 + i * t.h * 0.2; g.add(c); }); }
+    else { [[0, t.h * 0.62, 0, 1], [t.r * 0.5, t.h * 0.75, t.r * 0.2, 0.75], [-t.r * 0.45, t.h * 0.7, -t.r * 0.3, 0.7], [0, t.h * 0.85, 0, 0.6]].forEach(o => { const b = new THREE.Mesh(new THREE.SphereGeometry(t.r * o[3], 12, 10), leafMat); b.position.set(o[0], o[1], o[2]); b.scale.y = 0.85; g.add(b); }); }
+    g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  });
+  // vzdálený horizont (pás keřů/lesa), aby nebyla obloha úplně prázdná
+  const hedge = new THREE.Mesh(new THREE.CylinderGeometry(38, 38, 2.2, 48, 1, true), ext(0x35592a, 'fabric', 30)); hedge.position.set(W / 2, 1.1, H / 2); hedge.material.side = THREE.BackSide; group.add(hedge);
 }
 function addRoom(sc) {
   const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7;
@@ -432,7 +479,7 @@ function addSun(sc) {
   const sun = new THREE.DirectionalLight(k.color, S.SUN_E * k.gain);
   sun.position.set(W / 2 + d[0] * Math.cos(el) * 25, Math.sin(el) * 25 + 1.5, H / 2 + d[1] * Math.cos(el) * 25); sun.target.position.set(W / 2, 1.2, H / 2);
   sun.castShadow = !!lastOpts.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
-  const c = sun.shadow.camera; c.left = -R; c.right = R; c.top = R; c.bottom = -R; c.near = 1; c.far = 60; c.updateProjectionMatrix();
+  const R2 = (sc.exterior && sc.exterior.on) ? R + 8 : R; const c = sun.shadow.camera; c.left = -R2; c.right = R2; c.top = R2; c.bottom = -R2; c.near = 1; c.far = 60; c.updateProjectionMatrix(); sun.shadow.mapSize.set(4096, 4096);
   group.add(sun); group.add(sun.target);
 }
 function addDoor(sc, d) {
@@ -465,7 +512,7 @@ function sync(sc, res, meas, opts) {
   if (!renderer) return;
   lastScene = sc; lastRes = res; lastOpts = opts || {};
   clear(group);
-  addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
+  scene3.background = new THREE.Color(0x000000); addExterior(sc); addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
     if (it.kind === 'light') addLight(it, res);
     else if (it.kind === 'person') addPerson(it);
@@ -503,12 +550,21 @@ function setSel(id) {
 }
 function toggleOrbit() { orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
 function isOrbit() { return orbit; }
-function render() { if (!renderer || !lastScene) return; renderer.render(scene3, orbit ? orbitCam : camera); }
-function shot() { render(); if (!(lastOpts.grain > 0) || !grainCv.width) return canvas.toDataURL('image/png');
-  const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; const g = c.getContext('2d'); g.drawImage(canvas, 0, 0); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, 0, 0, c.width, c.height); return c.toDataURL('image/png'); }
+function render() { if (!renderer || !lastScene) return;
+  const pr = renderer.getPixelRatio(), cw = canvas.width, ch = canvas.height;
+  if (orbit || !region || formatAspect() <= 0) { renderer.setScissorTest(false); renderer.setViewport(0, 0, cw / pr, ch / pr); renderer.render(scene3, orbit ? orbitCam : camera); return; }
+  renderer.setScissorTest(false); renderer.setClearColor(0x000000, 1); renderer.clear();
+  const bg = scene3.background; // letterbox: černé okolí, obloha jen uvnitř záběru
+  renderer.setViewport(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissor(region.x, ch / pr - region.y - region.h, region.w, region.h); renderer.setScissorTest(true);
+  renderer.render(scene3, camera); renderer.setScissorTest(false); }
+function shot() { render();
+  const pr = renderer.getPixelRatio(), crop = (!orbit && region && formatAspect() > 0) ? { x: region.x * pr, y: region.y * pr, w: region.w * pr, h: region.h * pr } : { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  const c = document.createElement('canvas'); c.width = crop.w; c.height = crop.h; const g = c.getContext('2d'); g.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+  if (lastOpts.grain > 0 && grainCv.width) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, crop.x / pr / 2, crop.y / pr / 2, crop.w / pr / 2, crop.h / pr / 2, 0, 0, crop.w, crop.h); }
+  return c.toDataURL('image/png'); }
 function setCameraCallback(fn) { onCamera = fn; }
 function hasCamera() { return !!(lastScene && lastScene.items.some(i => i.kind === 'camera')); }
 
-window.View3D = { init, resize, sync, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
+window.View3D = { init, resize, sync, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

@@ -50,6 +50,18 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Chůze kamerou** – v pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru,
   levé tlačítko myši = rozhlížení, kolečko = ohnisková vzdálenost. Kamera v půdorysu se
   posouvá s tebou.
+- **Exteriér** – zapnutím „Zahrada kolem domu“ vznikne venku tráva, obloha, obrubník a stromy
+  (počet nastavitelný, rozmístění je dané rozměry domu). Okna jsou pak průhledná a je vidět ven,
+  slunce vrhá stíny stromů i domu. V půdorysu jsou stromy jako zelené kruhy.
+- **Formát záběru** – v pohledu kamery volba volný / 4:3 / 16:9 / 9:16 / 2.39:1 cinemascope;
+  záběr se zobrazí s maskou, ohnisko se přepočítá na daný formát (full frame 36 mm) a snímek
+  kamery se exportuje oříznutý na formát. Výseč záběru v půdorysu formát respektuje.
+- **Box (Š×H×V)** – obecný kvádr s nastavitelnou šířkou, hloubkou a výškou, materiálem (dřevo,
+  bílá, tmavá, kov, beton, látka) a popiskem – pro kuchyňskou linku, lednici, auto v garáži apod.
+  Box vyšší než 1,3 m stíní.
+- **Postava** – účes (krátké, dlouhé, drdol, bez vlasů), barva vlasů, odstín pleti, oblečení.
+- **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
+  vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
 - **Dveře** – libovolný počet dveří na stěnách, otevřené nebo zavřené. Otevřené dveře jsou otvor
   ve zdi a mohou propouštět světlo z vedlejší místnosti (tma / slabé teplé / silné / denní),
   které se počítá v půdorysu i zobrazuje ve 3D (chodba za dveřmi, otevřené křídlo).
