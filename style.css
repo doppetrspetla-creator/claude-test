@@ -120,3 +120,6 @@ canvas#view3d:focus{outline:none}
 .pill.hide{display:none}
 #bPT.on{background:var(--gold);color:#111;border-color:var(--gold)}
 .pane canvas.ptResult{position:absolute;left:0;top:0;pointer-events:none;z-index:1}
+.pane canvas.poseOverlay{position:absolute;left:0;top:0;pointer-events:none;z-index:2}
+#bPose.on{background:var(--gold);color:#111;border-color:var(--gold)}
+.btn.hide{display:none}
