@@ -36,6 +36,7 @@
       <option value="living">Obývák – gauč, okno, otevřené dveře</option>
       <option value="sun">Dvě místnosti – příčka, slunce oknem</option>
       <option value="house">Dům s garáží – kuchyně, obývák, ložnice, zahrada</option>
+      <option value="yard">Exteriér – dvůr s autem, slunce</option>
       <option value="empty">Prázdná místnost</option>
     </select>
     <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
@@ -70,6 +71,7 @@
       <button class="btn" data-add="bed"><i>🛏️</i>Postel</button>
       <button class="btn" data-add="block" title="Obecný box s libovolnou šířkou, hloubkou a výškou (kuchyňská linka, lednice, auto…)"><i>📦</i>Box (Š×H×V)</button>
       <button class="btn" data-add="shelf"><i>📚</i>Regál</button>
+      <button class="btn" data-add="car"><i>🚗</i>Auto</button>
     </div>
 
     <h3>Objekty ve scéně</h3>
@@ -77,6 +79,7 @@
 
     <h3>Místnost</h3>
     <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="20"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="20"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
+    <label class="chk"><input type="checkbox" id="outdoor"> Jen exteriér (bez místnosti – dvůr, ulice, louka)</label>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
     <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
     <h3>Exteriér</h3>
