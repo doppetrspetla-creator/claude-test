@@ -40,6 +40,12 @@
     block:    { name: 'Blok (obecný)', w: 1.2, d: 0.6, h: 0.75, tall: false }
   };
   function faceZ(person) { return person && person.pose === 'sit' ? 1.2 : FACE_Z; }
+  var SUN_E = 50000, SUN_CCT = 5200, WIN_Z0 = 0.9, WIN_Z1 = 2.1;
+  // nakreslená zeď: úsek p1→p2, parametr t = vzdálenost od p1 (m)
+  function wallLen(w) { return Math.hypot(w.x2 - w.x1, w.y2 - w.y1); }
+  function wallPoint(w, t) { var L = wallLen(w) || 1; return [w.x1 + (w.x2 - w.x1) / L * t, w.y1 + (w.y2 - w.y1) / L * t]; }
+  function sunDir(scene) { var a = scene.sun ? scene.sun.az || 0 : 0; return [Math.cos(a), Math.sin(a)]; }
+  function sunOn(scene) { return !!(scene.sun && scene.sun.on); }
   var curFaceZ = FACE_Z;
 
   function kelvinRGB(k) {
@@ -82,6 +88,14 @@
     }
     wall(0, 0, W, 0, 'top'); wall(0, H, W, H, 'bottom'); wall(0, 0, 0, H, 'left'); wall(W, 0, W, H, 'right');
     scene.items.forEach(function (it) {
+      if (it.kind === 'wall') {
+        var L = wallLen(it), ops = [], cur = 0;
+        (scene.windows || []).forEach(function (w) { if (w.wall === it.id) ops.push([w.from, w.to]); });
+        ops.sort(function (p, q) { return p[0] - q[0]; });
+        ops.forEach(function (o) { if (o[0] > cur) { var a = wallPoint(it, cur), b = wallPoint(it, o[0]); segs.push([a[0], a[1], b[0], b[1]]); } cur = Math.max(cur, o[1]); });
+        if (cur < L) { var a2 = wallPoint(it, cur), b2 = wallPoint(it, L); segs.push([a2[0], a2[1], b2[0], b2[1]]); }
+        return;
+      }
       if (it.kind === 'person') circs.push([it.x, it.y, 0.11]);
       if (it.kind === 'flag' || it.kind === 'bounce') {
         var h = it.len / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
@@ -96,8 +110,8 @@
   }
   // otvory ve stěně (setříděné intervaly [od, do]) – okno + otevřené dveře
   function openings(scene, side) {
-    var ops = [], win = scene.window;
-    if (win && win.on && win.wall === side) ops.push([win.from, win.to]);
+    var ops = [];
+    (scene.windows || []).forEach(function (w) { if (w.wall === side) ops.push([w.from, w.to]); });
     (scene.doors || []).forEach(function (d) { if (d.wall === side && d.open !== false) ops.push([d.at - d.w / 2, d.at + d.w / 2]); });
     ops.sort(function (p, q) { return p[0] - q[0]; });
     return ops;
@@ -143,20 +157,45 @@
              cosCut: m.soft ? (beam >= 300 ? -2 : 0.0) : Math.cos(Math.min(Math.PI * 0.97, half * 1.5)), col: cctColor(P.cct), hard: !m.soft,
              barn: L.barn ? Math.cos(half * 1.02) : null, omni: P.omni, id: L.id };
   }
-  function windowEmitter(scene) {
-    var w = scene.window; if (!w || !w.on) return null;
-    var pts = [], n = 16, nx, ny;
-    for (var i = 0; i < n; i++) {
-      var t = w.from + (i + 0.5) / n * (w.to - w.from);
-      if (w.wall === 'left') { pts.push([-0.01, t]); nx = 1; ny = 0; }
-      else if (w.wall === 'right') { pts.push([scene.room.w + 0.01, t]); nx = -1; ny = 0; }
-      else if (w.wall === 'top') { pts.push([t, -0.01]); nx = 0; ny = 1; }
-      else { pts.push([t, scene.room.h + 0.01]); nx = 0; ny = -1; }
-    }
-    var sk = SKY[w.sky] || SKY.overcast;
-    return { pts: pts, nx: nx, ny: ny, z: FACE_Z, E1: sk.E * (w.to - w.from) / 1.2, exp: 1, cosCut: 0.02, col: cctColor(sk.cct), hard: false, omni: false, win: true };
+  function windowEmitters(scene) {
+    var out = [], sk = SKY[scene.sky] || SKY.overcast;
+    (scene.windows || []).forEach(function (w) {
+      if (typeof w.wall !== 'string') return;
+      var pts = [], n = 16, nx, ny;
+      for (var i = 0; i < n; i++) {
+        var t = w.from + (i + 0.5) / n * (w.to - w.from);
+        if (w.wall === 'left') { pts.push([-0.01, t]); nx = 1; ny = 0; }
+        else if (w.wall === 'right') { pts.push([scene.room.w + 0.01, t]); nx = -1; ny = 0; }
+        else if (w.wall === 'top') { pts.push([t, -0.01]); nx = 0; ny = 1; }
+        else { pts.push([t, scene.room.h + 0.01]); nx = 0; ny = -1; }
+      }
+      out.push({ pts: pts, nx: nx, ny: ny, z: FACE_Z, E1: sk.E * (w.to - w.from) / 1.2, exp: 1, cosCut: 0.02, col: cctColor(sk.cct), hard: false, omni: false, win: true, id: 'win' + w.id });
+    });
+    return out;
   }
-
+  // přímé slunce: vrací 1, když bod (x,y) ve výšce obličeje vidí slunce skrz okno ve vnější stěně
+  function sunVisible(scene, occ, x, y) {
+    if (!sunOn(scene)) return 0;
+    var d = sunDir(scene), W = scene.room.w, H = scene.room.h, best = null;
+    function hit(t, side, coord) { if (t > 0 && (best === null || t < best.t)) best = { t: t, side: side, c: coord }; }
+    if (d[0] < -1e-9) hit((0 - x) / d[0], 'left', y + (0 - x) / d[0] * d[1]);
+    if (d[0] > 1e-9) hit((W - x) / d[0], 'right', y + (W - x) / d[0] * d[1]);
+    if (d[1] < -1e-9) hit((0 - y) / d[1], 'top', x + (0 - y) / d[1] * d[0]);
+    if (d[1] > 1e-9) hit((H - y) / d[1], 'bottom', x + (H - y) / d[1] * d[0]);
+    if (!best) return 0;
+    var ok = (scene.windows || []).some(function (w) { return w.wall === best.side && best.c >= w.from && best.c <= w.to; });
+    if (!ok) return 0;
+    var z = curFaceZ + best.t * Math.tan((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180);
+    if (z < WIN_Z0 || z > WIN_Z1) return 0;
+    var ex = x + d[0] * best.t * 0.999, ey = y + d[1] * best.t * 0.999;
+    return visible(occ, x, y, ex, ey) ? 1 : 0;
+  }
+  function sunIllum(scene, occ, x, y, snx, sny) {
+    var v = sunVisible(scene, occ, x, y); if (!v) return 0;
+    var ce = Math.cos((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180), d = sunDir(scene);
+    if (snx === undefined) return SUN_E;
+    var lam = (snx * d[0] + sny * d[1]) * ce; return lam > 0 ? SUN_E * lam : 0;
+  }
   function doorEmitters(scene) {
     var out = [];
     (scene.doors || []).forEach(function (d) {
@@ -195,8 +234,9 @@
   function emitters(scene, occ) {
     var ems = [];
     scene.items.forEach(function (it) { if (it.kind === 'light' && it.on !== false) ems.push(lightEmitter(it)); });
-    var we = windowEmitter(scene); if (we) ems.push(we);
+    windowEmitters(scene).forEach(function (e) { ems.push(e); });
     doorEmitters(scene).forEach(function (e) { ems.push(e); });
+    var sd = sunDir(scene), sunCol = cctColor(SUN_CCT);
     scene.items.forEach(function (it) {
       if (it.kind !== 'bounce') return;
       var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2);
@@ -209,6 +249,7 @@
         var e = illum(em, occ, cx, cy); Etot += e;
         col[0] += e * em.col[0]; col[1] += e * em.col[1]; col[2] += e * em.col[2];
       });
+      if (sunOn(scene)) { var lamS = nx * sd[0] + ny * sd[1]; if (lamS > 0) { var es = sunIllum(scene, occ, cx, cy) * lamS * Math.cos((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180); Etot += es; col[0] += es * sunCol[0]; col[1] += es * sunCol[1]; col[2] += es * sunCol[2]; } }
       if (Etot < 0.5) return;
       var refl = it.black ? 0.03 : (it.silver ? 0.55 : 0.75);
       var pts = [], n = 7, tx = Math.cos(it.rot), ty = Math.sin(it.rot);
@@ -221,7 +262,7 @@
 
   function compute(scene, cell) {
     curFaceZ = faceZ(scene.items.find(function (i) { return i.kind === 'person'; }));
-    var occ = buildOccluders(scene), ems = emitters(scene, occ);
+    var occ = buildOccluders(scene), ems = emitters(scene, occ), sun = sunOn(scene), sunCol = cctColor(SUN_CCT);
     var W = scene.room.w, H = scene.room.h, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell);
     var R = new Float32Array(nx * ny), G = new Float32Array(nx * ny), B = new Float32Array(nx * ny);
     for (var j = 0; j < ny; j++) for (var i = 0; i < nx; i++) {
@@ -230,6 +271,7 @@
         var v = illum(ems[e], occ, x, y); if (v <= 0) continue;
         r += v * ems[e].col[0]; g += v * ems[e].col[1]; b += v * ems[e].col[2];
       }
+      if (sun) { var sv = sunIllum(scene, occ, x, y); if (sv > 0) { r += sv * sunCol[0]; g += sv * sunCol[1]; b += sv * sunCol[2]; } }
       R[k] = r; G[k] = g; B[k] = b;
     }
     var refl = { dark: 0.03, normal: 0.08, white: 0.15 }[scene.walls || 'normal'] || 0.08;
@@ -250,6 +292,7 @@
       var a = base + off, nx = Math.cos(a), ny = Math.sin(a);
       var x = person.x + nx * r, y = person.y + ny * r, E = (res.amb || 0) * 0.5, per = {};
       res.ems.forEach(function (em) { var v = illum(em, res.occ, x, y, nx, ny); E += v; if (em.id != null) per[em.id] = (per[em.id] || 0) + v; if (em.win) per.win = (per.win || 0) + v; if (em.door) per.doors = (per.doors || 0) + v; });
+      if (sunOn(scene)) { var sv = sunIllum(scene, res.occ, x, y, nx, ny); E += sv; per.sun = sv; }
       out.push({ x: x, y: y, E: E, per: per });
     });
     var a = out[0].E, b = out[1].E, hi = Math.max(a, b), lo = Math.max(Math.min(a, b), 0.01);
@@ -257,6 +300,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

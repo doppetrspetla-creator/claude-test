@@ -76,3 +76,10 @@ canvas#view3d{cursor:crosshair}
 .door .hd{display:flex;align-items:center;justify-content:space-between;font-size:12px}
 .door .hd button{background:none;border:0;color:var(--mut);cursor:pointer}
 .door .hd button:hover{color:var(--txt)}
+.win{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px 8px;margin-bottom:6px}
+.win .hd{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.win .hd button{background:none;border:0;color:var(--mut);cursor:pointer}
+.win .hd button:hover{color:var(--txt)}
+.win label{margin:4px 0 2px}
+#tools .btn{margin:0}
+canvas#stage.tool{cursor:crosshair}

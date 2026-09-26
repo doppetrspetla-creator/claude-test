@@ -26,6 +26,16 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   obličej ve výšce 1,2 m, stojící 1,5 m – měřák i kamera to respektují.
 - **Nábytek z boxů** – židle, gauč, křeslo, stůl, konferenční stolek, skříň, postel, regál, obecný
   blok. Otočitelný, s nastavitelnou šířkou a hloubkou; vysoké kusy (skříň, regál) stíní.
+- **Kreslení zdí** – nástroj **Zeď** nad půdorysem (klávesa W): táhni a vznikne rovná příčka
+  (vodorovně/svisle, se Shiftem šikmo po 15°), při kreslení vidíš délku v metrech. Zeď má plnou
+  výšku, stíní a ve 3D je z ní stěna. Konce zdi jdou chytit a posunout, mezera mezi zdmi = průchod.
+- **Okna** – nástroj **Okno** (klávesa O): táhni podél vnější nebo nakreslené zdi, označený úsek
+  se stane oknem (parapet 0,9 m, nadpraží 2,1 m). Oken může být libovolný počet, seznam je v panelu
+  „Okna a obloha“. Okna ve vnějších stěnách svítí oblohou, okna v příčkách jsou průhledný otvor.
+- **Slunce** – zapni „Přímé slunce“, nastav výšku nad obzorem a směr (posuvník, nebo chyť žlutý
+  kotouč vně místnosti v půdorysu a táhni ho). Slunce svítí okny dovnitř: v půdorysu vzniká
+  sluneční skvrna (počítá se výška okna i výška obličeje), ve 3D vrhá ostré stíny. Odrazka umí
+  slunce odrazit.
 - **Dveře** – libovolný počet dveří na stěnách, otevřené nebo zavřené. Otevřené dveře jsou otvor
   ve zdi a mohou propouštět světlo z vedlejší místnosti (tma / slabé teplé / silné / denní),
   které se počítá v půdorysu i zobrazuje ve 3D (chodba za dveřmi, otevřené křídlo).
@@ -43,6 +53,7 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 | Zapnout/vypnout světlo | `H` |
 | Zpět / znovu | `Ctrl+Z` / `Ctrl+Y` |
 | Přepnout pohled | `1` půdorys + kamera, `2` půdorys, `3` kamera |
+| Nástroje půdorysu | `W` zeď, `O` okno, `Esc` výběr |
 
 ## Struktura
 

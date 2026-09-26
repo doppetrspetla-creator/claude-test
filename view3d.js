@@ -185,9 +185,9 @@ function addFurniture(it) {
   } else { const hh = it.tall ? 2.0 : 0.75; box(g, MAT.wood, w, hh, d, 0, hh / 2, 0); }
 }
 
-function addWindow(sc) {
-  const w = sc.window; if (!w || !w.on) return;
-  const sk = S.SKY[w.sky] || S.SKY.overcast, k = kel(sk.cct), len = w.to - w.from, mid = (w.from + w.to) / 2, W = sc.room.w, H = sc.room.h;
+function addWindow(sc, w) {
+  if (typeof w.wall !== 'string') return;
+  const sk = S.SKY[sc.sky] || S.SKY.overcast, k = kel(sk.cct), len = w.to - w.from, mid = (w.from + w.to) / 2, W = sc.room.w, H = sc.room.h;
   let pos, look;
   if (w.wall === 'left') { pos = [0.005, 1.5, mid]; look = [1, 1.5, mid]; } else if (w.wall === 'right') { pos = [W - 0.005, 1.5, mid]; look = [W - 1, 1.5, mid]; }
   else if (w.wall === 'top') { pos = [mid, 1.5, 0.005]; look = [mid, 1.5, 1]; } else { pos = [mid, 1.5, H - 0.005]; look = [mid, 1.5, H - 1]; }
@@ -215,21 +215,43 @@ function addRoom(sc) {
   const floorMat = new THREE.MeshStandardMaterial({ color: FLOORCOL[sc.floor || 'wood'], roughness: 0.8 });
   const ceilMat = new THREE.MeshStandardMaterial({ color: 0xbdb8ae, roughness: 1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, H / 2); floor.receiveShadow = true; group.add(floor);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); group.add(ceil);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); ceil.castShadow = true; group.add(ceil);
   ['top', 'bottom', 'left', 'right'].forEach(side => {
-    const fr = wallFrame(sc, side), win = sc.window;
+    const fr = wallFrame(sc, side);
     // otvory: [s0, s1, z0, z1]
     const ops = [];
-    if (win && win.on && win.wall === side) ops.push([win.from, win.to, 0.9, 2.1]);
+    (sc.windows || []).forEach(w => { if (w.wall === side) ops.push([w.from, w.to, S.WIN_Z0, S.WIN_Z1]); });
     (sc.doors || []).forEach(d => { if (d.wall === side && d.open !== false) ops.push([d.at - d.w / 2, d.at + d.w / 2, 0, 2.05]); });
     ops.sort((a, b) => a[0] - b[0]);
     const pieces = []; let cur = 0;
     ops.forEach(o => { if (o[0] > cur) pieces.push([cur, o[0], 0, Z]); if (o[2] > 0) pieces.push([o[0], o[1], 0, o[2]]); if (o[3] < Z) pieces.push([o[0], o[1], o[3], Z]); cur = Math.max(cur, o[1]); });
     if (cur < fr.len) pieces.push([cur, fr.len, 0, Z]);
-    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; group.add(m); });
+    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; m.castShadow = true; group.add(m); });
   });
   const sk = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, 0.001, H)), new THREE.LineBasicMaterial({ color: 0x000000 })); sk.position.set(W / 2, 0.002, H / 2); group.add(sk);
   (sc.doors || []).forEach(d => addDoor(sc, d));
+}
+// nakreslená zeď (box, tloušťka 0,12 m) s otvory oken
+function addWallItem(sc, it) {
+  const L = S.wallLen(it); if (L < 0.05) return;
+  const Z = sc.room.z || 2.7, mat = new THREE.MeshStandardMaterial({ color: WALLCOL[sc.walls || 'normal'], roughness: 0.95 });
+  const g = new THREE.Group(); g.position.set(it.x1, 0, it.y1); g.rotation.y = -Math.atan2(it.y2 - it.y1, it.x2 - it.x1); group.add(g);
+  const ops = []; (sc.windows || []).forEach(w => { if (w.wall === it.id) ops.push([w.from, w.to]); }); ops.sort((a, b) => a[0] - b[0]);
+  const pieces = []; let cur = 0;
+  ops.forEach(o => { if (o[0] > cur) pieces.push([cur, o[0], 0, Z]); pieces.push([o[0], o[1], 0, S.WIN_Z0]); pieces.push([o[0], o[1], S.WIN_Z1, Z]); cur = Math.max(cur, o[1]); });
+  if (cur < L) pieces.push([cur, L, 0, Z]);
+  pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; box(g, mat, w, h, 0.12, (pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2, 0); });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 });
+  ops.forEach(o => { const len = o[1] - o[0], mid = (o[0] + o[1]) / 2; [-1, 1].forEach(sd => box(g, frameMat, 0.06, 1.3, 0.14, mid + sd * (len / 2 + 0.03), 1.5, 0)); box(g, frameMat, len + 0.12, 0.06, 0.14, mid, 0.87, 0); box(g, frameMat, len + 0.12, 0.06, 0.14, mid, 2.13, 0); });
+}
+function addSun(sc) {
+  if (!S.sunOn(sc)) return;
+  const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.SUN_CCT), W = sc.room.w, H = sc.room.h, R = Math.max(W, H);
+  const sun = new THREE.DirectionalLight(k.color, S.SUN_E * k.gain);
+  sun.position.set(W / 2 + d[0] * Math.cos(el) * 25, Math.sin(el) * 25 + 1.5, H / 2 + d[1] * Math.cos(el) * 25); sun.target.position.set(W / 2, 1.2, H / 2);
+  sun.castShadow = !!lastOpts.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  const c = sun.shadow.camera; c.left = -R; c.right = R; c.top = R; c.bottom = -R; c.near = 1; c.far = 60; c.updateProjectionMatrix();
+  group.add(sun); group.add(sun.target);
 }
 function addDoor(sc, d) {
   const fr = wallFrame(sc, d.wall), L = S.DOORLIGHT[d.light] || S.DOORLIGHT.none, k = kel(L.cct), open = d.open !== false;
@@ -261,7 +283,7 @@ function sync(sc, res, meas, opts) {
   if (!renderer) return;
   lastScene = sc; lastRes = res; lastOpts = opts || {};
   clear(group);
-  addRoom(sc); addWindow(sc);
+  addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
     if (it.kind === 'light') addLight(it, res);
     else if (it.kind === 'person') addPerson(it);
@@ -270,6 +292,8 @@ function sync(sc, res, meas, opts) {
     else if (it.kind === 'box' || it.kind === 'furniture') addFurniture(it);
     else if (it.kind === 'camera') { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; const b = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.12), MAT.metal); b.position.y = 1.5; camMesh.add(b); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.12, 12), MAT.metal); l.position.set(0.16, 1.5, 0); l.rotation.z = -Math.PI / 2; camMesh.add(l); stand(0, 0, 1.43, camMesh); group.add(camMesh); }
   });
+  // všechny plné objekty přijímají i vrhají stíny (jinak by je slunce prosvítilo skrz strop)
+  group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = true; } });
   // rozptýlené světlo od stěn (z půdorysného výpočtu)
   const amb = res ? res.ambCol : [5, 5, 5];
   const hemi = new THREE.HemisphereLight(new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(1.2), new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(0.6), 1); group.add(hemi);
@@ -303,6 +327,6 @@ function render() { if (!renderer || !lastScene) return; renderer.render(scene3,
 function shot() { render(); return canvas.toDataURL('image/png'); }
 function hasCamera() { return !!(lastScene && lastScene.items.some(i => i.kind === 'camera')); }
 
-window.View3D = { init, resize, sync, setSel, toggleOrbit, isOrbit, render, shot, hasCamera };
+window.View3D = { init, resize, sync, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, _dbg: () => ({ scene3, renderer, group, camera }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

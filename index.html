@@ -23,6 +23,7 @@
       <option value="night">Noční pokoj – praktikál + tuba</option>
       <option value="rembrandt">Rembrandt – jeden softbox</option>
       <option value="living">Obývák – gauč, okno, otevřené dveře</option>
+      <option value="sun">Dvě místnosti – příčka, slunce oknem</option>
       <option value="empty">Prázdná místnost</option>
     </select>
     <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
@@ -63,10 +64,17 @@
     <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="20"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="20"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
     <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
-    <label class="chk"><input type="checkbox" id="winOn"> Okno</label>
-    <div class="row"><div><label>Stěna</label><select id="winWall"><option value="left">vlevo</option><option value="top">nahoře</option><option value="right">vpravo</option><option value="bottom">dole</option></select></div>
-    <div><label>Obloha</label><select id="winSky"><option value="overcast">zataženo</option><option value="sunny">jasno (bez slunce)</option><option value="dusk">soumrak</option></select></div></div>
-    <div class="row"><div><label>Od (m)</label><input type="number" id="winFrom" step="0.1"></div><div><label>Do (m)</label><input type="number" id="winTo" step="0.1"></div></div>
+    <h3>Okna a obloha</h3>
+    <label>Obloha</label><select id="sky"><option value="overcast">zataženo</option><option value="sunny">jasno</option><option value="dusk">soumrak</option></select>
+    <div id="windows"></div>
+    <p class="hint">Okno přidáš nástrojem <b>Okno</b> nad půdorysem: táhni podél vnější nebo nakreslené zdi.</p>
+    <h3>Slunce</h3>
+    <label class="chk"><input type="checkbox" id="sunOn"> Přímé slunce (svítí okny)</label>
+    <label>Výška nad obzorem <span id="sunElevV" class="pill">35°</span></label>
+    <input type="range" id="sunElev" min="5" max="85" step="1" value="35">
+    <label>Směr (azimut v půdorysu) <span id="sunAzV" class="pill">225°</span></label>
+    <input type="range" id="sunAz" min="0" max="359" step="1" value="225">
+    <p class="hint">Slunce jde také chytit a táhnout přímo v půdorysu (žlutý kotouč vně místnosti).</p>
     <h3>Dveře <button class="btn sm" id="bDoor" style="margin-left:auto">+ Dveře</button></h3>
     <div id="doors"></div>
 
@@ -83,7 +91,9 @@
   </aside>
 
   <main id="center">
-    <div id="planWrap" class="pane"><div class="paneTitle">Půdorys · 1 díl = 1 m</div><canvas id="stage"></canvas></div>
+    <div id="planWrap" class="pane"><div class="paneTitle">Půdorys · 1 díl = 1 m <span id="toolHint" class="pill"></span></div><canvas id="stage"></canvas>
+      <div class="camTools" id="tools"><button class="btn sm gold" data-tool="select" title="Výběr a přesun (Esc)">Vybrat</button><button class="btn sm" data-tool="wall" title="Kreslit zeď tažením (W)">Zeď</button><button class="btn sm" data-tool="window" title="Označit okno tažením podél zdi (O)">Okno</button></div>
+    </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
       <div class="camTools"><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
