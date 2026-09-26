@@ -286,8 +286,14 @@ function modelFor(id) {
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
   modelCache[id] = { loading: true };
   const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
-  // některé hostingy .glb neservírují – zkusit náhradní název .glb.wasm (obsah je stejný binární glTF)
-  new GLTFLoader().load(m.file, onLoad, undefined, () => { new GLTFLoader().load(m.file + '.wasm', onLoad, undefined, () => { modelCache[id] = { error: true }; }); });
+  // Model je zabalený ve skriptu (models/<id>.glb.js, base64) – funguje i z disku (file://), kde fetch .glb selže.
+  const fail = () => { modelCache[id] = { error: true }; };
+  const fromB64 = b64 => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); new GLTFLoader().parse(u8.buffer, '', onLoad, fail); };
+  if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) { fromB64(window.VF_MODEL_DATA[id]); return null; }
+  const sc = document.createElement('script'); sc.src = m.file + '.js';
+  sc.onload = () => { if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) fromB64(window.VF_MODEL_DATA[id]); else fail(); };
+  sc.onerror = () => { new GLTFLoader().load(m.file, onLoad, undefined, fail); };
+  document.head.appendChild(sc);
   return null;
 }
 function addModelPerson(p, gltf) {

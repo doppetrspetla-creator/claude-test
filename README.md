@@ -130,7 +130,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - `app.js` – půdorys, interakce, panely
 - `vendor/three-bundle.js` – Three.js 0.160 + OrbitControls + RectAreaLight + GLTFLoader + SkeletonUtils (esbuild)
 - `vendor/pathtracer-bundle.js` – three-gpu-pathtracer 0.0.23 (MIT), načítá se až při prvním renderu
-- `models/*.glb` – 3D postavy s animačními klipy `idle` a `sit`
+- `models/*.glb.js` – 3D postavy (glTF zabalené v base64 skriptu, aby se načetly i z disku přes file://) s klipy `idle` a `sit`; zdrojové `.glb` se v repozitáři neverzují
 
 Simulace je orientační: hodnoty luxů jsou přibližné, ale principy (vzdálenost, velikost zdroje,
 směr, stíny, poměr světel) odpovídají realitě. 3D pohled je náhled, ne fotometrický render.
