@@ -62,6 +62,17 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Postava** – účes (krátké, dlouhé, drdol, bez vlasů), barva vlasů, odstín pleti, oblečení.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
+- **Cvaky (lišta dole)** – tlačítko „📸 Cvaknout“ (klávesa C) uloží záběr kamery, schéma
+  půdorysu, hodnoty měřáku, seznam světel a celý stav scény. Cvaky se řadí v liště, jdou přejmenovat,
+  opatřit poznámkou, přesouvat, uložit jako JPG nebo z nich obnovit scénu. Ukládají se v prohlížeči
+  (IndexedDB), nejsou součástí JSON scény.
+- **PDF storyboard** – všechny cvaky do PDF (A4 na šířku): záběr, schéma nasvícení, luxy a poměr,
+  ohnisko, formát, varianta, seznam světel, poznámka. Bez externí knihovny, plná diakritika.
+- **Varianty nasvícení** – v hlavičce „+ Varianta“ uloží aktuální stav, výběrem se přepíná,
+  „Aktualizovat“ přepíše, „✕“ smaže. Varianty jsou součástí scény (JSON, účet).
+- **Kvalita zobrazení** – náhled (rychlé rozestavování: nižší rozlišení, malé stínové mapy, hrubší
+  výpočet mapy), standard, ultra (měkké stíny softboxů ze čtyř vzorků, ostřejší stíny reflektorů
+  a slunce, jemnější mlha, jemnější výpočet mapy). Nastavení kvality nemění výsledky měření.
 - **Dveře** – libovolný počet dveří na stěnách, otevřené nebo zavřené. Otevřené dveře jsou otvor
   ve zdi a mohou propouštět světlo z vedlejší místnosti (tma / slabé teplé / silné / denní),
   které se počítá v půdorysu i zobrazuje ve 3D (chodba za dveřmi, otevřené křídlo).
@@ -76,6 +87,7 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 | Přesun | tažení myší, šipky (Shift = 25 cm) |
 | Otočení | zlatý bod nebo kolečko myši nad vybraným objektem, Shift = krok 15° |
 | Duplikovat / smazat | `D` / `Delete` |
+| Cvaknout | `C` |
 | Zapnout/vypnout světlo | `H` |
 | Zpět / znovu | `Ctrl+Z` / `Ctrl+Y` |
 | Přepnout pohled | `1` půdorys + kamera, `2` půdorys, `3` kamera |

@@ -36,9 +36,9 @@ input[type=range]{width:100%;accent-color:var(--gold);margin:2px 0}
 .chk input{accent-color:var(--gold);margin:0}
 .pill{display:inline-block;padding:1px 7px;border-radius:9px;background:#26262a;color:var(--mut);font-size:11px;font-weight:500}
 .hint{color:var(--mut);font-size:11.5px;margin-top:10px;line-height:1.5}
-main#center{display:grid;grid-template-rows:1fr 1fr;gap:6px;padding:6px;background:#070708;min-width:0;min-height:0}
-main#center.plan{grid-template-rows:1fr}
-main#center.cam{grid-template-rows:1fr}
+main#center{display:grid;grid-template-rows:1fr 1fr auto;gap:6px;padding:6px;background:#070708;min-width:0;min-height:0}
+main#center.plan{grid-template-rows:1fr auto}
+main#center.cam{grid-template-rows:1fr auto}
 main#center.plan #camWrap,main#center.cam #planWrap{display:none}
 .pane{position:relative;overflow:hidden;background:#0a0a0b;border:1px solid var(--line);border-radius:10px;min-height:0}
 .pane canvas{position:absolute;left:0;top:0;display:block}
@@ -89,3 +89,31 @@ canvas#view3d:focus{outline:none}
 .wpbar{display:flex;gap:6px;align-items:center;margin-right:8px}
 .wpbar:empty{display:none}
 .wpbar a.btn{text-decoration:none}
+.variants{display:flex;gap:4px;align-items:center;margin-right:6px}
+.variants select{max-width:180px}
+.strip{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:32px;display:flex;flex-direction:column}
+.stripHead{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line)}
+.stripTitle{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:flex;gap:6px;align-items:center}
+.strip.collapsed .shots{display:none}
+.strip.collapsed .stripHead{border-bottom:0}
+.shots{display:flex;gap:8px;padding:8px;overflow-x:auto;overflow-y:hidden;height:118px;align-items:stretch}
+.shots:empty::after{content:"Zatím žádné cvaky. Nastav záběr a stiskni 📸 Cvaknout (klávesa C).";color:var(--mut);font-size:12px;align-self:center;padding-left:4px}
+.shot{position:relative;flex:0 0 auto;width:160px;border:2px solid #2e2e33;border-radius:6px;background:#000;cursor:pointer;overflow:hidden;display:flex;flex-direction:column}
+.shot:hover{border-color:var(--gold2)}
+.shot.cur{border-color:var(--gold)}
+.shot img{width:100%;height:82px;object-fit:cover;display:block;background:#050505}
+.shot .cap{font-size:10.5px;color:var(--txt);padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#151517}
+.shot .num{position:absolute;left:4px;top:4px;background:rgba(0,0,0,.7);color:var(--gold);font-size:10px;font-weight:700;padding:0 5px;border-radius:8px}
+.shot .mv{position:absolute;right:3px;top:3px;display:none;gap:2px}
+.shot:hover .mv{display:flex}
+.shot .mv button{background:rgba(0,0,0,.7);border:0;color:#ddd;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal.hide{display:none}
+.modalBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:1300px;width:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.modalHead{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.shotName{background:#0f0f11;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;width:320px}
+.modalBody{display:grid;grid-template-columns:1fr 320px;gap:10px;padding:10px;min-height:0;overflow:auto}
+.modalBody #shotImg{width:100%;background:#000;border-radius:6px;max-height:70vh;object-fit:contain}
+.modalSide{display:flex;flex-direction:column;gap:8px}
+.modalSide img{width:100%;border-radius:6px;background:#000}
+.modalSide textarea{background:#0f0f11;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;min-height:90px;resize:vertical}

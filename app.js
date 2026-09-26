@@ -50,7 +50,7 @@ function flushSnap(){ clearTimeout(histTimer); snapshot(); }
 function undo(){ flushSnap(); if(hpos>0){ hpos--; restore(hist[hpos]); } }
 function redo(){ flushSnap(); if(hpos<hist.length-1){ hpos++; restore(hist[hpos]); } }
 function updUndo(){ $('bUndo').disabled=hpos<=0; $('bRedo').disabled=hpos>=hist.length-1; }
-function fixIds(){ uid=1+Math.max.apply(null,scene.items.map(function(i){return i.id||0;}).concat((scene.doors||[]).map(function(d){return d.id||0;})).concat((scene.windows||[]).map(function(w){return w.id||0;})).concat([0])); scene.items.forEach(function(i){ if(i.id==null) i.id=uid++; }); if(!scene.room.z) scene.room.z=2.7; if(!scene.floor) scene.floor='wood'; if(!scene.doors) scene.doors=[]; scene.doors.forEach(function(d){ if(d.id==null) d.id=uid++; }); if(!scene.windows){ scene.windows=[]; if(scene.window){ if(scene.window.on) scene.windows.push({id:uid++,wall:scene.window.wall,from:scene.window.from,to:scene.window.to}); scene.sky=scene.window.sky||'overcast'; delete scene.window; } } scene.windows.forEach(function(w){ if(w.id==null) w.id=uid++; }); if(!scene.sky) scene.sky='overcast'; if(!scene.sun) scene.sun={on:false,az:Math.PI*1.25,elev:35}; if(!scene.exterior) scene.exterior={on:false,trees:6}; if(!scene.format) scene.format='free'; scene.items.forEach(function(i){ if(i.kind==='wall') wallSyncXY(i); }); scene.items.forEach(function(i){ if(i.kind==='box'){ i.kind='furniture'; i.type=i.tall?'wardrobe':'block'; if(i.tall) delete i.tall; } if(i.kind==='person'&&!i.pose) i.pose='stand'; if(i.kind==='furniture'&&i.type==='sofa'&&i.w>i.d){ var tw=i.w; i.w=i.d; i.d=tw; } }); scene.items.forEach(function(i){ if(i.kind==='light'&&i.h==null) i.h=1.7; if(i.kind==='camera'){ if(i.h==null) i.h=1.5; if(i.aim==null) i.aim=true; } }); }
+function fixIds(){ uid=1+Math.max.apply(null,scene.items.map(function(i){return i.id||0;}).concat((scene.doors||[]).map(function(d){return d.id||0;})).concat((scene.windows||[]).map(function(w){return w.id||0;})).concat([0])); scene.items.forEach(function(i){ if(i.id==null) i.id=uid++; }); if(!scene.room.z) scene.room.z=2.7; if(!scene.floor) scene.floor='wood'; if(!scene.doors) scene.doors=[]; scene.doors.forEach(function(d){ if(d.id==null) d.id=uid++; }); if(!scene.windows){ scene.windows=[]; if(scene.window){ if(scene.window.on) scene.windows.push({id:uid++,wall:scene.window.wall,from:scene.window.from,to:scene.window.to}); scene.sky=scene.window.sky||'overcast'; delete scene.window; } } scene.windows.forEach(function(w){ if(w.id==null) w.id=uid++; }); if(!scene.sky) scene.sky='overcast'; if(!scene.sun) scene.sun={on:false,az:Math.PI*1.25,elev:35}; if(!scene.exterior) scene.exterior={on:false,trees:6}; if(!scene.format) scene.format='free'; if(!scene.variants) scene.variants=[]; scene.items.forEach(function(i){ if(i.kind==='wall') wallSyncXY(i); }); scene.items.forEach(function(i){ if(i.kind==='box'){ i.kind='furniture'; i.type=i.tall?'wardrobe':'block'; if(i.tall) delete i.tall; } if(i.kind==='person'&&!i.pose) i.pose='stand'; if(i.kind==='furniture'&&i.type==='sofa'&&i.w>i.d){ var tw=i.w; i.w=i.d; i.d=tw; } }); scene.items.forEach(function(i){ if(i.kind==='light'&&i.h==null) i.h=1.7; if(i.kind==='camera'){ if(i.h==null) i.h=1.5; if(i.aim==null) i.aim=true; } }); }
 
 // ---------- mapování ----------
 function fit(){ var r=wrap.getBoundingClientRect(); if(r.width<2) return; cv.width=r.width*devicePixelRatio; cv.height=r.height*devicePixelRatio; cv.style.width=r.width+'px'; cv.style.height=r.height+'px';
@@ -60,10 +60,11 @@ function toM(px,py){ return [(px-ox)/scale, (py-oy)/scale]; }
 
 // ---------- výpočet ----------
 function recompute(cell){ res=S.compute(scene,cell); meas=S.measure(scene,res); renderMap(); updateMeter(); draw(); sync3d(); }
-function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(0.035); },180); objList(); snapshotSoon(); }
+function fineCell(){ var q=$('quality').value; return q==='low'?0.06:q==='high'?0.025:0.035; }
+function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
 function exposureRef(){ var ev=parseFloat($('ev').value); var base=($('autoEv').checked && meas && meas.lux>0.5) ? meas.lux : 300; return base*Math.pow(2,-ev); }
 function sync3d(){ if(!view3dReady) return; var cam=scene.items.some(function(i){return i.kind==='camera';}); $('camHint').classList.toggle('hide',cam); if(cam){ var c=scene.items.find(function(i){return i.kind==='camera';}); $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; }
-  window.View3D.sync(scene,res,meas,{ref:($('autoEv').checked&&meas&&meas.lux>0.5)?meas.lux:300, ev:parseFloat($('ev').value), shadows:$('shadows').checked, haze:parseFloat($('haze').value)/100, grain:parseFloat($('grain').value)/100}); window.View3D.setSel(sel?sel.id:null); }
+  window.View3D.sync(scene,res,meas,{ref:($('autoEv').checked&&meas&&meas.lux>0.5)?meas.lux:300, ev:parseFloat($('ev').value), shadows:$('shadows').checked, haze:parseFloat($('haze').value)/100, grain:parseFloat($('grain').value)/100, quality:$('quality').value}); window.View3D.setSel(sel?sel.id:null); }
 
 function renderMap(){
   var nx=res.nx, ny=res.ny; off.width=nx; off.height=ny; var img=offx.createImageData(nx,ny), d=img.data, ref=exposureRef(), zeb=$('zebra').checked;
@@ -271,7 +272,7 @@ cv.addEventListener('pointermove',function(e){ var m=mpos(e), w=toM(m[0],m[1]);
     else if(it.kind==='wall'){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
     else if(drag.rot){ it.rot=Math.atan2(w[1]-it.y,w[0]-it.x); if(e.shiftKey) it.rot=Math.round(it.rot/(Math.PI/12))*(Math.PI/12); }
     else { it.x=Math.max(0.05,Math.min(scene.room.w-0.05,snapv(w[0]+drag.dx))); it.y=Math.max(0.05,Math.min(scene.room.h-0.05,snapv(w[1]+drag.dy))); } }
-  recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(0.035); },180); });
+  recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); });
 function projectOnWall(wall,x,y){ if(typeof wall==='string') return (wall==='left'||wall==='right')?y:x; var it=byId(wall); if(!it) return 0; var r=distSeg(x,y,it.x1,it.y1,it.x2,it.y2); return r.t*S.wallLen(it); }
 cv.addEventListener('pointerup',function(){
   if(draft){ var d=draft; draft=null;
@@ -285,7 +286,7 @@ window.addEventListener('keydown',function(e){ var tag=document.activeElement.ta
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
   if(e.key==='1'||e.key==='2'||e.key==='3'){ setView(['split','plan','cam'][+e.key-1]); return; }
-  if(e.key==='Escape'){ setTool('select'); return; } if(e.key.toLowerCase()==='w'){ setTool('wall'); return; } if(e.key.toLowerCase()==='o'){ setTool('window'); return; }
+  if(e.key==='Escape'){ if(!$('shotModal').classList.contains('hide')){ closeShot(); return; } setTool('select'); return; } if(e.key.toLowerCase()==='c' && !(e.ctrlKey||e.metaKey)){ takeShot(); return; } if(e.key.toLowerCase()==='w'){ setTool('wall'); return; } if(e.key.toLowerCase()==='o'){ setTool('window'); return; }
   if(!sel) return;
   if(e.key==='Delete'||e.key==='Backspace'){ del(sel); }
   else if(e.key.toLowerCase()==='d'){ dup(sel); }
@@ -310,7 +311,7 @@ function renderDoors(){ var el=$('doors'), h=''; (scene.doors||[]).forEach(funct
     div.querySelectorAll('[data-k]').forEach(function(inp){ inp.addEventListener('input',function(){ var k=inp.dataset.k; if(inp.type==='checkbox') d[k]=inp.checked; else if(inp.type==='number'){ var v=parseFloat(inp.value); if(isNaN(v)) return; d[k]=k==='w'?Math.max(0.6,v):v; } else d[k]=inp.value; var len=(d.wall==='left'||d.wall==='right')?scene.room.h:scene.room.w; d.at=Math.max(d.w/2,Math.min(len-d.w/2,d.at)); if(k==='wall'||k==='w') inp.closest('.door').querySelector('[data-k=at]').value=d.at.toFixed(1); schedule(); }); });
     div.querySelector('[data-x]').onclick=function(){ scene.doors.splice(+div.dataset.i,1); renderDoors(); schedule(); }; }); }
 $('bDoor').onclick=function(){ if(!scene.doors) scene.doors=[]; var walls=['bottom','right','top','left'], w=walls[scene.doors.length%4], len=(w==='left'||w==='right')?scene.room.h:scene.room.w; scene.doors.push(door(w,Math.round(len/2*10)/10)); renderDoors(); schedule(); };
-function syncRoom(){ renderDoors(); renderWindows(); $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°'; }
+function syncRoom(){ renderDoors(); renderWindows(); renderVariants(); $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°'; }
 function wallLabel(w){ return typeof w==='string' ? 'vnější '+wallName(w) : 'zeď '+(function(){ var it=byId(w); return it?fmt(S.wallLen(it),1)+' m':'?'; })(); }
 function renderWindows(){ var el=$('windows'), h=''; (scene.windows||[]).forEach(function(w,i){
     h+='<div class="win" data-i="'+i+'"><div class="hd"><b>Okno '+(i+1)+' · '+wallLabel(w.wall)+'</b><button data-x="'+i+'" title="Odebrat">✕</button></div><div class="row"><div><label>Od (m)</label><input type="number" data-k="from" step="0.1" value="'+w.from.toFixed(1)+'"></div><div><label>Do (m)</label><input type="number" data-k="to" step="0.1" value="'+w.to.toFixed(1)+'"></div><div><label>Roleta</label><select data-k="blind"><option value="none"'+(!w.blind||w.blind==='none'?' selected':'')+'>otevřená</option><option value="half"'+(w.blind==='half'?' selected':'')+'>napůl</option><option value="closed"'+(w.blind==='closed'?' selected':'')+'>zatažená</option></select></div></div></div>'; });
@@ -329,7 +330,8 @@ $('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz
 ['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ scene.room.w=Math.max(3,parseFloat($('rw').value)||7); scene.room.h=Math.max(3,parseFloat($('rh').value)||5); scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
 $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; schedule(); });
-['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });
+$('quality').addEventListener('input',function(){ try{ localStorage.setItem('viewfinder-quality',$('quality').value);}catch(e){} schedule(); });
+['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ if(id==='autoEv'){ try{ localStorage.setItem('viewfinder-autoev',$('autoEv').checked?'1':'0');}catch(e){} } $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });
 ['gridOn','beams','snap'].forEach(function(id){ $(id).addEventListener('input',draw); });
 $('tpl').onchange=function(){ if(!this.value) return; scene=TEMPL[this.value](); sel=null; syncRoom(); props(); fit(); schedule(); this.value=''; };
 $('bSave').onclick=function(){ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(scene,null,1)],{type:'application/json'})); a.download='viewfinder-light-scena.json'; a.click(); };
@@ -349,6 +351,84 @@ window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d'
   if(res) sync3d(); });
 if(window.View3D){ window.dispatchEvent(new Event('view3d-ready')); }
 
+// ---------- varianty nasvícení ----------
+function sceneCore(){ var c=JSON.parse(JSON.stringify(scene)); delete c.variants; delete c.variantId; return c; }
+function renderVariants(){ var sel=$('varSel'); sel.innerHTML='<option value="">Varianta…</option>'; (scene.variants||[]).forEach(function(v){ var o=document.createElement('option'); o.value=v.id; o.textContent=v.name; if(scene.variantId===v.id) o.selected=true; sel.appendChild(o); }); var has=!!(scene.variantId&&(scene.variants||[]).some(function(v){return v.id===scene.variantId;})); $('bVarUpd').disabled=!has; $('bVarDel').disabled=!has; }
+$('bVarAdd').onclick=function(){ var n=prompt('Název varianty nasvícení:', 'Varianta '+(((scene.variants||[]).length)+1)); if(!n) return; if(!scene.variants) scene.variants=[]; var v={id:uid++,name:n.slice(0,60),data:sceneCore()}; scene.variants.push(v); scene.variantId=v.id; renderVariants(); snapshot(); };
+$('bVarUpd').onclick=function(){ var v=(scene.variants||[]).find(function(x){return x.id===scene.variantId;}); if(!v) return; v.data=sceneCore(); renderVariants(); snapshot(); };
+$('bVarDel').onclick=function(){ var v=(scene.variants||[]).find(function(x){return x.id===scene.variantId;}); if(!v||!confirm('Smazat variantu „'+v.name+'“?')) return; scene.variants=scene.variants.filter(function(x){return x!==v;}); scene.variantId=null; renderVariants(); snapshot(); };
+$('varSel').addEventListener('change',function(){ var id=+this.value; var v=(scene.variants||[]).find(function(x){return x.id===id;}); if(!v){ scene.variantId=null; renderVariants(); return; }
+  var keep={variants:scene.variants, variantId:v.id}; scene=JSON.parse(JSON.stringify(v.data)); scene.variants=keep.variants; scene.variantId=keep.variantId; fixIds(); sel=null; syncRoom(); props(); renderVariants(); fit(); schedule(); });
+
+// ---------- cvaky (lišta) ----------
+var shots=[], shotDb=null, curShot=null;
+function dbOpen(cb){ if(shotDb){ cb(shotDb); return; } try{ var rq=indexedDB.open('viewfinder',1); rq.onupgradeneeded=function(){ rq.result.createObjectStore('shots',{keyPath:'id'}); }; rq.onsuccess=function(){ shotDb=rq.result; cb(shotDb); }; rq.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
+function dbAll(cb){ dbOpen(function(db){ if(!db){ cb([]); return; } var tx=db.transaction('shots','readonly'), rq=tx.objectStore('shots').getAll(); rq.onsuccess=function(){ cb((rq.result||[]).sort(function(a,b){return a.order-b.order;})); }; rq.onerror=function(){ cb([]); }; }); }
+function dbPut(sh){ dbOpen(function(db){ if(!db) return; db.transaction('shots','readwrite').objectStore('shots').put(sh); }); }
+function dbDel(id){ dbOpen(function(db){ if(!db) return; db.transaction('shots','readwrite').objectStore('shots').delete(id); }); }
+function scaleImg(dataUrl, maxW, q, cb){ var im=new Image(); im.onload=function(){ var k=Math.min(1,maxW/im.width), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); var g=c.getContext('2d'); g.fillStyle='#000'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height); cb(c.toDataURL('image/jpeg',q)); }; im.src=dataUrl; }
+function lightsSummary(){ return scene.items.filter(function(i){return i.kind==='light';}).map(function(L){ var P=S.lightParams(L); return (L.label?L.label+' – ':'')+S.FIXTURES[L.fixture].name+', '+S.MODS[L.mod].name+', '+L.power+' %, '+Math.round(P.cct)+' K, výška '+fmt(P.h,1)+' m'+(L.on===false?' (vypnuto)':''); }); }
+function takeShot(){ if(!view3dReady||!window.View3D.hasCamera()){ alert('Přidej do scény kameru.'); return; } var cam=scene.items.find(function(i){return i.kind==='camera';});
+  var camUrl=window.View3D.shot(); draw(); var planUrl=cv.toDataURL('image/png');
+  scaleImg(camUrl,1400,0.86,function(camJ){ scaleImg(planUrl,1000,0.85,function(planJ){
+    var sh={id:Date.now(), order:shots.length?shots[shots.length-1].order+1:1, name:'Záběr '+(shots.length+1), note:'', ts:Date.now(), cam:camJ, plan:planJ,
+      meta:{lux:meas?Math.round(meas.lux):0, ratio:meas?fmt(meas.ratio,1):'-', stops:meas?fmt(meas.stops,1):'-', focal:cam.focal||35, format:(S.FORMATS[scene.format]||S.FORMATS.free).name, variant:(function(){ var v=(scene.variants||[]).find(function(x){return x.id===scene.variantId;}); return v?v.name:''; })(), lights:lightsSummary()},
+      scene:JSON.stringify(sceneCore())};
+    shots.push(sh); dbPut(sh); renderShots(); curShotFlash(sh.id); }); }); }
+function curShotFlash(id){ var el=document.querySelector('.shot[data-id="'+id+'"]'); if(el){ el.classList.add('cur'); el.scrollIntoView({inline:'end',block:'nearest'}); setTimeout(function(){ el.classList.remove('cur'); },1200); } }
+function renderShots(){ var el=$('shots'); el.innerHTML=''; $('shotCount').textContent=shots.length; shots.forEach(function(sh,i){ var d=document.createElement('div'); d.className='shot'; d.dataset.id=sh.id;
+    d.innerHTML='<img src="'+sh.cam+'" alt=""><div class="cap"></div><span class="num">'+(i+1)+'</span><div class="mv"><button data-mv="-1" title="Posunout doleva">◀</button><button data-mv="1" title="Posunout doprava">▶</button><button data-del="1" title="Smazat">✕</button></div>';
+    d.querySelector('.cap').textContent=sh.name+(sh.meta&&sh.meta.variant?' · '+sh.meta.variant:'');
+    d.onclick=function(e){ var t=e.target; if(t.dataset.mv){ moveShot(sh,+t.dataset.mv); return; } if(t.dataset.del){ delShot(sh); return; } openShot(sh); };
+    el.appendChild(d); }); }
+function moveShot(sh,dir){ var i=shots.indexOf(sh), j=i+dir; if(j<0||j>=shots.length) return; var o=shots[i].order; shots[i].order=shots[j].order; shots[j].order=o; shots.sort(function(a,b){return a.order-b.order;}); dbPut(shots[i]); dbPut(shots[j]); renderShots(); }
+function delShot(sh){ if(!confirm('Smazat cvak „'+sh.name+'“?')) return; shots=shots.filter(function(x){return x!==sh;}); dbDel(sh.id); renderShots(); if(curShot===sh) closeShot(); }
+function openShot(sh){ curShot=sh; $('shotName').value=sh.name; $('shotNote').value=sh.note||''; $('shotImg').src=sh.cam; $('shotPlan').src=sh.plan; var m=sh.meta||{}; $('shotMeta').innerHTML='<b>'+m.lux+' lx</b> · poměr '+m.ratio+' : 1 ('+m.stops+' EV) · '+m.focal+' mm · '+m.format+(m.variant?' · '+m.variant:'')+'<br>'+(m.lights||[]).map(function(t){return '• '+t;}).join('<br>')+'<br><span class="mut">'+new Date(sh.ts).toLocaleString('cs-CZ')+'</span>'; $('shotModal').classList.remove('hide'); }
+function closeShot(){ if(curShot){ curShot.name=$('shotName').value.slice(0,80)||curShot.name; curShot.note=$('shotNote').value.slice(0,1000); dbPut(curShot); renderShots(); } curShot=null; $('shotModal').classList.add('hide'); }
+$('bSnap').onclick=takeShot; $('bShotClose').onclick=closeShot; $('shotModal').addEventListener('click',function(e){ if(e.target===this) closeShot(); });
+$('bShotDel').onclick=function(){ if(curShot) delShot(curShot); };
+$('bShotPng').onclick=function(){ if(!curShot) return; var a=document.createElement('a'); a.href=curShot.cam; a.download='viewfinder-'+(curShot.name||'zaber').replace(/[^\w\-]+/g,'_')+'.jpg'; a.click(); };
+$('bShotRestore').onclick=function(){ if(!curShot) return; try{ var sc=JSON.parse(curShot.scene); var keep={variants:scene.variants, variantId:scene.variantId}; scene=sc; scene.variants=keep.variants; scene.variantId=keep.variantId; fixIds(); sel=null; syncRoom(); props(); renderVariants(); fit(); schedule(); closeShot(); }catch(e){ alert('Scénu se nepodařilo obnovit.'); } };
+$('bShotsClear').onclick=function(){ if(!shots.length||!confirm('Smazat všechny cvaky ('+shots.length+')?')) return; shots.forEach(function(s){ dbDel(s.id); }); shots=[]; renderShots(); };
+$('bStripToggle').onclick=function(){ var c=$('strip').classList.toggle('collapsed'); this.textContent=c?'▴':'▾'; try{ localStorage.setItem('viewfinder-strip',c?'0':'1');}catch(e){} requestAnimationFrame(function(){ fit(); if(view3dReady) window.View3D.resize(); }); };
+dbAll(function(list){ shots=list; renderShots(); });
+
+// ---------- PDF export (stránky jako obrázky – plná diakritika, žádná knihovna) ----------
+function pdfFromJpegs(pages){ // pages: [{data:Uint8Array, w, h}] – každá stránka = jeden JPEG na A4 na šířku
+  var enc=new TextEncoder(), parts=[], offsets=[], pos=0; function add(u8){ parts.push(u8); pos+=u8.length; } function addS(str){ add(enc.encode(str)); }
+  var W=842, H=595, n=pages.length; addS('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n');
+  var objs=[]; function obj(i){ offsets[i]=pos; addS(i+' 0 obj\n'); }
+  var kids=[]; for(var i=0;i<n;i++) kids.push((3+i*3)+' 0 R');
+  obj(1); addS('<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  obj(2); addS('<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+n+' >>\nendobj\n');
+  pages.forEach(function(p,i){ var pg=3+i*3, im=pg+1, ct=pg+2;
+    obj(pg); addS('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /XObject << /Im'+i+' '+im+' 0 R >> >> /Contents '+ct+' 0 R >>\nendobj\n');
+    obj(im); addS('<< /Type /XObject /Subtype /Image /Width '+p.w+' /Height '+p.h+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+p.data.length+' >>\nstream\n'); add(p.data); addS('\nendstream\nendobj\n');
+    var c='q '+W+' 0 0 '+H+' 0 0 cm /Im'+i+' Do Q'; obj(ct); addS('<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream\nendobj\n'); });
+  var xref=pos, total=3+n*3; addS('xref\n0 '+total+'\n0000000000 65535 f \n'); for(var k=1;k<total;k++) addS(String(offsets[k]).padStart(10,'0')+' 00000 n \n');
+  addS('trailer\n<< /Size '+total+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n');
+  return new Blob(parts,{type:'application/pdf'}); }
+function b64ToU8(dataUrl){ var b=atob(dataUrl.split(',')[1]), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+function loadImg(src){ return new Promise(function(res){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=function(){res(null);}; im.src=src; }); }
+function wrapText(g,text,x,y,maxW,lh,maxLines){ var words=(text||'').split(/\s+/), line='', lines=0; for(var i=0;i<words.length;i++){ var t=line?line+' '+words[i]:words[i]; if(g.measureText(t).width>maxW&&line){ g.fillText(line,x,y); y+=lh; line=words[i]; if(++lines>=maxLines-1){ line+=' …'; break; } } else line=t; } if(line) g.fillText(line,x,y); return y+lh; }
+async function exportPdf(){ if(!shots.length){ alert('V liště nejsou žádné cvaky.'); return; } $('bPdf').disabled=true; $('bPdf').textContent='Generuji…';
+  try{ var pages=[], PW=1754, PH=1240, title=prompt('Název projektu do záhlaví PDF:', 'Světelný plán')||'Světelný plán';
+    for(var i=0;i<shots.length;i++){ var sh=shots[i], c=document.createElement('canvas'); c.width=PW; c.height=PH; var g=c.getContext('2d');
+      g.fillStyle='#fff'; g.fillRect(0,0,PW,PH); g.fillStyle='#111'; g.font='bold 40px Inter,Lato,Arial,sans-serif'; g.fillText(title,70,90); g.font='24px Inter,Lato,Arial,sans-serif'; g.fillStyle='#666'; g.fillText('Viewfinder Light · '+(i+1)+' / '+shots.length+' · '+new Date(sh.ts).toLocaleDateString('cs-CZ'),70,128); g.textAlign='right'; g.fillText('Svět v hledáčku',PW-70,90); g.textAlign='left';
+      g.fillStyle='#111'; g.font='bold 32px Inter,Lato,Arial,sans-serif'; g.fillText(sh.name||('Záběr '+(i+1)),70,190);
+      var cam=await loadImg(sh.cam), pl=await loadImg(sh.plan); var bx=70, by=215, bw=1040, bh=690;
+      if(cam){ var k=Math.min(bw/cam.width,bh/cam.height), w=cam.width*k, h=cam.height*k; g.fillStyle='#000'; g.fillRect(bx,by,bw,bh); g.drawImage(cam,bx+(bw-w)/2,by+(bh-h)/2,w,h); g.strokeStyle='#333'; g.lineWidth=2; g.strokeRect(bx,by,bw,bh); }
+      var px=1160, py=215, pw=524, ph=380; if(pl){ var k2=Math.min(pw/pl.width,ph/pl.height), w2=pl.width*k2, h2=pl.height*k2; g.fillStyle='#0a0a0b'; g.fillRect(px,py,pw,ph); g.drawImage(pl,px+(pw-w2)/2,py+(ph-h2)/2,w2,h2); g.strokeStyle='#333'; g.strokeRect(px,py,pw,ph); }
+      g.fillStyle='#666'; g.font='18px Inter,Lato,Arial,sans-serif'; g.fillText('Schéma nasvícení (půdorys)',px,py+ph+28);
+      var m=sh.meta||{}; g.fillStyle='#111'; g.font='bold 22px Inter,Lato,Arial,sans-serif'; g.fillText('Obličej '+m.lux+' lx · poměr '+m.ratio+' : 1 ('+m.stops+' EV) · '+m.focal+' mm · '+m.format+(m.variant?' · '+m.variant:''),px,py+ph+64);
+      g.font='18px Inter,Lato,Arial,sans-serif'; var yy=py+ph+98; (m.lights||[]).slice(0,10).forEach(function(t){ yy=wrapText(g,'• '+t,px,yy,pw,24,2); });
+      if(sh.note){ g.fillStyle='#333'; g.font='italic 22px Inter,Lato,Arial,sans-serif'; wrapText(g,sh.note,bx,by+bh+40,bw,30,6); }
+      g.fillStyle='#999'; g.font='16px Inter,Lato,Arial,sans-serif'; g.fillText('Orientační simulace. Hodnoty luxů jsou přibližné.',70,PH-40);
+      pages.push({data:b64ToU8(c.toDataURL('image/jpeg',0.88)), w:PW, h:PH}); }
+    var blob=pdfFromJpegs(pages), a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='viewfinder-light-storyboard.pdf'; a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },5000);
+  } finally { $('bPdf').disabled=false; $('bPdf').textContent='PDF storyboard'; } }
+$('bPdf').onclick=exportPdf;
+
 // ---------- napojení na WordPress (plugin Viewfinder Light) ----------
 var VF = window.SVH_VIEWFINDER || null, cloudTimer=null, cloudBusy=false;
 function cloudSave(j){ if(!VF||!VF.rest) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(function(){ if(cloudBusy) return; cloudBusy=true;
@@ -362,7 +442,8 @@ if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.cl
 var saved=null; try{ saved=localStorage.getItem('viewfinder-scene')||localStorage.getItem('lightlab-scene'); }catch(e){}
 if(saved){ try{ scene=JSON.parse(saved); fixIds(); }catch(e){ scene=null; } }
 if(!scene) scene=TEMPL.window();
-var sv='split'; try{ sv=localStorage.getItem('viewfinder-view')||localStorage.getItem('lightlab-view')||'split'; }catch(e){}
+var sv='split'; try{ sv=localStorage.getItem('viewfinder-view')||localStorage.getItem('lightlab-view')||'split'; var qq=localStorage.getItem('viewfinder-quality'); if(qq) $('quality').value=qq; $('autoEv').checked=localStorage.getItem('viewfinder-autoev')==='1'; }catch(e){}
+try{ if(localStorage.getItem('viewfinder-strip')==='0'){ $('strip').classList.add('collapsed'); $('bStripToggle').textContent='▴'; } }catch(e){}
 setView(sv); syncRoom(); fit(); schedule(); snapshot();
 cloudLoad(function(d){ if(!d) return; var lts=0; try{ lts=parseInt(localStorage.getItem('viewfinder-ts')||'0',10); }catch(e){} if(!(d.ts>lts+2000)) return; try{ var sc=JSON.parse(d.scene); if(!sc.room||!sc.items) return; scene=sc; fixIds(); sel=null; syncRoom(); props(); fit(); schedule(); }catch(e){} });
 })();

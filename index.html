@@ -15,7 +15,18 @@
       <button class="tab" data-view="plan" title="Jen půdorys (2)">Půdorys</button>
       <button class="tab" data-view="cam" title="Jen pohled kamery (3)">Kamera</button>
     </div>
+    <select id="quality" class="btn" title="Kvalita 3D zobrazení: Náhled je rychlý pro rozestavování, Standard pro běžnou práci, Ultra pro finální look (měkké stíny, jemnější mlha, plné rozlišení)">
+      <option value="low">Kvalita: náhled</option>
+      <option value="mid" selected>Kvalita: standard</option>
+      <option value="high">Kvalita: ultra</option>
+    </select>
     <div class="sp"></div>
+    <div class="variants" title="Varianty nasvícení – uložené stavy scény, mezi kterými jde přepínat">
+      <select id="varSel" class="btn"><option value="">Varianta…</option></select>
+      <button class="btn sm" id="bVarAdd" title="Uložit aktuální stav jako novou variantu">+ Varianta</button>
+      <button class="btn sm" id="bVarUpd" title="Přepsat vybranou variantu aktuálním stavem">Aktualizovat</button>
+      <button class="btn sm" id="bVarDel" title="Smazat vybranou variantu">✕</button>
+    </div>
     <select id="tpl" class="btn">
       <option value="">Šablona…</option>
       <option value="window">Rozhovor u okna + odrazka</option>
@@ -32,7 +43,8 @@
     <button class="btn" id="bLoad" title="Otevřít scénu (.json)">Otevřít</button><input type="file" id="fLoad" accept=".json" hidden>
     <button class="btn" id="bSave" title="Uložit scénu (.json)">Uložit</button>
     <button class="btn" id="bPng" title="Uložit půdorys jako PNG">PNG půdorys</button>
-    <button class="btn gold" id="bShot" title="Uložit záběr kamery jako PNG">Snímek kamery</button>
+    <button class="btn" id="bShot" title="Uložit záběr kamery jako PNG">PNG kamera</button>
+    <button class="btn gold" id="bSnap" title="Cvaknout: uložit záběr kamery i schéma do lišty dole (C)">📸 Cvaknout</button>
   </header>
 
   <aside class="l">
@@ -88,7 +100,7 @@
     <h3>Zobrazení</h3>
     <label>Expozice <span id="evv" class="pill">0 EV</span></label>
     <input type="range" id="ev" min="-4" max="4" step="0.25" value="0">
-    <label class="chk"><input type="checkbox" id="autoEv" checked> Auto: exponovat na obličej</label>
+    <label class="chk"><input type="checkbox" id="autoEv"> Auto: exponovat na obličej</label>
     <label class="chk"><input type="checkbox" id="zebra" checked> Zebra – přepal (půdorys)</label>
     <label class="chk"><input type="checkbox" id="gridOn" checked> Mřížka 1 m</label>
     <label class="chk"><input type="checkbox" id="beams" checked> Obrysy paprsků a záběru</label>
@@ -109,7 +121,17 @@
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
       <div class="camTools"><select id="fmt" class="btn sm" title="Formát záběru"></select><span class="pill" id="walkHint" title="V pohledu kamery: W/S vpřed a vzad, A/D do stran, Q/E dolů a nahoru, levé tlačítko = rozhlížení, kolečko = ohnisko">WASD chůze · myš rozhlížení · kolečko ohnisko</span><button class="btn sm" id="bOrbit" title="Volný pohled: táhni myší, kolečko = zoom. Znovu klikni pro návrat do kamery.">Volný pohled</button></div>
     </div>
+    <div id="strip" class="strip">
+      <div class="stripHead"><span class="stripTitle">Cvaky <span id="shotCount" class="pill">0</span></span>
+        <button class="btn sm" id="bPdf" title="Export všech cvaků do PDF včetně schématu nasvícení">PDF storyboard</button>
+        <button class="btn sm" id="bShotsClear" title="Smazat všechny cvaky">Vymazat</button>
+        <span class="sp"></span>
+        <button class="btn sm" id="bStripToggle" title="Sbalit / rozbalit lištu">▾</button></div>
+      <div id="shots" class="shots"></div>
+    </div>
   </main>
+  <div id="shotModal" class="modal hide"><div class="modalBox"><div class="modalHead"><input type="text" id="shotName" class="shotName" placeholder="Název záběru"><span class="sp"></span><button class="btn sm" id="bShotRestore" title="Vrátit scénu do stavu, kdy byl cvak pořízen">Obnovit scénu</button><button class="btn sm" id="bShotPng">Uložit PNG</button><button class="btn sm danger" id="bShotDel">Smazat</button><button class="btn sm" id="bShotClose">Zavřít</button></div>
+    <div class="modalBody"><img id="shotImg" alt=""><div class="modalSide"><img id="shotPlan" alt=""><div id="shotMeta" class="mut"></div><textarea id="shotNote" placeholder="Poznámka k záběru (objeví se v PDF)"></textarea></div></div></div></div>
 
   <aside class="r">
     <div class="meter">

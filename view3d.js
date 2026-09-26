@@ -86,7 +86,7 @@ const FLOORTEX = { wood: 'wood', grey: 'concrete', dark: 'darkfloor' };
 function init(cv) {
   canvas = cv; wrap = cv.parentElement;
   renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); curPR = Math.min(devicePixelRatio, 2);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.localClippingEnabled = true;
   scene3 = new THREE.Scene(); scene3.background = new THREE.Color(0x000000);
@@ -111,6 +111,12 @@ function init(cv) {
   resize();
   (function loop(t) { requestAnimationFrame(loop); const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t; if (orbit) controls.update(); if (walk(dt)) dirty = true; if (dirty) { dirty = false; render(); } drawGrain(t); })(0);
 }
+// profil kvality: náhled (rychlý), standard, ultra (měkké stíny z více vzorků, jemnější mlha, plné rozlišení)
+function Q() { const q = lastOpts.quality || 'mid'; return q === 'low' ? { spot: 512, soft: 0, softMap: 512, winMap: 512, beams: 3, pr: Math.min(devicePixelRatio, 1) * 0.8, sunMap: 1024 }
+  : q === 'high' ? { spot: 4096, soft: 4, softMap: 1024, winMap: 2048, beams: 14, pr: Math.min(devicePixelRatio, 2), sunMap: 4096 }
+  : { spot: 2048, soft: 1, softMap: 1024, winMap: 1024, beams: 7, pr: Math.min(devicePixelRatio, 2), sunMap: 2048 }; }
+let curPR = 0;
+function applyQualityRatio() { const pr = Q().pr; if (Math.abs(pr - curPR) > 0.01) { curPR = pr; renderer.setPixelRatio(pr); resize(); } }
 function formatAspect() { const f = lastScene && lastScene.format, F = S.FORMATS[f]; return F ? F.a : 0; }
 function wantsKeys() { return !!(camItem && !orbit && (over || document.activeElement === canvas)); }
 // pohyb WASD (W/S vpřed/vzad, A/D do stran, Q/E dolů/nahoru), v m/s
@@ -190,7 +196,7 @@ function fadeCone(r, L, near, far) {
 }
 function addBeam(g, pos, tgt, halfAngle, color, E1, soft) {
   const haze = lastOpts.haze || 0; if (haze <= 0) return;
-  const dir = tgt.clone().sub(pos).normalize(), L = 6, r = Math.tan(Math.min(halfAngle, 1.2)) * L, layers = 7;
+  const dir = tgt.clone().sub(pos).normalize(), L = 6, r = Math.tan(Math.min(halfAngle, 1.2)) * L, layers = Q().beams;
   for (let i = 0; i < layers; i++) {
     const k = 1 - i / layers * 0.85, geo = fadeCone(r * k, L, 1.0, 0.12);
     const cone = new THREE.Mesh(geo, beamMat(color, E1 * haze * 0.002 / layers * (soft ? 0.4 : 1)));
@@ -225,7 +231,7 @@ function addLight(L, res) {
   const g = new THREE.Group(); group.add(g);
   const E1 = P.E1 * k.gain;
   if (P.omni) {
-    const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos); pl.castShadow = !!lastOpts.shadows; pl.shadow.mapSize.set(512, 512); pl.shadow.bias = -0.002; g.add(pl);
+    const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos); pl.castShadow = !!lastOpts.shadows && Q().soft > 0; pl.shadow.mapSize.set(Q().softMap, Q().softMap); pl.shadow.bias = -0.002; g.add(pl);
     if (L.mod === 'tube') {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 12), lum(k.color, E1 / 0.15));
       m.position.copy(pos); m.rotation.z = Math.PI / 2; m.rotation.y = -(L.rot + Math.PI / 2); g.add(m); stand(L.x, L.y, P.h, g);
@@ -241,18 +247,24 @@ function addLight(L, res) {
   }
   const w = P.size, h = P.size * (L.mod === 'frame' ? 1.0 : 0.75);
   if (P.soft) {
-    const rl = new THREE.RectAreaLight(k.color, E1 * (lastOpts.shadows ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl); addBeam(g, pos, tgt, P.beam / 2 * Math.PI / 180 * 0.6, k.color, E1, true);
+    const rl = new THREE.RectAreaLight(k.color, E1 * ((lastOpts.shadows && Q().soft > 0) ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl); addBeam(g, pos, tgt, P.beam / 2 * Math.PI / 180 * 0.6, k.color, E1, true);
     // vizuální panel softboxu
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lum(k.color, E1 / (w * h)));
     panel.position.copy(pos); panel.lookAt(tgt); panel.position.add(dir.clone().multiplyScalar(-0.01)); g.add(panel);
     const back = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, h) * 0.55, 0.45, 4, 1, true), MAT.flag);
     back.position.copy(pos).add(dir.clone().multiplyScalar(-0.22)); back.lookAt(tgt); back.rotateX(-Math.PI / 2); g.add(back);
     // slabé stínové světlo, aby softbox také vrhal (měkký) stín
-    if (lastOpts.shadows) { const sp = new THREE.SpotLight(k.color, E1 * 0.4, 14, P.beam / 2 * Math.PI / 180, 0.9, 2); sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = true; sp.shadow.mapSize.set(1024, 1024); sp.shadow.bias = -0.002; sp.shadow.radius = 8; g.add(sp); g.add(sp.target); }
+    const ns = lastOpts.shadows ? Q().soft : 0;
+    if (ns > 0) { // stínová světla rozmístěná po ploše softboxu → měkký polostín (ultra: 4 vzorky)
+      const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3().crossVectors(right, dir).normalize();
+      const offs = ns === 1 ? [[0, 0]] : [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]];
+      offs.forEach(o => { const sp = new THREE.SpotLight(k.color, E1 * 0.4 / offs.length, 14, P.beam / 2 * Math.PI / 180, 0.9, 2);
+        sp.position.copy(pos).add(right.clone().multiplyScalar(o[0] * w)).add(up.clone().multiplyScalar(o[1] * h)); sp.target.position.copy(tgt); sp.castShadow = true; sp.shadow.mapSize.set(Q().softMap, Q().softMap); sp.shadow.bias = -0.002; sp.shadow.radius = 8; g.add(sp); g.add(sp.target); });
+    }
   } else {
     const half = P.beam / 2 * Math.PI / 180;
     const sp = new THREE.SpotLight(k.color, E1, 16, Math.min(half * 1.3, 1.5), L.barn ? 0.15 : (L.diff ? 0.8 : 0.45), 2);
-    sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(2048, 2048); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
+    sp.position.copy(pos); sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(Q().spot, Q().spot); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
     if (L.gobo && L.gobo !== 'none' && S.GOBOS[L.gobo]) { sp.map = goboTexture(L.gobo); sp.castShadow = true; sp.shadow.focus = 1; }
     g.add(sp); g.add(sp.target); addBeam(g, pos, tgt, half, k.color, E1, false);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body);
@@ -406,7 +418,7 @@ function addWindow(sc, w) {
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), fg = new THREE.Group(); fg.position.set(pos[0], 0, pos[2]); fg.rotation.y = wallFrame(sc, w.wall).ry; group.add(fg);
   [-1, 1].forEach(sd => box(fg, frameMat, 0.06, 1.3, 0.12, sd * (len / 2 + 0.03), 1.5, 0)); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 0.87, 0); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 2.13, 0);
   // měkký stín okna
-  if (lastOpts.shadows && openH > 0.01) { const sp = new THREE.SpotLight(k.color, E1 * 0.3, 14, 0.9, 1, 2); sp.position.set(pos[0] + (look[0] - pos[0]) * -0.3, S.WIN_Z0 + openH / 2, pos[2] + (look[2] - pos[2]) * -0.3); sp.target.position.set(look[0], 1.2, look[2]); sp.castShadow = true; sp.shadow.mapSize.set(1024, 1024); sp.shadow.radius = 10; sp.shadow.bias = -0.002; group.add(sp); group.add(sp.target); }
+  if (lastOpts.shadows && openH > 0.01) { const sp = new THREE.SpotLight(k.color, E1 * 0.3, 14, 0.9, 1, 2); sp.position.set(pos[0] + (look[0] - pos[0]) * -0.3, S.WIN_Z0 + openH / 2, pos[2] + (look[2] - pos[2]) * -0.3); sp.target.position.set(look[0], 1.2, look[2]); sp.castShadow = true; sp.shadow.mapSize.set(Q().winMap, Q().winMap); sp.shadow.radius = 10; sp.shadow.bias = -0.002; group.add(sp); group.add(sp.target); }
 }
 
 // souřadnice na stěně: s = poloha podél stěny (m), y = výška; vrací [x,z] v místnosti a směr dovnitř
@@ -479,7 +491,7 @@ function addSun(sc) {
   const sun = new THREE.DirectionalLight(k.color, S.SUN_E * k.gain);
   sun.position.set(W / 2 + d[0] * Math.cos(el) * 25, Math.sin(el) * 25 + 1.5, H / 2 + d[1] * Math.cos(el) * 25); sun.target.position.set(W / 2, 1.2, H / 2);
   sun.castShadow = !!lastOpts.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
-  const R2 = (sc.exterior && sc.exterior.on) ? R + 8 : R; const c = sun.shadow.camera; c.left = -R2; c.right = R2; c.top = R2; c.bottom = -R2; c.near = 1; c.far = 60; c.updateProjectionMatrix(); sun.shadow.mapSize.set(4096, 4096);
+  const R2 = (sc.exterior && sc.exterior.on) ? R + 8 : R; const c = sun.shadow.camera; c.left = -R2; c.right = R2; c.top = R2; c.bottom = -R2; c.near = 1; c.far = 60; c.updateProjectionMatrix(); sun.shadow.mapSize.set(Q().sunMap, Q().sunMap);
   group.add(sun); group.add(sun.target);
 }
 function addDoor(sc, d) {
@@ -511,6 +523,7 @@ function addDoor(sc, d) {
 function sync(sc, res, meas, opts) {
   if (!renderer) return;
   lastScene = sc; lastRes = res; lastOpts = opts || {};
+  applyQualityRatio();
   clear(group);
   scene3.background = new THREE.Color(0x000000); addExterior(sc); addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {

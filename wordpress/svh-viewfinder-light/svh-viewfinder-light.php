@@ -573,7 +573,7 @@ add_action( 'rest_api_init', function () {
 			'permission_callback' => function () { return svhvl_user_has_access(); },
 			'callback'            => function ( $req ) {
 				$scene = (string) $req->get_param( 'scene' );
-				if ( strlen( $scene ) > 400000 ) {
+				if ( strlen( $scene ) > 1500000 ) {
 					return new WP_Error( 'svhvl_big', 'Scéna je příliš velká.', array( 'status' => 413 ) );
 				}
 				$data = json_decode( $scene, true );
