@@ -315,6 +315,10 @@ function addModelPerson(p, gltf) {
   const bones = {}; inst.traverse(o => { if (o.isBone) bones[o.name] = o; }); rigs[p.id] = { inst: inst, bones: bones, group: g };
   if (p.bones) { for (const bn in p.bones) { const b = bones[bn], q = p.bones[bn]; if (b && q && q.length === 4) b.quaternion.set(q[0], q[1], q[2], q[3]); } }
   inst.updateMatrixWorld(true);
+  if (!sit) { // položit na zem: nejnižší bod napózované sítě (dřep, leh, opření…)
+    let minY = Infinity; inst.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); const bb = o.boundingBox.clone().applyMatrix4(o.matrixWorld); minY = Math.min(minY, bb.min.y); } });
+    if (isFinite(minY) && Math.abs(minY) > 0.01) { inst.position.y -= minY; inst.updateMatrixWorld(true); }
+  }
   if (sit) { // posadit: pánev do výšky sedáku + ~13 cm
     let hip = null; inst.traverse(o => { if (o.isBone && o.name === 'hip_02') hip = o; });
     if (hip) { const hy = hip.getWorldPosition(new THREE.Vector3()).y; inst.position.y = (0.45 + 0.13) - hy; }
@@ -709,6 +713,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
+window.View3D = { init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

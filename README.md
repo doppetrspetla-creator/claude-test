@@ -59,6 +59,10 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Box (Š×H×V)** – obecný kvádr s nastavitelnou šířkou, hloubkou a výškou, materiálem (dřevo,
   bílá, tmavá, kov, beton, látka) a popiskem – pro kuchyňskou linku, lednici, auto v garáži apod.
   Box vyšší než 1,3 m stíní.
+- **Pózy** – 12 klipů z Mixama přemapovaných na všechny modely: stojí, sedí, mluví, ukazuje,
+  telefonuje, píše (vsedě), jde, tleská, opírá se, rozhlíží se, dřepí, leží. Posuvník „Okamžik
+  klipu“ vybere snímek gesta, nesedící pózy se automaticky položí na zem, výška obličeje pro měření
+  odpovídá póze. Editor kostry (🦴, klávesa K) doladí jednotlivé klouby.
 - **Postava** – tři realistické 3D modely (muž, dvě ženy; riggované postavy Renderpeople ze
   Sketchfabu, klipy stání a sezení z Mixama přemapované na jejich kostru) plus stylizovaná figura
   s volbou účesu, barvy vlasů, pleti a oblečení. Modely jsou ve složce `models/` (asi 2 MB každý),
