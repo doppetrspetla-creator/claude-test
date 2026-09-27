@@ -116,7 +116,7 @@ function toM(px,py){ return [(px-ox)/scale, (py-oy)/scale]; }
 function recompute(cell){ res=S.compute(scene,cell); meas=S.measure(scene,res); renderMap(); updateMeter(); draw(); sync3d(); }
 function fineCell(){ var q=$('quality').value, base=q==='low'?0.06:q==='high'?0.025:0.035; return Math.max(base, Math.sqrt(scene.room.w*scene.room.h/40000)); }
 function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
-function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? Math.max(8000, sk*2.2) : sk*2.2*0.9; } return 300; }
+function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? (S.isNight(scene)? S.sunE(scene)*0.9 : Math.max(8000, sk*2.2)) : sk*2.2*0.9; } return 300; }
 function exposureRef(){ var ev=parseFloat($('ev').value); return baseRef()*Math.pow(2,-ev); }
 function sync3d(){ if(!view3dReady) return; var cam=scene.items.some(function(i){return i.kind==='camera';}); $('camHint').classList.toggle('hide',cam); if(cam){ var c=scene.items.find(function(i){return i.kind==='camera';}); $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; }
   window.View3D.sync(scene,res,meas,{ref:baseRef(), ev:parseFloat($('ev').value), shadows:$('shadows').checked, haze:parseFloat($('haze').value)/100, grain:parseFloat($('grain').value)/100, quality:$('quality').value}); window.View3D.setSel(sel?sel.id:null); }
@@ -125,7 +125,7 @@ function renderMap(){
   var nx=res.nx, ny=res.ny; off.width=nx; off.height=ny; var img=offx.createImageData(nx,ny), d=img.data, ref=exposureRef(), zeb=$('zebra').checked;
   function tm(v){ return Math.pow(1-Math.exp(-v*1.25),1/1.5); }
   for(var j=0;j<ny;j++) for(var i=0;i<nx;i++){ var k=j*nx+i, p=k*4, r=res.R[k]/ref, g=res.G[k]/ref, b=res.B[k]/ref, R=tm(r),G=tm(g),B=tm(b);
-    if(zeb && (r>2.6||g>2.6||b>2.6) && ((i+j)%4<2)){ R=1;G=0.25;B=0.25; }
+    if(zeb && (r>2.6||g>2.6||b>2.6)){ var zs=((i+j)%6===0)?0.45:0.18; R=R*(1-zs)+zs; G=G*(1-zs)+0.25*zs; B=B*(1-zs)+0.25*zs; } // přepal: jemný červený nádech s řídkými proužky
     d[p]=Math.min(255,12+R*243); d[p+1]=Math.min(255,11+G*244); d[p+2]=Math.min(255,10+B*245); d[p+3]=255; }
   offx.putImageData(img,0,0);
 }
@@ -254,7 +254,7 @@ function props(){
     var md={}; Object.keys(S.MODS).forEach(function(k){md[k]=S.MODS[k].name;}); selc('mod','Modifikátor',md);
     rng('power','Výkon',1,100,1,'%'); chk('rgb','Barevné světlo (RGB)');
     if(it.rgb){ h+='<label>Barva</label><div class="row" style="align-items:center"><input type="color" data-k="color" value="'+(it.color||'#3a6bff')+'" style="flex:0 0 52px"><div class="swatches">'+['#ff2a2a','#ff8a00','#ffd400','#2adf4a','#00d4ff','#2a5bff','#8a2aff','#ff2ad4'].map(function(c){return '<button type="button" class="sw" data-sw="'+c+'" style="background:'+c+'" title="'+c+'"></button>';}).join('')+'</div></div><p class="mut">Saturované barvy mají menší jas (lux) – jako RGB světla v HSI režimu.</p>'; }
-    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m');
+    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°');
     if(S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
     h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>';
     if(!it.rgb) selc('gel','Gel',{none:'bez gelu',cto:'CTO (oteplit)',ctb:'CTB (ochladit)'});
@@ -273,8 +273,8 @@ function props(){
     h+='<p class="mut">Model: '+fm.credit+' · CC BY 4.0 · sketchfab.com</p>'; }
 if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="color" value="'+(it.color||'#e77f00')+'"><div class="row" style="margin-top:8px"><button class="btn sm" id="bDriver" type="button">+ Řidič</button><button class="btn sm" id="bPassenger" type="button">+ Spolujezdec</button></div><div class="row" style="margin-top:6px"><button class="btn sm" id="bEnterDrv" type="button">+ Nastupuje řidič</button><button class="btn sm" id="bEnterCar" type="button">+ Nastupuje spolujezdec</button></div><p class="mut">Nastupování: posuvník Fáze pohybu vede od příchodu ke dveřím (0 %) po usednutí (100 %).</p><p class="mut">Model: Lexyc16 · CC BY 4.0 · sketchfab.com</p>'; } if(it.type==='block'){ rng('h','Výška',0.1,2.6,0.05,'m'); selc('mat','Materiál',{wood:'dřevo',white:'bílá',dark:'tmavá',metal:'kov',concrete:'beton',fabric:'látka'}); h+='<p class="mut">Box vyšší než 1,3 m stíní ve výšce obličeje.</p>'; } h+='<p class="mut">Opěradlo / čelo je na straně proti směru otočení.</p>'; }
   else if(it.kind==='flag'){ rng('len','Délka',0.3,2.4,0.1,'m'); }
-  else if(it.kind==='bounce'){ rng('len','Šířka',0.3,2.4,0.1,'m'); chk('silver','Stříbrná (silnější, užší odraz)'); chk('black','Černá (negativní fill – ubírá rozptýlené světlo)'); chk('flip','Otočit lícovou stranu'); var eb=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id&&!e.neg;}); h+='<p class="mut">'+(it.black?'Černá deska stíní okolí – nejvíc působí v bílé místnosti, blízko stinné strany obličeje.':(eb?'Na desku dopadá ≈ '+Math.round(eb.Ein)+' lx.':'Na lícovou stranu (šipka) nedopadá žádné světlo – natoč ji ke světlu.'))+'</p>'; }
-  else if(it.kind==='diffuser'){ var gr={}; Object.keys(S.GRIDS).forEach(function(k){gr[k]=S.GRIDS[k].name;}); selc('grid','Difuzní látka',gr); rng('len','Velikost rámu',0.6,2.4,0.1,'m'); rng('h','Výška středu',0.8,2.4,0.05,'m'); chk('flip','Otočit (šipka = strana k postavě)'); var ed=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id;}); h+='<p class="mut">Postav rám mezi světlo a postavu, šipkou k postavě. Světlo mířící do rámu pak svítí jen přes rám – velký měkký zdroj. '+(ed?'Na rám dopadá ≈ '+Math.round(ed.Ein)+' lx.':'Zatím na něj zezadu nesvítí žádné světlo.')+'</p>'; }
+  else if(it.kind==='bounce'){ rng('len','Šířka',0.3,2.4,0.1,'m'); rng('tiltDeg','Náklon desky (nahoru / dolů)',-60,60,1,'°'); chk('silver','Stříbrná (silnější, užší odraz)'); chk('black','Černá (negativní fill – ubírá rozptýlené světlo)'); chk('flip','Otočit lícovou stranu'); var eb=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id&&!e.neg;}); h+='<p class="mut">'+(it.black?'Černá deska stíní okolí – nejvíc působí v bílé místnosti, blízko stinné strany obličeje.':(eb?'Na desku dopadá ≈ '+Math.round(eb.Ein)+' lx.':'Na lícovou stranu (šipka) nedopadá žádné světlo – natoč ji ke světlu.'))+'</p>'; }
+  else if(it.kind==='diffuser'){ var gr={}; Object.keys(S.GRIDS).forEach(function(k){gr[k]=S.GRIDS[k].name;}); selc('grid','Difuzní látka',gr); rng('len','Velikost rámu',0.6,2.4,0.1,'m'); rng('h','Výška středu',0.8,2.4,0.05,'m'); rng('tiltDeg','Náklon rámu (nahoru / dolů)',-60,60,1,'°'); chk('flip','Otočit (šipka = strana k postavě)'); var ed=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id;}); h+='<p class="mut">Postav rám mezi světlo a postavu, šipkou k postavě. Světlo mířící do rámu pak svítí jen přes rám – velký měkký zdroj. '+(ed?'Na rám dopadá ≈ '+Math.round(ed.Ein)+' lx.':'Zatím na něj zezadu nesvítí žádné světlo.')+'</p>'; }
   else if(it.kind==='box'){ rng('w','Šířka',0.3,3,0.1,'m'); rng('d','Hloubka',0.3,3,0.1,'m'); chk('tall','Vysoký – vrhá stín (skříň, stěna)'); }
   if(it.kind==='wall'){ } h+='<div class="row" style="margin-top:12px"><button class="btn" id="bDup">Duplikovat <span class="kbd">D</span></button><button class="btn danger" id="bDel">Smazat <span class="kbd">Del</span></button></div>';
   el.innerHTML=h;
@@ -283,6 +283,7 @@ if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="co
     if(k==='rotDeg'){ if(isNaN(v)) return; it.rot=v*Math.PI/180; schedule(); return; }
     if((k==='x'||k==='y'||k==='x1'||k==='y1'||k==='x2'||k==='y2') && isNaN(v)) return;
     it[k]=v; if(it.kind==='wall'){ clampWall(it); } if(k==='fixture'){ var f=S.FIXTURES[v]; it.mod=f.defMod; it.cct=f.cct; props(); }
+    if(k==='tiltAuto'){ if(v) delete it.tiltDeg; else it.tiltDeg=Math.round(S.autoTilt(it)); delete it.tiltAuto; props(); }
     if(k==='rgb'){ if(v&&!it.color) it.color='#3a6bff'; props(); }
     if(k==='aim'&&!v) aimOnce(scene,it);
     if(k==='mod'||k==='aim'||k==='model') props();
@@ -299,7 +300,7 @@ if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="co
   $('bDel').onclick=function(){ del(sel); };
   $('bDup').onclick=function(){ dup(sel); };
 }
-function fmtv(k,v){ if(k==='t') return Math.round(v*100)+' %'; var u={power:' %',cct:' K',zoom:'°',focal:' mm',len:' m',w:' m',d:' m',h:' m',elev:' m',tilt:''}[k]||''; return (typeof v==='number'? (k==='h'||k==='elev'||k==='len'||k==='w'||k==='d'?fmt(v,2):k==='tilt'?fmt(v,2):v):v)+u; }
+function fmtv(k,v){ if(k==='t') return Math.round(v*100)+' %'; var u={power:' %',cct:' K',zoom:'°',focal:' mm',len:' m',tiltDeg:'°',w:' m',d:' m',h:' m',elev:' m',tilt:''}[k]||''; return (typeof v==='number'? (k==='h'||k==='elev'||k==='len'||k==='w'||k==='d'?fmt(v,2):k==='tilt'?fmt(v,2):v):v)+u; }
 
 // ---------- interakce ----------
 var drag=null;
@@ -334,6 +335,7 @@ function setTool(t){ tool=t; draft=null; document.querySelectorAll('#tools .btn'
 document.querySelectorAll('#tools .btn').forEach(function(b){ b.onclick=function(){ setTool(b.dataset.tool); }; });
 function drawSun(){ if(!S.sunOn(scene)) return; var sp=toPx.apply(null,sunPos()), c=toPx(scene.room.w/2,scene.room.h/2);
   ctx.strokeStyle='rgba(255,210,90,.35)'; ctx.lineWidth=1.5; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.moveTo(sp[0],sp[1]); ctx.lineTo(c[0],c[1]); ctx.stroke(); ctx.setLineDash([]);
+  if(S.isNight(scene)){ ctx.fillStyle='#dfe6f5'; ctx.beginPath(); ctx.arc(sp[0],sp[1],10,0,7); ctx.fill(); ctx.fillStyle='#1b2233'; ctx.beginPath(); ctx.arc(sp[0]+5,sp[1]-3,9,0,7); ctx.fill(); ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText('měsíc '+scene.sun.elev+'°',sp[0]+18,sp[1]+4); return; }
   ctx.fillStyle='#ffd25a'; ctx.beginPath(); ctx.arc(sp[0],sp[1],11,0,7); ctx.fill(); ctx.strokeStyle='#8a6a10'; ctx.lineWidth=1; ctx.stroke();
   for(var k=0;k<8;k++){ var a=k*Math.PI/4; ctx.beginPath(); ctx.moveTo(sp[0]+Math.cos(a)*14,sp[1]+Math.sin(a)*14); ctx.lineTo(sp[0]+Math.cos(a)*19,sp[1]+Math.sin(a)*19); ctx.strokeStyle='#ffd25a'; ctx.lineWidth=2; ctx.stroke(); }
   ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText('slunce '+scene.sun.elev+'°',sp[0]+22,sp[1]+4); }
@@ -360,7 +362,7 @@ cv.addEventListener('pointermove',function(e){ var m=mpos(e), w=toM(m[0],m[1]);
     else { var pr=projectOnWall(draft.wall,w[0],w[1]); draft.t2=Math.max(0,Math.min(draft.len,Math.round(pr*10)/10)); } draw(); return; }
   if(!drag){ if(tool!=='select') return; var h=pick(m[0],m[1]); var nh=h?(h.it||null):null; if(nh!==hover){ hover=nh; draw(); } cv.style.cursor= h ? ((h.rot||h.end||h.sun)?'grab':'move') : 'default'; return; }
   drag.moved=true;
-  if(drag.sun){ scene.sun.az=Math.atan2(w[1]-scene.room.h/2,w[0]-scene.room.w/2); if(e.shiftKey) scene.sun.az=Math.round(scene.sun.az/(Math.PI/12))*(Math.PI/12); $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunAzV').textContent=$('sunAz').value+'°'; }
+  if(drag.sun){ scene.sun.az=Math.atan2(w[1]-scene.room.h/2,w[0]-scene.room.w/2); if(e.shiftKey) scene.sun.az=Math.round(scene.sun.az/(Math.PI/12))*(Math.PI/12); $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); }
   else { var it=drag.it;
     if(drag.end){ var o= drag.end===1?[it.x2,it.y2]:[it.x1,it.y1]; var p2=snapPt(w[0],w[1]); var q2=e.altKey?p2:axisSnap(o[0],o[1],p2[0],p2[1],e.shiftKey); if(drag.end===1){ it.x1=q2[0]; it.y1=q2[1]; } else { it.x2=q2[0]; it.y2=q2[1]; } clampWall(it); }
     else if(it.kind==='wall'){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
@@ -375,6 +377,9 @@ cv.addEventListener('pointerup',function(){
     return; }
   if(drag&&drag.moved){ props(); objList(); snapshotSoon(); } drag=null; });
 cv.addEventListener('wheel',function(e){ if(!sel||sel.kind==='wall') return; e.preventDefault(); sel.rot+=(e.deltaY>0?1:-1)*Math.PI/36; props(); schedule(); },{passive:false});
+// levá lišta: sekce (nadpis + obsah až k dalšímu nadpisu) zabalit do rámečků
+(function(){ var L=document.querySelector('aside.l'); if(!L) return; var box=null; Array.prototype.slice.call(L.childNodes).forEach(function(n){ if(n.nodeType===1&&n.tagName==='H3'){ box=document.createElement('section'); box.className='box'; L.insertBefore(box,n); } if(box) box.appendChild(n); }); })();
+(function(){ var kl=$('keyLegend'); if(!kl) return; try{ if(localStorage.getItem('viewfinder-legend')==='0') kl.classList.add('collapsed'); }catch(e){} $('klToggle').onclick=function(){ var c=kl.classList.toggle('collapsed'); try{ localStorage.setItem('viewfinder-legend',c?'0':'1'); }catch(e){} }; })();
 window.addEventListener('keydown',function(e){ var tag=document.activeElement.tagName; if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
   if(view3dReady && window.View3D.wantsKeys() && !(e.ctrlKey||e.metaKey) && (/^[wasdqe]$/i.test(e.key)||e.key.startsWith('Arrow'))) return;
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
@@ -406,7 +411,7 @@ function renderDoors(){ var el=$('doors'), h=''; (scene.doors||[]).forEach(funct
     div.querySelectorAll('[data-k]').forEach(function(inp){ inp.addEventListener('input',function(){ var k=inp.dataset.k; if(inp.type==='checkbox') d[k]=inp.checked; else if(inp.type==='number'){ var v=parseFloat(inp.value); if(isNaN(v)) return; d[k]=k==='w'?Math.max(0.6,v):v; } else d[k]=(k==='wall'&&/^\d+$/.test(inp.value))?+inp.value:inp.value; var len=wallLenAny(d.wall); d.at=Math.max(d.w/2,Math.min(len-d.w/2,d.at)); if(k==='wall'||k==='w') inp.closest('.door').querySelector('[data-k=at]').value=d.at.toFixed(1); schedule(); }); });
     div.querySelector('[data-x]').onclick=function(){ scene.doors.splice(+div.dataset.i,1); renderDoors(); schedule(); }; }); }
 $('bDoor').onclick=function(){ if(!scene.doors) scene.doors=[]; var walls=['bottom','right','top','left'], w=walls[scene.doors.length%4], len=(w==='left'||w==='right')?scene.room.h:scene.room.w; scene.doors.push(door(w,Math.round(len/2*10)/10)); renderDoors(); schedule(); };
-function syncRoom(){ renderDoors(); renderWindows(); renderVariants(); $('outdoor').checked=!!scene.outdoor; $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('fenceOn').checked=scene.fence!==false; $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('env').value=scene.env||''; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°'; }
+function syncRoom(){ renderDoors(); renderWindows(); renderVariants(); $('outdoor').checked=!!scene.outdoor; $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('fenceOn').checked=scene.fence!==false; $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('env').value=scene.env||''; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°';  skyUI(); }
 function wallLabel(w){ return typeof w==='string' ? 'vnější '+wallName(w) : 'zeď '+(function(){ var it=byId(w); return it?fmt(S.wallLen(it),1)+' m':'?'; })(); }
 function renderWindows(){ var el=$('windows'), h=''; (scene.windows||[]).forEach(function(w,i){
     h+='<div class="win" data-i="'+i+'"><div class="hd"><b>Okno '+(i+1)+' · '+wallLabel(w.wall)+'</b><button data-x="'+i+'" title="Odebrat">✕</button></div><div class="row"><div><label>Od (m)</label><input type="number" data-k="from" step="0.1" value="'+w.from.toFixed(1)+'"></div><div><label>Do (m)</label><input type="number" data-k="to" step="0.1" value="'+w.to.toFixed(1)+'"></div><div><label>Roleta</label><select data-k="blind"><option value="none"'+(!w.blind||w.blind==='none'?' selected':'')+'>otevřená</option><option value="half"'+(w.blind==='half'?' selected':'')+'>napůl</option><option value="closed"'+(w.blind==='closed'?' selected':'')+'>zatažená</option></select></div></div></div>'; });
@@ -414,16 +419,33 @@ function renderWindows(){ var el=$('windows'), h=''; (scene.windows||[]).forEach
   el.querySelectorAll('.win').forEach(function(div){ var w=scene.windows[+div.dataset.i];
     div.querySelectorAll('[data-k]').forEach(function(inp){ inp.addEventListener('input',function(){ if(inp.tagName==='SELECT'){ w.blind=inp.value; schedule(); return; } var v=parseFloat(inp.value); if(isNaN(v)) return; w[inp.dataset.k]=v; if(w.to<w.from+0.3) w.to=w.from+0.3; schedule(); }); });
     div.querySelector('[data-x]').onclick=function(){ scene.windows.splice(+div.dataset.i,1); renderWindows(); schedule(); }; }); }
-$('sky').addEventListener('input',function(){ scene.sky=$('sky').value; schedule(); });
+$('sky').addEventListener('input',function(){ scene.sky=$('sky').value; skyUI(); schedule(); });
+document.querySelectorAll('#skyPick [data-sky]').forEach(function(b){ b.onclick=function(){ $('sky').value=b.dataset.sky; $('sky').dispatchEvent(new Event('input')); }; });
+// vektorové ovladače slunce / měsíce: oblouk výšky nad obzorem a kompas směru (sever = nahoru v půdorysu)
+function skyUI(){ document.querySelectorAll('#skyPick [data-sky]').forEach(function(b){ b.classList.toggle('on',b.dataset.sky===(scene.sky||'overcast')); });
+  var night=scene.sky==='night', body=night?'#dfe6f5':'#ffd25a'; $('sunH').textContent=night?'Měsíc':'Slunce'; $('sunOnL').textContent=night?'Měsíc svítí (studené slabé světlo)':'Přímé slunce (svítí okny)';
+  var el=scene.sun.elev==null?35:scene.sun.elev, er=el*Math.PI/180, cx=60, cy=62, R=52, sx=cx+Math.cos(Math.PI-er)*R*-1, sy=cy-Math.sin(er)*R; sx=cx-Math.cos(er)*R;
+  $('elevDial').innerHTML='<path d="M8 62 A52 52 0 0 1 112 62" fill="none" stroke="#3a3833" stroke-width="2"/>'+[15,30,45,60,75].map(function(a){ var r=a*Math.PI/180; return '<line x1="'+(cx-Math.cos(r)*48)+'" y1="'+(cy-Math.sin(r)*48)+'" x2="'+(cx-Math.cos(r)*55)+'" y2="'+(cy-Math.sin(r)*55)+'" stroke="#55514a"/>'; }).join('')
+    +'<line x1="4" y1="62" x2="116" y2="62" stroke="#6b655b" stroke-width="1.5"/><path d="M'+cx+' '+cy+' L'+(cx-R+8)+' '+cy+' A'+(R-8)+' '+(R-8)+' 0 0 1 '+(cx-Math.cos(er)*(R-8))+' '+(cy-Math.sin(er)*(R-8))+' Z" fill="rgba(212,176,113,.18)"/>'
+    +'<line x1="'+cx+'" y1="'+cy+'" x2="'+sx+'" y2="'+sy+'" stroke="'+body+'" stroke-width="2" stroke-dasharray="3 3"/><circle cx="'+sx+'" cy="'+sy+'" r="7" fill="'+body+'"/>'+(night?'<circle cx="'+(sx+3.5)+'" cy="'+(sy-2)+'" r="6" fill="#141414"/>':'')
+    +'<text x="'+(cx+4)+'" y="'+(cy-6)+'" fill="#ece8e0" font-size="11" font-family="Inter,Lato,sans-serif">'+el+'°</text><rect x="'+(cx-3)+'" y="'+(cy-9)+'" width="6" height="9" fill="#9a948a"/>';
+  var az=scene.sun.az||0, ax=40+Math.cos(az)*30, ay=40+Math.sin(az)*30;
+  $('azDial').innerHTML='<circle cx="40" cy="40" r="30" fill="#1c1b19" stroke="#3a3833" stroke-width="2"/>'+[0,1,2,3,4,5,6,7].map(function(i){ var a=i*Math.PI/4, r1=i%2?27:24; return '<line x1="'+(40+Math.cos(a)*r1)+'" y1="'+(40+Math.sin(a)*r1)+'" x2="'+(40+Math.cos(a)*30)+'" y2="'+(40+Math.sin(a)*30)+'" stroke="#55514a"/>'; }).join('')
+    +'<rect x="31" y="33" width="18" height="14" fill="none" stroke="#9a948a" stroke-width="1.5"/><line x1="40" y1="40" x2="'+ax+'" y2="'+ay+'" stroke="'+body+'" stroke-width="2"/><path d="M40 40 L'+(40+Math.cos(az+0.35)*8)+' '+(40+Math.sin(az+0.35)*8)+' M40 40 L'+(40+Math.cos(az-0.35)*8)+' '+(40+Math.sin(az-0.35)*8)+'" stroke="'+body+'" stroke-width="2"/><circle cx="'+ax+'" cy="'+ay+'" r="6" fill="'+body+'"/><text x="40" y="9" text-anchor="middle" fill="#6b655b" font-size="8" font-family="Inter,sans-serif">půdorys</text>';
+  document.querySelector('.sunDials').classList.toggle('off',!scene.sun.on); }
+function dialDrag(svg,fn){ var on=false; function mv(e){ var r=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal, x=(e.clientX-r.left)/r.width*vb.width, y=(e.clientY-r.top)/r.height*vb.height; fn(x,y); }
+  svg.addEventListener('pointerdown',function(e){ on=true; svg.setPointerCapture(e.pointerId); if(!scene.sun.on){ scene.sun.on=true; $('sunOn').checked=true; } mv(e); }); svg.addEventListener('pointermove',function(e){ if(on) mv(e); }); svg.addEventListener('pointerup',function(){ on=false; snapshotSoon(); }); }
+dialDrag($('elevDial'),function(x,y){ var a=Math.round(Math.atan2(62-y,60-x)*180/Math.PI); a=Math.max(2,Math.min(88,a)); scene.sun.elev=a; $('sunElev').value=a; $('sunElevV').textContent=a+'°'; skyUI(); schedule(); });
+dialDrag($('azDial'),function(x,y){ var a=Math.atan2(y-40,x-40); scene.sun.az=a; $('sunAz').value=Math.round(((a*180/Math.PI)%360+360)%360); $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); schedule(); });
 $('exOn').addEventListener('input',function(){ scene.exterior.on=$('exOn').checked; fit(); schedule(); });
 $('fenceOn').addEventListener('input',function(){ scene.fence=$('fenceOn').checked; draw(); sync3d(); snapshotSoon(); });
 $('outdoor').addEventListener('input',function(){ scene.outdoor=$('outdoor').checked; fit(); schedule(); });
 $('exTrees').addEventListener('input',function(){ scene.exterior.trees=parseInt($('exTrees').value,10); $('exTreesV').textContent=$('exTrees').value; draw(); sync3d(); snapshotSoon(); });
 Object.keys(S.FORMATS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=S.FORMATS[k].name; $('fmt').appendChild(o); });
 $('fmt').addEventListener('input',function(){ scene.format=$('fmt').value; if(view3dReady) window.View3D.resize(); draw(); snapshotSoon(); });
-$('sunOn').addEventListener('input',function(){ scene.sun.on=$('sunOn').checked; fit(); schedule(); });
-$('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('sunElev').value); $('sunElevV').textContent=scene.sun.elev+'°'; schedule(); });
-$('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; schedule(); });
+$('sunOn').addEventListener('input',function(){ scene.sun.on=$('sunOn').checked; skyUI(); fit(); schedule(); });
+$('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('sunElev').value); $('sunElevV').textContent=scene.sun.elev+'°'; skyUI(); schedule(); });
+$('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); schedule(); });
 ['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ scene.room.w=Math.max(3,parseFloat($('rw').value)||7); scene.room.h=Math.max(3,parseFloat($('rh').value)||5); scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
 $('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=false; scene.exterior={on:false,trees:6}; scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
@@ -447,6 +469,8 @@ var camTimer=null;
 window.addEventListener('view3d-model',function(){ if(res) sync3d(); });
 window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d')); view3dReady=true; window.View3D.resize();
   window.View3D.setPoseCallback(function(id,bone,q,final){ var it=byId(id); if(!it) return; if(!it.bones) it.bones={}; it.bones[bone]=q; if(final){ poseButtons(); snapshotSoon(); } });
+  // objekt chycený myší v 3D pohledu: výběr, průběžné překreslení půdorysu, na konci přepočet světla
+  window.View3D.setMoveCallback(function(id,x,y,phase){ var it=byId(id); if(!it) return; if(phase==='start'){ if(sel!==it) select(it); return; } it.x=Math.max(0.05,Math.min(scene.room.w-0.05,it.x)); it.y=Math.max(0.05,Math.min(scene.room.h-0.05,it.y)); draw(); if(phase==='end'){ props(); schedule(); } });
   window.View3D.setCameraCallback(function(cam,final){ draw(); var c=scene.items.find(function(i){return i.kind==='camera';}); if(c) $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; clearTimeout(camTimer); camTimer=setTimeout(function(){ if(sel&&sel.kind==='camera') props(); schedule(); }, final?50:350); });
   if(res) sync3d(); });
 if(window.View3D){ window.dispatchEvent(new Event('view3d-ready')); }

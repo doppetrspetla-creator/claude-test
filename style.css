@@ -1,7 +1,7 @@
 :root{--bg:#0b0b0c;--panel:#141416;--panel2:#1b1b1e;--line:#2a2a2e;--gold:#d4b071;--gold2:#8a7146;--txt:#ece8e0;--mut:#8f8a80;--red:#d0534a;--green:#6fb07e;--blue:#6c93c9}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:13px/1.45 Inter,Lato,-apple-system,"Segoe UI",Roboto,sans-serif}
-#app{display:grid;grid-template-columns:250px 1fr 300px;grid-template-rows:50px 1fr;height:100vh}
+#app{display:grid;grid-template-columns:272px 1fr 300px;grid-template-rows:50px 1fr;height:100vh}
 header{grid-column:1/4;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(#131315,#0f0f11)}
 .brand{display:flex;align-items:center;gap:10px;margin-right:12px}
 .logo{font-weight:800;letter-spacing:.08em;color:var(--gold);font-size:11px;text-transform:uppercase}
@@ -69,7 +69,7 @@ canvas#view3d{cursor:crosshair}
 .list div.c .bar i.lo{background:var(--blue)}
 .sect{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
 .kbd{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:10.5px;background:#0f0f11}
-@media (max-width:1100px){#app{grid-template-columns:220px 1fr 260px}}
+@media (max-width:1100px){#app{grid-template-columns:240px 1fr 260px}}
 .door{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px 8px;margin-bottom:6px}
 .door .row{margin-top:4px}
 .door label{margin:4px 0 2px}
@@ -127,3 +127,42 @@ canvas#view3d:focus{outline:none}
 .swatches{display:flex;flex-wrap:wrap;gap:4px;flex:1}
 .swatches .sw{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.25);padding:0;cursor:pointer}
 .swatches .sw:hover{transform:scale(1.15)}
+
+/* nápověda ovládání v pohledu kamery */
+.keyLegend{position:absolute;left:10px;top:34px;z-index:3;background:rgba(14,14,16,.82);border:1px solid rgba(212,176,113,.45);border-radius:10px;padding:8px 10px 8px 10px;color:#ece8e0;font-size:11px;line-height:1.35;box-shadow:0 4px 18px rgba(0,0,0,.45);backdrop-filter:blur(3px);max-width:250px}
+.keyLegend.collapsed{padding:0;border-color:rgba(212,176,113,.6)}
+.keyLegend.collapsed .klBody{display:none}
+.klToggle{position:absolute;right:-9px;top:-9px;width:20px;height:20px;border-radius:50%;border:1px solid var(--gold);background:#1b1a18;color:var(--gold);font:bold 12px/1 Inter,Lato,sans-serif;cursor:pointer;padding:0}
+.keyLegend.collapsed .klToggle{position:static;display:block;width:24px;height:24px}
+.klRow{display:flex;gap:9px;align-items:center;margin-bottom:7px;color:#ece8e0}
+.klTxt{color:#cfc9bd}.klTxt b{color:#fff;font-weight:600}
+.keyLegend kbd{display:inline-block;min-width:16px;padding:1px 4px;border:1px solid #6b655b;border-bottom-width:2px;border-radius:4px;background:#26241f;color:#fff;font:600 10px/1.3 Inter,Lato,sans-serif;text-align:center}
+.wasd{display:grid;grid-template-columns:repeat(3,26px);grid-template-rows:repeat(2,26px);gap:3px;flex:none}
+.wasd kbd{position:relative;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border-color:var(--gold);font-size:11px}
+.wasd kbd{flex-direction:column;gap:0;line-height:1}
+.wasd kbd i{font-style:normal;font-size:12px;color:var(--gold);line-height:.8}
+.klKeys{display:flex;flex-wrap:wrap;gap:5px 10px;border-top:1px solid rgba(255,255,255,.12);padding-top:7px;color:#cfc9bd}
+.klKeys span{white-space:nowrap}
+
+/* obloha – ikonové volby */
+.skyPick{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:4px 0 8px}
+.skyPick button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px 4px;background:#1c1b19;border:1px solid var(--line);border-radius:8px;color:var(--mut);font:11px Inter,Lato,sans-serif;cursor:pointer}
+.skyPick button:hover{border-color:#6b655b;color:#ece8e0}
+.skyPick button.on{border-color:var(--gold);color:#fff;background:#2a2620;box-shadow:0 0 0 1px rgba(212,176,113,.35) inset}
+.sunDials{display:flex;gap:10px;align-items:flex-end;justify-content:space-between;margin:6px 0 2px}
+.sunDials .dial{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--mut)}
+.sunDials svg{cursor:pointer;touch-action:none}
+.sunDials.off{opacity:.4}
+
+/* levá lišta: každá sekce v rámečku, nic nepřetéká */
+aside.l{padding:10px 10px 30px;overflow-x:hidden}
+aside.l .box{border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.018);padding:9px 9px 10px;margin:0 0 10px;min-width:0}
+aside.l .box>h3:first-child{margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+aside.l .add{gap:5px}
+aside.l .add .btn{min-width:0;padding:6px 6px;font-size:11.5px;line-height:1.2;white-space:normal;word-break:normal}
+aside.l .add .btn i{flex:none}
+aside.l .row{min-width:0}
+aside.l .row>div{min-width:0}
+aside.l input[type=range]{width:100%}
+aside.l select{max-width:100%}
+aside.l .list{max-height:none}

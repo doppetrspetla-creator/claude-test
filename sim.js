@@ -33,7 +33,8 @@
     tube:   { name: 'LED tuba', lux1m: 380, cct: 3200, defMod: 'tube' },
     lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' }
   };
-  var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 } };
+  var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 }, night: { E: 0.6, cct: 9000 } };
+  // noc: místo slunce svítí měsíc – „filmový“ měsíční svit (reálný úplněk ≈ 0,25 lx, na place se svítí silněji), studený
   // světlo za otevřenými dveřmi (vedlejší místnost / chodba): lux na 1 m od otvoru šířky 0,9 m
   var DOORLIGHT = { none: { E: 0, cct: 3000 }, dim: { E: 120, cct: 3000 }, bright: { E: 500, cct: 4000 }, day: { E: 900, cct: 6000 } };
   // nábytek: půdorys w×d (m), výška h (m), tall = stíní ve výšce obličeje
@@ -121,7 +122,10 @@
   function sunDir(scene) { var a = scene.sun ? scene.sun.az || 0 : 0; return [Math.cos(a), Math.sin(a)]; }
   function sunOn(scene) { return !!(scene.sun && scene.sun.on); }
   // barva slunce podle výšky: u obzoru teplé (zlatá hodinka ~3000 K), od 25° denní 5200 K
-  function sunCCT(scene) { var e = scene.sun && scene.sun.elev != null ? scene.sun.elev : 35; return e >= 25 ? SUN_CCT : Math.round(2900 + (SUN_CCT - 2900) * Math.max(0, e) / 25); }
+  var MOON_E = 6, MOON_CCT = 4300;
+  function isNight(scene) { return scene.sky === 'night'; }
+  function sunE(scene) { return isNight(scene) ? MOON_E : SUN_E; }
+  function sunCCT(scene) { if (isNight(scene)) return MOON_CCT; var e = scene.sun && scene.sun.elev != null ? scene.sun.elev : 35; return e >= 25 ? SUN_CCT : Math.round(2900 + (SUN_CCT - 2900) * Math.max(0, e) / 25); }
   var curFaceZ = FACE_Z;
 
   function kelvinRGB(k) {
@@ -286,6 +290,8 @@
     return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, aspect: aspect, E1: E1, col: col, rgb: rgb, Y: Y, soft: m.soft, omni: beam >= 300, h: L.h == null ? 1.7 : L.h };
   }
 
+  // automatický náklon světla: míří na výšku obličeje 2,2 m před sebou (°)
+  function autoTilt(L) { var P = lightParams(L); return Math.atan2(FACE_Z - P.h, 2.2) * 180 / Math.PI; }
   function lightEmitter(L) {
     var P = lightParams(L), beam = P.beam, m = P.mod;
     var nx = Math.cos(L.rot), ny = Math.sin(L.rot);
@@ -296,7 +302,7 @@
     for (var i = 0; i < n; i++) { var o = n === 1 ? 0 : (i / (n - 1) - 0.5) * P.size; pts.push([L.x + tx * o + nx * 0.02, L.y + ty * o + ny * 0.02]); }
     return { pts: pts, nx: nx, ny: ny, z: P.h, E1: P.E1, exp: exp,
              cosCut: m.soft ? (beam >= 300 ? -2 : 0.0) : Math.cos(Math.min(Math.PI * 0.97, half * 1.5)), col: P.col, hard: !m.soft,
-             barn: L.barn ? Math.cos(half * 1.02) : null, omni: P.omni, id: L.id };
+             barn: L.barn ? Math.cos(half * 1.02) : null, omni: P.omni, id: L.id, tilt: L.tiltDeg != null ? L.tiltDeg * Math.PI / 180 : null };
   }
   function windowEmitters(scene) {
     var out = [], sk = SKY[scene.sky] || SKY.overcast;
@@ -336,8 +342,8 @@
   function sunIllum(scene, occ, x, y, snx, sny) {
     var v = sunVisible(scene, occ, x, y); if (!v) return 0;
     var ce = Math.cos((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180), d = sunDir(scene);
-    if (snx === undefined) return SUN_E;
-    var lam = (snx * d[0] + sny * d[1]) * ce; return lam > 0 ? SUN_E * lam : 0;
+    if (snx === undefined) return sunE(scene);
+    var lam = (snx * d[0] + sny * d[1]) * ce; return lam > 0 ? sunE(scene) * lam : 0;
   }
   function doorEmitters(scene) {
     var out = []; if (scene.outdoor) return out;
@@ -362,6 +368,7 @@
       var p = em.pts[i], dx = x - p[0], dy = y - p[1], d2 = dx * dx + dy * dy;
       if (d2 < 0.0025) d2 = 0.0025;
       var d = Math.sqrt(d2), cs = em.omni ? 1 : (dx * em.nx + dy * em.ny) / d;
+      if (em.tilt != null && !em.omni) { var ct = Math.cos(em.tilt), st = Math.sin(em.tilt); cs = (dx * em.nx * ct + dy * em.ny * ct - dz * st) / Math.sqrt(d2 + dz2); } // ruční náklon: úhel k ose ve 3D
       if (cs <= em.cosCut) continue;
       if (em.barn !== null && em.barn !== undefined && cs < em.barn) continue;
       var f = em.omni ? 1 : (em.exp === 0 ? 1 : Math.pow(Math.max(cs, 0), em.exp));
@@ -412,7 +419,7 @@
       var P = boardParams(it), fx = it.x + nx * 0.03, fy = it.y + ny * 0.03;
       var pts = [], n = 7, tx = Math.cos(it.rot), ty = Math.sin(it.rot);
       for (var i = 0; i < n; i++) { var o = (i / (n - 1) - 0.5) * it.len; pts.push([fx + tx * o, fy + ty * o]); }
-      ems.push({ pts: pts, nx: nx, ny: ny, z: P.z, E1: Etot * P.k * P.area / Math.PI * P.gain, exp: P.exp, cosCut: 0.02,
+      ems.push({ pts: pts, nx: nx, ny: ny, z: P.z, E1: Etot * P.k * P.area / Math.PI * P.gain, exp: P.exp, cosCut: 0.02, tilt: it.tiltDeg ? it.tiltDeg * Math.PI / 180 : null,
                  col: [col[0] / Etot, col[1] / Etot, col[2] / Etot], hard: false, omni: false, bounce: true, id: it.id, Ein: Etot });
     });
     return ems;
@@ -444,7 +451,7 @@
     scene.items.forEach(function (it) { if (it.kind !== 'bounce' || !it.black || ambM <= 0) return;
       var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2); if (it.flip) { nx = -nx; ny = -ny; }
       [1, -1].forEach(function (sd) { var pts = [], tx = Math.cos(it.rot), ty = Math.sin(it.rot); for (var i = 0; i < 7; i++) { var o = (i / 6 - 0.5) * it.len; pts.push([it.x + sd * nx * 0.03 + tx * o, it.y + sd * ny * 0.03 + ty * o]); }
-        ems.push({ pts: pts, nx: sd * nx, ny: sd * ny, z: 1.5, E1: -ambM * 0.5 / Math.PI * it.len * 1.0, exp: 1, cosCut: 0.02, col: [1, 1, 1], hard: false, omni: false, bounce: true, neg: true, id: it.id }); }); });
+        ems.push({ pts: pts, nx: sd * nx, ny: sd * ny, z: 1.5, tilt: it.tiltDeg ? sd * it.tiltDeg * Math.PI / 180 : null, E1: -ambM * 0.5 / Math.PI * it.len * 1.0, exp: 1, cosCut: 0.02, col: [1, 1, 1], hard: false, omni: false, bounce: true, neg: true, id: it.id }); }); });
     return { nx: nx, ny: ny, cell: cell, R: R, G: G, B: B, ems: ems, occ: occ, amb: (amb[0] + amb[1] + amb[2]) / 3, ambCol: amb, faceZ: curFaceZ };
   }
 
@@ -467,6 +474,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

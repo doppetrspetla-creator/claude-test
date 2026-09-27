@@ -108,10 +108,12 @@ function init(cv) {
   // FPS ovládání kamery: hover + klávesy + myš
   cv.tabIndex = 0;
   cv.addEventListener('pointerenter', () => { over = true; }); cv.addEventListener('pointerleave', () => { over = false; keys = {}; });
-  cv.addEventListener('pointerdown', e => { cv.focus(); if (e.button === 0 && poseDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; } if (orbit || e.button !== 0 || !camItem) return; lookDrag = { x: e.clientX, y: e.clientY, rot: camItem.rot, tilt: camItem.tilt || 0 }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (pose.drag) { poseMove(e); return; } if (pose.on && !lookDrag) { cv.style.cursor = poseHoverAt(e) ? 'grab' : 'crosshair'; } if (!lookDrag || !camItem) return; const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y, f = (camItem.focal || 35);
+  cv.addEventListener('pointerdown', e => { cv.focus(); if (e.button === 0 && poseDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; }
+    if (e.button === 0 && objDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; } // chycení objektu → posun po podlaze
+    if (orbit || e.button !== 0 || !camItem) return; lookDrag = { x: e.clientX, y: e.clientY, rot: camItem.rot, tilt: camItem.tilt || 0 }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (pose.drag) { poseMove(e); return; } if (objDrag) { objMove(e); return; } if (pose.on && !lookDrag) { cv.style.cursor = poseHoverAt(e) ? 'grab' : 'crosshair'; } if (!lookDrag || !camItem) return; const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y, f = (camItem.focal || 35);
     const k = 0.0025 * 35 / f; camItem.rot = lookDrag.rot + dx * k; camItem.tilt = Math.max(-1.2, Math.min(1.2, lookDrag.tilt - dy * k)); camItem.aim = false; emitCam(false); });
-  cv.addEventListener('pointerup', () => { if (pose.drag) { poseUp(); if (orbit) controls.enabled = true; return; } if (lookDrag) { lookDrag = null; emitCam(true); } });
+  cv.addEventListener('pointerup', () => { if (pose.drag) { poseUp(); if (orbit) controls.enabled = true; return; } if (objDrag) { objUp(); if (orbit) controls.enabled = true; return; } if (lookDrag) { lookDrag = null; emitCam(true); } });
   cv.addEventListener('wheel', e => { if (orbit || !camItem) return; e.preventDefault(); camItem.focal = Math.round(Math.max(14, Math.min(135, (camItem.focal || 35) * (e.deltaY > 0 ? 0.92 : 1.087)))); emitCam(true); }, { passive: false });
   window.addEventListener('keydown', e => { if (!wantsKeys()) return; const k = e.key.toLowerCase(); if ('wasdqe'.includes(k) || e.key.startsWith('Arrow')) { keys[k === ' ' ? k : (e.key.startsWith('Arrow') ? e.key : k)] = true; e.preventDefault(); } });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); delete keys[k]; delete keys[e.key]; });
@@ -244,7 +246,7 @@ function addSunBeams(sc) {
     const geo = new THREE.BufferGeometry().setFromPoints(verts), col = new Float32Array(verts.length * 3);
     verts.forEach((v, i) => { const t = far.indexOf(v) >= 0 ? 0.35 : 1.0; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = t; });
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(geo, beamMat(k.color, S.SUN_E * haze * 0.00012)); m.renderOrder = 5; m.userData.beam = true; group.add(m);
+    const m = new THREE.Mesh(geo, beamMat(k.color, S.sunE(sc) * haze * 0.00012)); m.renderOrder = 5; m.userData.beam = true; group.add(m);
   });
 }
 function addLight(L, res) {
@@ -254,6 +256,7 @@ function addLight(L, res) {
   const pos = new THREE.Vector3(L.x, P.h, L.y);
   // cíl: 2 m před světlem ve výšce obličeje (světla se mírně sklánějí)
   const tgt = pos.clone().add(dir.clone().multiplyScalar(2.2)); tgt.y = S.FACE_Z;
+  if (L.tiltDeg != null) { const t = L.tiltDeg * Math.PI / 180; tgt.copy(pos).add(dir.clone().multiplyScalar(2.2 * Math.cos(t))); tgt.y = pos.y + 2.2 * Math.sin(t); } // ruční náklon
   const g = new THREE.Group(); group.add(g);
   const E1 = P.E1 * k.gain;
   if (P.omni) {
@@ -566,12 +569,13 @@ function addBounce(b, res) {
   let mat;
   if (dif) { const Lum = em ? em.E1 / P.area : 0; mat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 1, transparent: true, opacity: 0.88, side: THREE.DoubleSide, emissive: em ? col3(em.col) : new THREE.Color(0), emissiveIntensity: Lum * 0.9 }); }
   else mat = new THREE.MeshStandardMaterial({ color: b.black ? 0x050505 : (b.silver ? 0xd8dce2 : 0xf4f1e8), roughness: b.silver ? 0.35 : 1, metalness: b.silver ? 0.45 : 0, side: THREE.DoubleSide });
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(b.len, hh), mat); pl.position.y = cy; pl.castShadow = !dif; pl.receiveShadow = true; g.add(pl);
-  if (dif) { const fm = MAT.metal, t = 0.025; [[b.len + t, t, 0, hh / 2], [b.len + t, t, 0, -hh / 2]].forEach(q => box(g, fm, q[0], q[1], t, 0, cy + q[3], 0)); [-1, 1].forEach(sd => box(g, fm, t, hh + t, t, sd * b.len / 2, cy, 0)); }
+  const tl = (b.tiltDeg || 0) * Math.PI / 180, tg = new THREE.Group(); tg.position.y = cy; tg.rotation.x = b.flip ? tl : -tl; g.add(tg); // náklon desky kolem vodorovné osy
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(b.len, hh), mat); pl.castShadow = !dif; pl.receiveShadow = true; tg.add(pl);
+  if (dif) { const fm = MAT.metal, t = 0.025; [[b.len + t, t, 0, hh / 2], [b.len + t, t, 0, -hh / 2]].forEach(q => box(tg, fm, q[0], q[1], t, 0, q[3], 0)); [-1, 1].forEach(sd => box(tg, fm, t, hh + t, t, sd * b.len / 2, 0, 0)); }
   stand(0, 0, Math.max(0.4, cy - hh / 2), g);
   ems.forEach(e => { if (Math.abs(e.E1) < 1e-6) return;
     const rl = new THREE.RectAreaLight(col3(e.col), e.E1 / P.area * 1.7, b.len, hh); // ×1,7: plošné světlo three.js na krátkou vzdálenost vychází slabší než výpočet v simulaci
-    rl.position.set(b.x + e.nx * 0.03, cy, b.y + e.ny * 0.03); rl.lookAt(b.x + e.nx * 2, cy, b.y + e.ny * 2); group.add(rl); });
+    const et = e.tilt || 0; rl.position.set(b.x + e.nx * 0.03, cy, b.y + e.ny * 0.03); rl.lookAt(b.x + e.nx * 2 * Math.cos(et), cy + 2 * Math.sin(et), b.y + e.ny * 2 * Math.cos(et)); group.add(rl); });
 }
 
 function addWindow(sc, w) {
@@ -626,15 +630,22 @@ function addExterior(sc) {
   const ex = sc.exterior, open = !!(ex && ex.on) || !!sc.outdoor;
   if (!open && !(sc.windows || []).length) return; // bez oken není ven vidět
   const sk = S.SKY[sc.sky] || S.SKY.overcast, W = sc.room.w, H = sc.room.h, k = kel(sk.cct), k2 = k, Lsky = sk.E / Math.PI;
-  const skyTint = sc.sky === 'sunny' ? new THREE.Color(0.55, 0.72, 1.0) : sc.sky === 'dusk' ? new THREE.Color(0.55, 0.5, 0.75) : new THREE.Color(0.85, 0.87, 0.9);
+  const skyTint = sc.sky === 'sunny' ? new THREE.Color(0.55, 0.72, 1.0) : sc.sky === 'dusk' ? new THREE.Color(0.55, 0.5, 0.75) : sc.sky === 'night' ? new THREE.Color(0.2, 0.28, 0.5) : new THREE.Color(0.85, 0.87, 0.9);
   // obloha: skybox (fotka oblohy) upravený podle počasí, jas navázaný na expozici → soumrak není černý, jasno není šedé
-  const skyTex = skyTexture(sc.sky === 'sunny' ? 'sunny' : sc.sky === 'dusk' ? 'dusk' : 'overcast');
+  const skyTex = skyTexture(sc.sky === 'sunny' ? 'sunny' : sc.sky === 'dusk' ? 'dusk' : sc.sky === 'night' ? 'night' : 'overcast');
   if (skyTex) {
-    const kk = sc.sky === 'sunny' ? 0.72 : sc.sky === 'dusk' ? 0.85 : 1.0, X = open ? kk * (lastOpts.ref || 300) / 2.6 : sk.E * 0.9;
+    const kk = sc.sky === 'sunny' ? 0.72 : sc.sky === 'dusk' ? 0.85 : sc.sky === 'night' ? 0.35 : 1.0, X = open ? kk * (lastOpts.ref || 300) / 2.6 : sk.E * 0.9;
     const dome = new THREE.Mesh(new THREE.SphereGeometry(48, 48, 24), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false }));
     dome.material.color.setScalar(X); dome.position.set(W / 2, -1, H / 2); dome.renderOrder = -1; dome.userData.noShadow = true;
     const az = sc.sun && sc.sun.az != null ? sc.sun.az : Math.PI * 1.25; dome.rotation.y = (Math.PI - 2 * Math.PI * SKY_SUN_U) - az; // zapečené slunce oblohy do směru našeho slunce
     group.add(dome);
+    if (sc.sky === 'night' && S.sunOn(sc)) { // měsíc: malý svítící kotouč ve směru „slunce“
+      const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, R = 44, mp = new THREE.Vector3(W / 2 + d[0] * Math.cos(el) * R, -1 + Math.sin(el) * R, H / 2 + d[1] * Math.cos(el) * R);
+      const moon = new THREE.Mesh(new THREE.CircleGeometry(1.1, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.95, 0.96, 1).multiplyScalar(X * 9), fog: false, depthWrite: false }));
+      moon.position.copy(mp); moon.lookAt(W / 2, 1.5, H / 2); moon.renderOrder = -1; moon.userData.noShadow = true; group.add(moon);
+      const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), gr = hx.createRadialGradient(64, 64, 8, 64, 64, 64); gr.addColorStop(0, 'rgba(150,170,220,0.55)'); gr.addColorStop(0.35, 'rgba(90,110,170,0.18)'); gr.addColorStop(1, 'rgba(40,50,90,0)'); hx.fillStyle = gr; hx.fillRect(0, 0, 128, 128);
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hc), color: new THREE.Color(1, 1, 1).multiplyScalar(X * 1.2), transparent: true, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.position.copy(mp).multiplyScalar(0.999); halo.lookAt(W / 2, 1.5, H / 2); halo.renderOrder = -1; group.add(halo); }
   } else { const R = 48, geo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
     const zen = skyTint.clone().multiplyScalar(Lsky * 0.32), hor = skyTint.clone().lerp(new THREE.Color(1, 0.97, 0.92), 0.55).multiplyScalar(Lsky * 0.55);
     for (let i = 0; i < pos.count; i++) { const t = Math.max(0, pos.getY(i) / R); const c = hor.clone().lerp(zen, Math.pow(t, 0.6)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
@@ -677,6 +688,8 @@ function skyTexture(kind) {
     for (let y = 0; y < h; y++) { const t = Math.min(1, y / (h / 2)); // 0 = zenit, 1 = obzor
       for (let x = 0; x < w; x++) { const i = (y * w + x) * 4, L = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; let c;
         if (kind === 'overcast') { const v = 0.6 + 0.3 * L + 0.05 * t; c = [v * 0.97, v * 0.985, v * 1.02]; }
+        else if (kind === 'night') { const tt = Math.pow(t, 2), f = 0.35 + 0.35 * L; c = [(0.05 + 0.12 * tt) * f, (0.08 + 0.16 * tt) * f, (0.2 + 0.2 * tt) * f];
+          const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453, rr = h - Math.floor(h); if (t < 0.85 && rr > 0.9992) c = [0.75, 0.78, 0.85]; } // tmavě modrá, hvězdy
         else { const tt = Math.pow(t, 2.4), f = 0.5 + 0.8 * L; c = [(0.09 + 0.91 * tt) * f, (0.12 + 0.44 * tt) * f, (0.3 - 0.02 * tt) * f]; } // soumrak: tmavě modrý zenit → oranžový obzor
         d[i] = Math.min(255, c[0] * 255); d[i + 1] = Math.min(255, c[1] * 255); d[i + 2] = Math.min(255, c[2] * 255); } }
     cx.putImageData(id, 0, 0);
@@ -750,7 +763,7 @@ function addWallItem(sc, it) {
 function addSun(sc) {
   if (!S.sunOn(sc)) return;
   const d = S.sunDir(sc), el = (sc.sun.elev == null ? 35 : sc.sun.elev) * Math.PI / 180, k = kel(S.sunCCT(sc)), W = sc.room.w, H = sc.room.h, R = Math.max(W, H);
-  const sun = new THREE.DirectionalLight(k.color, S.SUN_E * k.gain);
+  const sun = new THREE.DirectionalLight(k.color, S.sunE(sc) * k.gain);
   sun.position.set(W / 2 + d[0] * Math.cos(el) * 25, Math.sin(el) * 25 + 1.5, H / 2 + d[1] * Math.cos(el) * 25); if (hq.active) sun.position.add(new THREE.Vector3(jit(), jit(), jit()).multiplyScalar(0.25)); sun.target.position.set(W / 2, 1.2, H / 2);
   sun.castShadow = !!lastOpts.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
   const R2 = ((sc.exterior && sc.exterior.on) || sc.outdoor) ? R + 8 : R; const c = sun.shadow.camera; c.left = -R2; c.right = R2; c.top = R2; c.bottom = -R2; c.near = 1; c.far = 60; c.updateProjectionMatrix(); sun.shadow.mapSize.set(Q().sunMap, Q().sunMap);
@@ -812,7 +825,8 @@ function sync(sc, res, meas, opts) {
   applyQualityRatio();
   clear(group); pendingLift = [];
   scene3.background = new THREE.Color(0x000000); addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
-  sc.items.forEach(it => {
+  sc.items.forEach(it => { const nTag = group.children.length; addItem3D(sc, it, res); if (it.kind !== 'camera' && it.kind !== 'wall') for (let i = nTag; i < group.children.length; i++) group.children[i].userData.itemId = it.id; });
+  function addItem3D(sc, it, res) {
     if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res);
       if (S.diffusedBy(sc, it)) { const drop = []; for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isLight || (o.userData && o.userData.beam)) drop.push(o); }); drop.forEach(o => o.parent && o.parent.remove(o)); } // světlo míří do difuzního rámu → svítí rám
       if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
@@ -822,7 +836,7 @@ function sync(sc, res, meas, opts) {
     else if (it.kind === 'box' || it.kind === 'furniture') addFurniture(it);
     else if (it.kind === 'camera' && modelFor('filmcam')) { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; filmCamera(camMesh, modelFor('filmcam'), it.h == null ? 1.5 : it.h); group.add(camMesh); }
     else if (it.kind === 'camera') { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; const ch = it.h == null ? 1.5 : it.h; const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.13), MAT.metal); b.position.y = ch + 0.07; camMesh.add(b); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.047, 0.14, 14), MAT.metal); l.position.set(0.18, ch + 0.07, 0); l.rotation.z = -Math.PI / 2; camMesh.add(l); const lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 12), MAT.eye); lens.position.set(0.251, ch + 0.07, 0); lens.rotation.y = Math.PI / 2; camMesh.add(lens); const mon = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.14), MAT.metal); mon.position.set(-0.1, ch + 0.2, 0.05); camMesh.add(mon); tripod(camMesh, ch); group.add(camMesh); }
-  });
+  }
   group.updateMatrixWorld(true); pendingLift.forEach(a => liftHands(a[0], a[1], a[2])); pendingLift = [];
   // všechny plné objekty přijímají i vrhají stíny (jinak by je slunce prosvítilo skrz strop)
   group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = true; } });
@@ -877,6 +891,29 @@ function shot() { if (!hq.done && !hq.active) render();
   if (lastOpts.grain > 0 && grainCv.width) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.85; g.drawImage(grainCv, crop.x / pr / 2, crop.y / pr / 2, crop.w / pr / 2, crop.h / pr / 2, 0, 0, crop.w, crop.h); }
   return c.toDataURL('image/png'); }
 function setCameraCallback(fn) { onCamera = fn; }
+// ---------- chycení a posun objektu myší v 3D (kamera i volný pohled) ----------
+let objDrag = null, onMove = null;
+const pickRay = new THREE.Raycaster();
+function rayAt(e) { const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, rg = (!orbit && region && formatAspect() > 0) ? region : { x: 0, y: 0, w: r.width, h: r.height };
+  if (mx < rg.x || my < rg.y || mx > rg.x + rg.w || my > rg.y + rg.h) return null;
+  pickRay.setFromCamera(new THREE.Vector2((mx - rg.x) / rg.w * 2 - 1, -((my - rg.y) / rg.h) * 2 + 1), orbit ? orbitCam : camera); return pickRay; }
+function objDown(e) {
+  if (!lastScene || pose.on || hq.active) return false; const rc = rayAt(e); if (!rc) return false;
+  const cands = group.children.filter(o => o.userData.itemId != null && o.visible), hit = rc.intersectObjects(cands, true).find(h => h.object.visible && !(h.object.material && h.object.material.isMeshBasicMaterial && h.object.material.transparent)); if (!hit) return false;
+  let top = hit.object; while (top.parent && top.parent !== group) top = top.parent; const id = top.userData.itemId, it = lastScene.items.find(i => i.id === id); if (!it) return false;
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -hit.point.y), p0 = rc.ray.intersectPlane(plane, new THREE.Vector3()); if (!p0) return false;
+  objDrag = { id, it, plane, p0, x0: it.x, y0: it.y, objs: group.children.filter(o => o.userData.itemId === id).map(o => [o, o.position.clone()]), moved: false };
+  if (onMove) onMove(id, it.x, it.y, 'start'); return true;
+}
+function objMove(e) {
+  const rc = rayAt(e); if (!rc) return; const p = rc.ray.intersectPlane(objDrag.plane, new THREE.Vector3()); if (!p) return;
+  let dx = p.x - objDrag.p0.x, dz = p.z - objDrag.p0.z; const L = Math.hypot(dx, dz); if (L > 6) { dx *= 6 / L; dz *= 6 / L; } // pojistka u vzdáleného obzoru
+  objDrag.it.x = objDrag.x0 + dx; objDrag.it.y = objDrag.y0 + dz; objDrag.moved = true;
+  objDrag.objs.forEach(([o, p0]) => o.position.set(p0.x + dx, p0.y, p0.z + dz)); if (objDrag.it.kind === 'person' || objDrag.it.kind === 'light') { floorRing.position.set(objDrag.it.x, 0.005, objDrag.it.y); }
+  dirty = true; if (onMove) onMove(objDrag.id, objDrag.it.x, objDrag.it.y, 'move');
+}
+function objUp() { const d = objDrag; objDrag = null; if (onMove) onMove(d.id, d.it.x, d.it.y, d.moved ? 'end' : 'click'); }
+function setMoveCallback(fn) { onMove = fn; }
 function hasCamera() { return !!(lastScene && lastScene.items.some(i => i.kind === 'camera')); }
 
 // ---------- HQ render: N průchodů s náhodným posunem světel a subpixelovým posunem kamery, průměr → vyhlazený snímek ----------
@@ -948,6 +985,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { setMoveCallback, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();
