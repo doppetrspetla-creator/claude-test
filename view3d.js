@@ -381,7 +381,7 @@ function addModelPerson(p, gltf) {
   const inst = SkeletonUtils.clone(gltf.scene); inst.rotation.y = Math.PI / 2; // model kouká do +Z → náš směr je +X
   g.add(inst);
   const PS = S.POSES[p.pose] || S.POSES.stand, sit = !!PS.sit, clip = gltf.animations.find(a => a.name === PS.clip) || gltf.animations.find(a => a.name === 'idle');
-  if (clip) { const mixer = new THREE.AnimationMixer(inst); const a = mixer.clipAction(clip); a.play(); const t = (p.t == null) ? (PS.clip === 'sit' ? 0.8 : ((0.15 + ((p.id || 0) % 5) * 0.17) % 1)) : Math.max(0, Math.min(1, p.t)); mixer.setTime(Math.min(clip.duration - 0.01, t * clip.duration)); }
+  if (clip) { const mixer = new THREE.AnimationMixer(inst); const a = mixer.clipAction(clip); a.play(); const t = (p.t == null) ? (PS.sit && PS.clip !== 'type' ? 0.8 : ((0.15 + ((p.id || 0) % 5) * 0.17) % 1)) : Math.max(0, Math.min(1, p.t)); mixer.setTime(Math.min(clip.duration - 0.01, t * clip.duration)); }
   const bones = {}; inst.traverse(o => { if (o.isBone) bones[o.name] = o; }); rigs[p.id] = { inst: inst, bones: bones, group: g };
   if (p.bones) { for (const bn in p.bones) { const b = bones[bn], q = p.bones[bn]; if (b && q && q.length === 4) b.quaternion.set(q[0], q[1], q[2], q[3]); } }
   inst.updateMatrixWorld(true);
