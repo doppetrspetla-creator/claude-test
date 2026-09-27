@@ -123,3 +123,7 @@ canvas#view3d:focus{outline:none}
 .pane canvas.poseOverlay{position:absolute;left:0;top:0;pointer-events:none;z-index:2}
 #bPose.on{background:var(--gold);color:#111;border-color:var(--gold)}
 .btn.hide{display:none}
+
+.swatches{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.swatches .sw{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.25);padding:0;cursor:pointer}
+.swatches .sw:hover{transform:scale(1.15)}

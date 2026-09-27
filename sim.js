@@ -8,19 +8,25 @@
     reflector: { name: 'Reflektor 55°', beam: 55, size: 0.18, mult: 1.0, soft: false },
     fresnel:   { name: 'Fresnel (spot–flood)', beam: 30, size: 0.15, mult: 1.9, soft: false, zoom: true },
     bare:      { name: 'Holá hlava 110°', beam: 110, size: 0.06, mult: 0.35, soft: false },
+    softbox45: { name: 'Softbox 45 cm', beam: 120, size: 0.45, mult: 0.32, soft: true },
     softbox60: { name: 'Softbox 60 cm', beam: 120, size: 0.60, mult: 0.30, soft: true },
     softbox90: { name: 'Softbox 90 cm', beam: 120, size: 0.90, mult: 0.26, soft: true },
+    softbox150: { name: 'Softbox 150 cm', beam: 120, size: 1.50, mult: 0.20, soft: true },
     octa120:   { name: 'Oktabox 120 cm', beam: 120, size: 1.20, mult: 0.22, soft: true },
     lantern:   { name: 'Lampion 65 cm', beam: 300, size: 0.65, mult: 0.12, soft: true },
     umbrella:  { name: 'Deštník odrazný 105 cm', beam: 140, size: 1.05, mult: 0.16, soft: true },
     frame:     { name: 'Difuzní rám 1,2 m (Full)', beam: 140, size: 1.20, mult: 0.30, soft: true },
     tube:      { name: 'Tuba 1,2 m (světlo)', beam: 340, size: 1.20, mult: 1.0, soft: true },
-    practical: { name: 'Praktikál (lampa)', beam: 340, size: 0.12, mult: 1.0, soft: true }
+    practical: { name: 'Praktikál (lampa)', beam: 340, size: 0.12, mult: 1.0, soft: true },
+    panel:     { name: 'Plocha LED panelu (bez modifikátoru)', beam: 60, size: 0.30, mult: 1.0, soft: true, panel: true }
   };
   var FIXTURES = {
     cob100: { name: 'COB 100 W', lux1m: 4200, cct: 5600, defMod: 'reflector' },
     cob300: { name: 'COB 300 W', lux1m: 12000, cct: 5600, defMod: 'reflector' },
     cob600: { name: 'COB 600 W', lux1m: 24000, cct: 5600, defMod: 'reflector' },
+    panel1: { name: 'LED panel 30×30 cm', lux1m: 1500, cct: 5600, defMod: 'panel', pw: 0.30, ph: 0.30 },
+    panel2: { name: 'LED panel 60×30 cm', lux1m: 2800, cct: 5600, defMod: 'panel', pw: 0.60, ph: 0.30 },
+    ledmat: { name: 'LED matrace 60×60 cm (flexibilní)', lux1m: 2000, cct: 5600, defMod: 'panel', pw: 0.60, ph: 0.60, beam: 110 },
     tube:   { name: 'LED tuba', lux1m: 380, cct: 3200, defMod: 'tube' },
     lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' }
   };
@@ -29,21 +35,24 @@
   var DOORLIGHT = { none: { E: 0, cct: 3000 }, dim: { E: 120, cct: 3000 }, bright: { E: 500, cct: 4000 }, day: { E: 900, cct: 6000 } };
   // nábytek: půdorys w×d (m), výška h (m), tall = stíní ve výšce obličeje
   var FURNITURE = {
-    chair:    { name: 'Židle', w: 0.45, d: 0.45, h: 0.9, tall: false },
-    sofa:     { name: 'Gauč', w: 0.9, d: 2.0, h: 0.85, tall: false },
-    armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false },
-    table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false },
-    coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false },
-    bed:      { name: 'Postel (manželská)', w: 2.2, d: 1.76, h: 1.06, tall: false, credit: 'rickmaolly', title: 'Bed' },
-    wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true },
-    shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
-    block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false },
-    car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false, credit: 'Lexyc16', title: 'Classic Muscle car' },
-    ldesk:    { name: 'Rohový stůl (L) s nástavbou', w: 2.11, d: 1.55, h: 1.57, tall: false, top: 0.75, credit: 'fthylmaz', title: 'L shape desk, drawers and shelfs' },
-    pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer' },
-    kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter' },
-    tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly' }
+    chair:    { name: 'Židle', w: 0.45, d: 0.45, h: 0.9, tall: false, grp: 'seat' },
+    sofa:     { name: 'Gauč', w: 0.9, d: 2.0, h: 0.85, tall: false, grp: 'seat' },
+    armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false, grp: 'seat' },
+    table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false, grp: 'table' },
+    coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false, grp: 'table' },
+    bed:      { name: 'Postel (manželská)', w: 2.2, d: 1.76, h: 1.06, tall: false, credit: 'rickmaolly', title: 'Bed', grp: 'bed' },
+    wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true, grp: 'storage' },
+    shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true, grp: 'storage' },
+    block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false, grp: 'block' },
+    car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false, credit: 'Lexyc16', title: 'Classic Muscle car', grp: 'car' },
+    ldesk:    { name: 'Rohový stůl (L) s nástavbou', w: 2.11, d: 1.55, h: 1.475, tall: false, top: 0.75, credit: 'fthylmaz', title: 'L shape desk, drawers and shelfs', grp: 'table' },
+    pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer', grp: 'pc' },
+    pcdesk:   { name: 'Pracovní stůl s PC a doplňky', w: 0.75, d: 2.31, h: 1.32, tall: false, top: 0.75, credit: 'Ren Viro Store', title: 'PC Desk', grp: 'table' },
+    kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter', grp: 'kitchen' },
+    tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly', grp: 'tree' }
   };
+  // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
+  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Auto', block: 'Box' };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
     proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
@@ -173,9 +182,13 @@
   // sedadla v autě (poměr k délce/šířce auta): řidič vlevo, spolujezdec vpravo
   function carSeat(car, which) { var fx = -0.04 * car.w, fy = (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: r }; }
   function deskSpots(desk) {
+    if (desk.type === 'pcdesk') { // sedí se před stůl (strana u šipky otočení), čelem k monitoru
+      var r2 = desk.rot || 0, off = desk.w / 2 + 0.24;
+      return { person: { x: desk.x + Math.cos(r2) * off, y: desk.y + Math.sin(r2) * off, rot: r2 + Math.PI }, pc: null };
+    }
     var w = desk.w, d = desk.d, aw = 0.6 * w / 2.11, ad = 0.6 * d / 1.55, r = desk.rot || 0, c = Math.cos(r), sn = Math.sin(r);
     function P(lx, lz) { return { x: desk.x + lx * c - lz * sn, y: desk.y + lx * sn + lz * c }; }
-    var ps = P(-w / 2 + aw + 0.42, -d / 2 + ad + 0.42), pc = P(-w / 2 + aw * 0.5, -d / 2 + ad * 0.5), top = (desk.h || 1.57) * 0.75 / 1.57;
+    var ps = P(-w / 2 + aw + 0.42, -d / 2 + ad + 0.42), pc = P(-w / 2 + aw * 0.5, -d / 2 + ad * 0.5), top = (desk.h || 1.475) * 0.798 / 1.57; // deska modelu je v 50,8 % jeho výšky
     return { person: { x: ps.x, y: ps.y, rot: r - 3 * Math.PI / 4 }, pc: { x: pc.x, y: pc.y, rot: r + Math.PI / 4, elev: top } };
   }
   function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
@@ -212,7 +225,7 @@
   // efektivní parametry světla (sdílené s 3D pohledem)
   function lightParams(L) {
     var fx = FIXTURES[L.fixture] || FIXTURES.cob300, m = MODS[L.mod] || MODS.reflector;
-    var beam = m.zoom ? (L.zoom || 30) : m.beam;
+    var beam = m.zoom ? (L.zoom || 30) : (m.panel && fx.beam ? fx.beam : m.beam);
     if (L.grid && m.soft) beam = Math.min(beam, 50);
     var mult = m.mult;
     if (m.zoom) mult = mult * Math.pow(30 / beam, 1.6);
@@ -222,8 +235,17 @@
     if (L.gel === 'ctb') { cct = Math.min(9000, cct * 5600 / 3200); mult *= 0.4; }
     if (L.diff) mult *= 0.6;
     if (!m.soft && L.gobo && GOBOS[L.gobo]) mult *= GOBOS[L.gobo].open;
-    var size = m.size + (L.diff && !m.soft ? 0.25 : 0);
-    return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, E1: fx.lux1m * mult * ((L.power == null ? 70 : L.power) / 100), soft: m.soft, omni: beam >= 300, h: L.h == null ? 1.7 : L.h };
+    var size = m.panel ? (fx.pw || m.size) : m.size + (L.diff && !m.soft ? 0.25 : 0);
+    var aspect = m.panel ? (fx.ph || fx.pw || m.size) / (fx.pw || m.size) : (L.mod === 'frame' ? 1 : 0.75);
+    var E1 = fx.lux1m * mult * ((L.power == null ? 70 : L.power) / 100), col = cctColor(cct), rgb = null, Y = 1;
+    if (L.rgb && L.color) { // barevné světlo (RGB/HSI režim): luxmetr měří jen jas barvy → saturované barvy „ztrácí“ lux
+      var hx = parseInt(String(L.color).replace('#', ''), 16) || 0, sr = [(hx >> 16 & 255) / 255, (hx >> 8 & 255) / 255, (hx & 255) / 255];
+      var lin = sr.map(function (v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }), mx = Math.max(lin[0], lin[1], lin[2], 1e-4);
+      rgb = [lin[0] / mx, lin[1] / mx, lin[2] / mx]; Y = Math.max(0.05, 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]); E1 *= Y;
+      var smx = Math.max(sr[0], sr[1], sr[2], 1e-4), sn = [sr[0] / smx, sr[1] / smx, sr[2] / smx], mean = (sn[0] + sn[1] + sn[2]) / 3;
+      col = [sn[0] / Math.max(0.33, mean), sn[1] / Math.max(0.33, mean), sn[2] / Math.max(0.33, mean)];
+    }
+    return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, aspect: aspect, E1: E1, col: col, rgb: rgb, Y: Y, soft: m.soft, omni: beam >= 300, h: L.h == null ? 1.7 : L.h };
   }
 
   function lightEmitter(L) {
@@ -235,7 +257,7 @@
     var pts = [], tx = -ny, ty = nx;
     for (var i = 0; i < n; i++) { var o = n === 1 ? 0 : (i / (n - 1) - 0.5) * P.size; pts.push([L.x + tx * o + nx * 0.02, L.y + ty * o + ny * 0.02]); }
     return { pts: pts, nx: nx, ny: ny, z: P.h, E1: P.E1, exp: exp,
-             cosCut: m.soft ? (beam >= 300 ? -2 : 0.0) : Math.cos(Math.min(Math.PI * 0.97, half * 1.5)), col: cctColor(P.cct), hard: !m.soft,
+             cosCut: m.soft ? (beam >= 300 ? -2 : 0.0) : Math.cos(Math.min(Math.PI * 0.97, half * 1.5)), col: P.col, hard: !m.soft,
              barn: L.barn ? Math.cos(half * 1.02) : null, omni: P.omni, id: L.id };
   }
   function windowEmitters(scene) {
@@ -386,6 +408,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

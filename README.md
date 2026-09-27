@@ -130,6 +130,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Počítač „Desktop Computer“: **Tyler P Halterman**, sketchfab.com, CC BY 4.0
 - Kuchyňská linka „Kitchen Counter“: **euanford12321**, sketchfab.com, CC BY 4.0
 - Stromy „Tree low poly“: **00amza**, sketchfab.com, CC BY 4.0
+- Pracovní stůl „PC Desk“: **Ren Viro Store**, sketchfab.com, CC BY 4.0
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené
 v `models/*.glb.js` stejně jako postavy.
