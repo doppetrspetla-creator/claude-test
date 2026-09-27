@@ -909,8 +909,75 @@ function camCull() {
     else if (u.ceil) o.visible = !(on && ch > Z - 0.02);
     else if (u.seg) { let hide = false; if (on) { const q = u.seg, dx = q[2] - q[0], dy = q[3] - q[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((c.x - q[0]) * dx + (c.y - q[1]) * dy) / L2)); hide = Math.hypot(c.x - q[0] - dx * t, c.y - q[1] - dy * t) < 0.1; } o.visible = !hide; } });
 }
+// ---------- obraz kamery: vyvážení bílé (WB) + simulace hloubky ostrosti – post-process nad lineárním HDR snímkem ----------
+// Snímek se vykreslí do HDR textury s hloubkou; shader rozostří podle fyzikálního kruhu neostrosti
+// c = f²/N · |1/s − 1/z| / (1 − f/s)  (f ohnisko, N clona, s zaostřená vzdálenost, z vzdálenost bodu), pak WB (v lineárním světle) → ACES → sRGB.
+const post = { rt: null, w: 0, h: 0, mat: null, scene: null, cam: null, rot: 0, info: null };
+const DOF_NS = 64;
+function postMat() {
+  if (post.mat) return post.mat;
+  post.mat = new THREE.ShaderMaterial({
+    defines: { NS: DOF_NS },
+    uniforms: { tColor: { value: null }, tDepth: { value: null }, res: { value: new THREE.Vector2() }, wb: { value: new THREE.Vector3(1, 1, 1) }, near: { value: 0.05 }, far: { value: 60 }, dof: { value: 0 }, i1: { value: 0 }, kc: { value: 0 }, maxR: { value: 1 }, rot: { value: 0 }, cmax: { value: 1e4 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `#include <packing>
+      uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform vec3 wb; uniform float near, far, dof, i1, kc, maxR, rot, cmax; varying vec2 vUv;
+      vec3 tex(vec2 uv) { vec3 c = texture2D(tColor, uv).rgb; return (c == c) ? min(c, vec3(cmax)) : vec3(cmax); } // strop jasu (a ochrana proti NaN) – nad ním je obraz beztak bílý
+      float vz(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, near, far); }
+      float coc(float z) { return min(maxR, kc * abs(i1 - 1.0 / z)); }
+      void main() {
+        vec3 col = tex(vUv);
+        if (dof > 0.5) {
+          float z0 = vz(vUv), r0 = coc(z0), R = max(r0, 0.25 * maxR);
+          float w0 = 1.0 / max(r0 * r0, 1.0); vec3 acc = col * w0; float ws = w0;
+          float a0 = rot + 6.2831853 * fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+          for (int k = 1; k < NS; k++) {
+            float fk = float(k), rr = sqrt(fk / float(NS)) * R, an = a0 + fk * 2.39996323;
+            vec2 uv = vUv + vec2(cos(an), sin(an)) * rr / res;
+            float z = vz(uv), r = coc(z);
+            if (z > z0) r = min(r, r0 * 2.0 + 0.5); // ostré popředí nepřebírá rozmazané pozadí
+            float w = clamp(r - rr + 1.0, 0.0, 1.0) / max(r * r, 1.0);
+            acc += tex(uv) * w; ws += w;
+          }
+          col = acc / ws;
+        }
+        gl_FragColor = vec4(col * wb, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+    depthTest: false, depthWrite: false });
+  post.scene = new THREE.Scene(); post.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post.mat); q.frustumCulled = false; post.scene.add(q);
+  return post.mat;
+}
+// zisk WB: světlo o teplotě K vyjde neutrální (bílé); normováno na jas, aby se neměnila expozice
+function wbGain(K) { const a = S.kelvinRGB(5600), b = S.kelvinRGB(K), g = [a[0] / b[0], a[1] / b[1], a[2] / b[2]], Y = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]; return new THREE.Vector3(g[0] / Y, g[1] / Y, g[2] / Y); }
+function headPos(p) { const r = rigs[p.id]; if (r) { const b = r.bones.head_07 || r.bones.head || r.bones.Head || r.bones.mixamorigHead || r.bones['mixamorig:Head'] || Object.values(r.bones).find(o => /head/i.test(o.name) && !/end|top/i.test(o.name)); if (b) return b.getWorldPosition(new THREE.Vector3()); } return new THREE.Vector3(p.x, S.faceZ(p), p.y); }
+// zaostřená vzdálenost v m (Infinity = nekonečno); autofokus = hloubka hlavy postavy podél osy kamery
+function focusDist(cam) {
+  const sc = lastScene; if (cam.af != null && sc) { const p = sc.items.find(i => i.id === cam.af && i.kind === 'person'); if (p) { const fw = new THREE.Vector3(); camera.getWorldDirection(fw); return Math.max(0.3, headPos(p).sub(camera.position).dot(fw)); } }
+  return cam.focus == null ? 3 : (cam.focus >= 999 ? Infinity : Math.max(0.3, cam.focus));
+}
+function wantsPost() { const c = camItem; return !!(c && !orbit && ((c.wb && c.wb !== 5600) || c.dof)); }
+function renderPost(rg) { // rg = výřez v CSS px
+  const pr = renderer.getPixelRatio(), w = Math.max(1, Math.round(rg.w * pr)), h = Math.max(1, Math.round(rg.h * pr)), c = camItem, m = postMat();
+  if (!post.rt || post.w !== w || post.h !== h) { if (post.rt) { post.rt.depthTexture.dispose(); post.rt.dispose(); }
+    post.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.FloatType, samples: 4, depthTexture: new THREE.DepthTexture(w, h) }); post.w = w; post.h = h; }
+  renderer.setRenderTarget(post.rt); renderer.render(scene3, camera); renderer.setRenderTarget(null);
+  const u = m.uniforms; u.tColor.value = post.rt.texture; u.tDepth.value = post.rt.depthTexture; u.res.value.set(w, h); u.near.value = camera.near; u.far.value = camera.far; u.cmax.value = 24 / Math.max(1e-6, renderer.toneMappingExposure);
+  u.wb.value = wbGain(c.wb || 5600); u.dof.value = c.dof ? 1 : 0; u.rot.value = hq.active ? Math.random() * 6.283 : 0;
+  if (c.dof) { const f = (c.focal || 35) / 1000, N = c.fstop || 2.8, s = focusDist(c), i1 = isFinite(s) ? 1 / Math.max(s, f * 1.5) : 0, long = Math.max(w, h);
+    u.i1.value = i1; u.kc.value = 0.5 * f * f / N / (1 - f * i1) * 1000 / 36 * long;
+    u.maxR.value = Math.max(1, Math.min(0.025 * long, u.kc.value * Math.max(i1, 1 / 0.4 - i1)));
+    post.info = { s, f, N }; } else post.info = null;
+  renderer.render(post.scene, post.cam);
+}
 function render() { if (!renderer || !lastScene) return; camCull();
   const pr = renderer.getPixelRatio(), cw = canvas.width, ch = canvas.height;
+  if (wantsPost()) { const lb = region && formatAspect() > 0, rg = lb ? region : { x: 0, y: 0, w: cw / pr, h: ch / pr };
+    renderer.setScissorTest(false); renderer.setViewport(0, 0, cw / pr, ch / pr); renderer.setClearColor(0x000000, 1); renderer.clear();
+    renderer.setViewport(rg.x, ch / pr - rg.y - rg.h, rg.w, rg.h); renderer.setScissor(rg.x, ch / pr - rg.y - rg.h, rg.w, rg.h); renderer.setScissorTest(true);
+    renderPost(rg); renderer.setScissorTest(false); return; }
   if (orbit || !region || formatAspect() <= 0) { renderer.setScissorTest(false); renderer.setViewport(0, 0, cw / pr, ch / pr); renderer.render(scene3, orbit ? orbitCam : camera); return; }
   renderer.setScissorTest(false); renderer.setClearColor(0x000000, 1); renderer.clear();
   const bg = scene3.background; // letterbox: černé okolí, obloha jen uvnitř záběru
@@ -1017,6 +1084,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { setMoveCallback, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { setMoveCallback, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

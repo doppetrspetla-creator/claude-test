@@ -119,7 +119,7 @@ function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTime
 function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? (S.isNight(scene)? S.sunE(scene)*0.9 : Math.max(8000, sk*2.2)) : sk*2.2*0.9; } return 300; }
 function exposureRef(){ var ev=parseFloat($('ev').value); return baseRef()*Math.pow(2,-ev); }
 function sync3d(){ if(!view3dReady) return; var cam=scene.items.some(function(i){return i.kind==='camera';}); $('camHint').classList.toggle('hide',cam); if(cam){ var c=scene.items.find(function(i){return i.kind==='camera';}); $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; }
-  window.View3D.sync(scene,res,meas,{ref:baseRef(), ev:parseFloat($('ev').value), shadows:$('shadows').checked, haze:parseFloat($('haze').value)/100, grain:parseFloat($('grain').value)/100, quality:$('quality').value}); window.View3D.setSel(sel?sel.id:null); }
+  window.View3D.sync(scene,res,meas,{ref:baseRef(), ev:parseFloat($('ev').value), shadows:$('shadows').checked, haze:parseFloat($('haze').value)/100, grain:parseFloat($('grain').value)/100, quality:$('quality').value}); window.View3D.setSel(sel?sel.id:null); camUI(); }
 
 function renderMap(){
   var nx=res.nx, ny=res.ny; off.width=nx; off.height=ny; var img=offx.createImageData(nx,ny), d=img.data, ref=exposureRef(), zeb=$('zebra').checked;
@@ -203,7 +203,7 @@ function updateMeter(){
   if(!meas){ $('mLux').textContent='–'; $('mStop').textContent=''; $('mRatio').textContent='přidej postavu'; $('contrib').innerHTML=''; $('mSide').textContent=''; return; }
   $('mLux').textContent=Math.round(meas.lux)+' lx';
   var ev100 = Math.log(meas.lux/2.5)/Math.LN2; // EV při ISO 100 (K≈2,5 pro lux)
-  $('mStop').textContent='≈ EV '+fmt(ev100,1)+' (ISO 100) · f/2,8 · 1/50 s → ISO '+Math.max(100,Math.round(100*Math.pow(2, 9.3-ev100)/100)*100);
+  var cN=(sceneCam()||{}).fstop||2.8; $('mStop').textContent='≈ EV '+fmt(ev100,1)+' (ISO 100) · f/'+String(cN).replace('.',',')+' · 1/50 s → ISO '+Math.max(100,Math.round(100*Math.pow(2, 9.3-ev100+2*Math.log(cN/2.8)/Math.LN2)/100)*100);
   $('mRatio').textContent= meas.stops>6 ? 'víc než 64 : 1' : fmt(meas.ratio,1)+' : 1  ('+fmt(meas.stops,1)+' EV)';
   var pos=Math.min(1,meas.stops/3.2); $('mBar').style.left='calc('+(pos*100)+'% - 1px)';
   $('mSide').textContent = meas.stops<0.5?'Plochý obličej – přidej směr nebo odeber doplňkové světlo.': meas.stops<1.6?'Měkké, přívětivé (rozhovor, korporát).': meas.stops<2.6?'Modelované, filmové.':'Dramatické, low-key.';
@@ -379,6 +379,30 @@ cv.addEventListener('pointerup',function(){
 cv.addEventListener('wheel',function(e){ if(!sel||sel.kind==='wall') return; e.preventDefault(); sel.rot+=(e.deltaY>0?1:-1)*Math.PI/36; props(); schedule(); },{passive:false});
 // levá lišta: sekce (nadpis + obsah až k dalšímu nadpisu) zabalit do rámečků
 (function(){ var L=document.querySelector('aside.l'); if(!L) return; var box=null; Array.prototype.slice.call(L.childNodes).forEach(function(n){ if(n.nodeType===1&&n.tagName==='H3'){ box=document.createElement('section'); box.className='box'; L.insertBefore(box,n); } if(box) box.appendChild(n); }); })();
+// ---------- nastavení kamery (pravá lišta): vyvážení bílé + simulace hloubky ostrosti ----------
+var FSTOPS=[1.2,1.4,2,2.8,4,5.6,8,11,16,22];
+function sceneCam(){ return scene.items.find(function(i){return i.kind==='camera';}); }
+function focusU(d){ return d>=999?1:1-Math.sqrt(0.3/Math.max(0.3,d)); } // stupnice jako na objektivu: blízko roztažené, nekonečno na konci
+function focusD(u){ return u>=0.999?1e6:0.3/Math.pow(1-u,2); }
+function fmtDist(d){ return !isFinite(d)||d>=999?'∞':(d<10?fmt(d,d<1?2:1):String(Math.round(d)))+' m'; }
+// hloubka ostrosti (kruh neostrosti 0,03 mm – full frame): blízká a vzdálená mez
+function dofRange(f,N,s){ f/=1000; var H=f*f/(N*0.00003)+f; if(!isFinite(s)) return [H,Infinity]; var n=s*(H-f)/(H+s-2*f), fr=s>=H?Infinity:s*(H-f)/(H-s); return [n,fr]; }
+function camUI(){ var c=sceneCam(); $('csNone').classList.toggle('hide',!!c); $('csBody').classList.toggle('hide',!c); if(!c) return;
+  var wb=c.wb||5600; $('wb').value=wb; $('wbVal').textContent=wb+' K'; Array.prototype.forEach.call(document.querySelectorAll('.wbPre button'),function(b){ b.classList.toggle('on',+b.getAttribute('data-wb')===wb); });
+  $('dofOn').checked=!!c.dof; $('dofBox').classList.toggle('hide',!c.dof);
+  var N=c.fstop||2.8, fi=FSTOPS.indexOf(N); $('fstop').value=fi<0?3:fi; $('fsVal').textContent='f/'+String(N).replace('.',',');
+  var ps=scene.items.filter(function(i){return i.kind==='person';}); if(c.af!=null&&!ps.some(function(p){return p.id===c.af;})) delete c.af;
+  var o='<option value="">Vypnuto – ruční zaostření</option>'; ps.forEach(function(p,k){ o+='<option value="'+p.id+'"'+(c.af===p.id?' selected':'')+'>'+(p.label||('Postava '+(k+1)))+' – '+((S.MODELS[p.model||'proc']||{}).name||'postava')+'</option>'; }); $('afSel').innerHTML=o;
+  var fi3=view3dReady&&window.View3D.focusInfo(), d=c.af!=null&&fi3?fi3.s:(c.focus==null?3:(c.focus>=999?Infinity:c.focus));
+  $('focus').value=Math.round(focusU(isFinite(d)?d:1e6)*1000); $('focus').disabled=c.af!=null; $('fcVal').textContent=(c.af!=null?'AF · ':'')+fmtDist(d);
+  var r=dofRange(c.focal||35,N,d); $('dofInfo').innerHTML='Ohnisko <b>'+(c.focal||35)+' mm</b> (mění se kolečkem v pohledu kamery). Ostré od <b>'+fmtDist(r[0])+'</b> do <b>'+fmtDist(r[1])+'</b>. Delší ohnisko, nižší clonové číslo a bližší zaostření = menší hloubka ostrosti.'; }
+function camSet(fn,final){ var c=sceneCam(); if(!c) return; fn(c); camUI(); if(view3dReady) window.View3D.refresh(); if(sel&&sel.kind==='camera'&&final) props(); if(final) snapshotSoon(); updateMeter(); }
+$('wb').addEventListener('input',function(){ var v=+this.value; camSet(function(c){ c.wb=v; }); }); $('wb').addEventListener('change',function(){ camSet(function(){},true); });
+Array.prototype.forEach.call(document.querySelectorAll('.wbPre button'),function(b){ b.onclick=function(){ var v=+b.getAttribute('data-wb'); camSet(function(c){ c.wb=v; },true); }; });
+$('dofOn').addEventListener('change',function(){ var on=this.checked; camSet(function(c){ c.dof=on; },true); });
+$('fstop').addEventListener('input',function(){ var v=FSTOPS[+this.value]; camSet(function(c){ c.fstop=v; }); }); $('fstop').addEventListener('change',function(){ camSet(function(){},true); });
+$('focus').addEventListener('input',function(){ var v=focusD(+this.value/1000); camSet(function(c){ c.focus=v>=999?1e6:Math.round(v*100)/100; }); }); $('focus').addEventListener('change',function(){ camSet(function(){},true); });
+$('afSel').addEventListener('change',function(){ var v=this.value; camSet(function(c){ if(v==='') { if(c.af!=null&&view3dReady){ var fi=window.View3D.focusInfo(); if(fi&&isFinite(fi.s)) c.focus=Math.round(fi.s*100)/100; } delete c.af; } else c.af=+v; },true); });
 // režim ovládání pohledu kamery: OVLÁDÁNÍ KAMERY / OVLÁDÁNÍ OBJEKTU (půdorys se nemění)
 function ctrlModeUI(m){ var kl=$('keyLegend'); if(kl) kl.classList.toggle('m-object',m==='object'); Array.prototype.forEach.call(document.querySelectorAll('#ctrlModes button'),function(b){ b.classList.toggle('on',b.getAttribute('data-mode')===m); }); }
 function setCtrlMode(m){ if(view3dReady) m=window.View3D.setCtrlMode(m); ctrlModeUI(m); }
@@ -477,7 +501,7 @@ window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d'
   window.View3D.setPoseCallback(function(id,bone,q,final){ var it=byId(id); if(!it) return; if(!it.bones) it.bones={}; it.bones[bone]=q; if(final){ poseButtons(); snapshotSoon(); } });
   // objekt chycený myší v 3D pohledu: výběr, průběžné překreslení půdorysu, na konci přepočet světla
   window.View3D.setMoveCallback(function(id,x,y,phase){ var it=byId(id); if(!it) return; if(phase==='start'){ if(sel!==it) select(it); return; } it.x=Math.max(0.05,Math.min(scene.room.w-0.05,it.x)); it.y=Math.max(0.05,Math.min(scene.room.h-0.05,it.y)); draw(); if(phase==='end'){ props(); schedule(); } });
-  window.View3D.setCameraCallback(function(cam,final){ draw(); var c=scene.items.find(function(i){return i.kind==='camera';}); if(c) $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; clearTimeout(camTimer); camTimer=setTimeout(function(){ if(sel&&sel.kind==='camera') props(); schedule(); }, final?50:350); });
+  window.View3D.setCameraCallback(function(cam,final){ draw(); var c=scene.items.find(function(i){return i.kind==='camera';}); if(c) $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; camUI(); clearTimeout(camTimer); camTimer=setTimeout(function(){ if(sel&&sel.kind==='camera') props(); schedule(); }, final?50:350); });
   if(res) sync3d(); });
 if(window.View3D){ window.dispatchEvent(new Event('view3d-ready')); }
 

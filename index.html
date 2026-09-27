@@ -191,6 +191,28 @@
       <div class="row mut"><span>1:1 plochý</span><span style="text-align:center">2–4:1</span><span style="text-align:right">8:1+ drama</span></div>
       <div class="mut" id="mSide" style="margin-top:6px"></div>
     </div>
+    <h3>Nastavení kamery</h3>
+    <div class="camSet" id="camSet">
+      <p class="mut" id="csNone">Nejprve přidejte do scény kameru.</p>
+      <div id="csBody">
+        <label>Vyvážení bílé (WB) <b id="wbVal" class="csVal">5600 K</b></label>
+        <input type="range" id="wb" class="wbRange" min="2500" max="10000" step="100" value="5600">
+        <div class="wbPre"><button type="button" data-wb="3200">3200 K<small>žárovka</small></button><button type="button" data-wb="4300">4300 K<small>chladněji</small></button><button type="button" data-wb="5600">5600 K<small>den</small></button><button type="button" data-wb="6500">6500 K<small>stín</small></button></div>
+        <p class="csHint">Nižší WB = modřejší obraz (den zchladne, žárovková praktická světla hřejí). Vyšší WB = teplejší obraz.</p>
+        <label class="chk csBig"><input type="checkbox" id="dofOn"> Simulace hloubky ostrosti</label>
+        <div id="dofBox" class="hide">
+          <label>Clona <b id="fsVal" class="csVal">f/2,8</b></label>
+          <input type="range" id="fstop" min="0" max="10" step="1" value="4">
+          <div class="csScale"><span>f/1,2 · víc rozmazané</span><span>f/22 · víc ostré</span></div>
+          <label>Zaostření <b id="fcVal" class="csVal">3,0 m</b></label>
+          <input type="range" id="focus" class="focusRange" min="0" max="1000" step="1" value="900">
+          <div class="csScale abs"><span style="left:0">0,3 m</span><span style="left:45.2%">1 m</span><span style="left:68.4%">3 m</span><span style="left:82.7%">10 m</span><span style="left:100%">∞</span></div>
+          <label>Automatické ostření na postavu</label>
+          <select id="afSel"><option value="">Vypnuto – ruční zaostření</option></select>
+          <p class="csHint" id="dofInfo"></p>
+        </div>
+      </div>
+    </div>
     <h3>Vybraný objekt <span class="pill" id="selKind"></span></h3>
     <div id="props"><p class="mut">Klikni na objekt ve scéně nebo v seznamu.</p></div>
     <h3>Příspěvek světel na obličej</h3>

@@ -174,3 +174,23 @@ aside.l .row>div{min-width:0}
 aside.l input[type=range]{width:100%}
 aside.l select{max-width:100%}
 aside.l .list{max-height:none}
+
+/* nastavení kamery (pravá lišta): WB + hloubka ostrosti */
+.camSet{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 12px 10px}
+.camSet label:first-child{margin-top:6px}
+.csVal{float:right;color:var(--txt);font-weight:600}
+.wbRange{-webkit-appearance:none;appearance:none;height:8px;border-radius:5px;background:linear-gradient(90deg,#5d8dff,#b9ccff 28%,#f4f1ea 42%,#ffd59a 65%,#ff9d3c);margin:6px 0 4px}
+.wbRange::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#1b1a18;border:2px solid var(--gold);cursor:pointer}
+.wbRange::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#1b1a18;border:2px solid var(--gold);cursor:pointer}
+.wbPre{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.wbPre button{display:flex;flex-direction:column;align-items:center;padding:4px 2px;background:#1c1b19;border:1px solid var(--line);border-radius:7px;color:var(--txt);font:600 10.5px Inter,Lato,sans-serif;cursor:pointer}
+.wbPre button small{font-weight:400;font-size:9.5px;color:var(--mut)}
+.wbPre button.on{border-color:var(--gold);background:rgba(212,176,113,.14)}
+.csHint{margin:6px 0 2px;font-size:10.5px;line-height:1.35;color:var(--mut)}
+.csBig{font-weight:600;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.csScale{display:flex;justify-content:space-between;font-size:9.5px;color:var(--mut);margin-top:-1px}
+#dofBox.hide,#csBody.hide,#csNone.hide{display:none}
+.csScale.abs{position:relative;height:13px;margin:0 7px}
+.csScale.abs span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.csScale.abs span:first-child{transform:none;margin-left:-7px}
+.csScale.abs span:last-child{transform:translateX(-100%);margin-left:7px}
