@@ -29,6 +29,9 @@
     </div>
     <select id="tpl" class="btn">
       <option value="">Šablona…</option>
+      <option value="__room">＋ Vytvořit novou místnost…</option>
+      <option value="__ext">＋ Vytvořit nový exteriér…</option>
+      <option disabled>──────────</option>
       <option value="window">Rozhovor u okna + odrazka</option>
       <option value="three">Tříbodové svícení</option>
       <option value="night">Noční pokoj – psaní u počítače, monitor + tuba</option>
@@ -87,11 +90,11 @@
     <div class="list" id="objList"></div>
 
     <h3>Místnost</h3>
-    <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="30"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="30"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
+    <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="50"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="50"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
     <label>Prostředí</label><select id="env"><option value="">vlastní místnost (kreslené stěny)</option><option value="photostudio">Fotoateliér – papírové pozadí (3D model)</option><option value="cyclorama">Hala s cykloramou – sken ateliéru (3D model)</option></select>
     <label class="chk"><input type="checkbox" id="outdoor"> Jen exteriér (bez místnosti – dvůr, ulice, louka)</label>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
-    <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
+    <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option><option value="asphalt">asfalt</option><option value="grass">tráva (exteriér)</option></select></div></div>
     <h3>Exteriér</h3>
     <label class="chk"><input type="checkbox" id="exOn"> Zahrada kolem domu (tráva, stromy, obloha)</label>
     <label>Počet stromů <span id="exTreesV" class="pill">6</span></label>
@@ -129,7 +132,7 @@
 
   <main id="center">
     <div id="planWrap" class="pane"><div class="paneTitle">Půdorys · 1 díl = 1 m <span id="toolHint" class="pill"></span></div><canvas id="stage"></canvas>
-      <div class="camTools" id="tools"><button class="btn sm gold" data-tool="select" title="Výběr a přesun (Esc)">Vybrat</button><button class="btn sm" data-tool="wall" title="Kreslit zeď tažením (W)">Zeď</button><button class="btn sm" data-tool="window" title="Označit okno tažením podél zdi (O)">Okno</button><button class="btn sm" data-tool="door" title="Vložit dveře kliknutím na zeď (i do příčky)">Dveře</button></div>
+      <div class="camTools" id="tools"><button class="btn sm gold" data-tool="select" title="Výběr a přesun (Esc)">Vybrat</button><button class="btn sm" data-tool="wall" title="Kreslit zeď tažením (W)">Zeď</button><button class="btn sm" data-tool="window" title="Označit okno tažením podél zdi (O)">Okno</button><button class="btn sm" data-tool="door" title="Vložit dveře kliknutím na zeď (i do příčky)">Dveře</button><button class="btn sm" data-tool="road" title="Kreslit asfaltovou cestu tažením – jen v exteriéru">Cesta</button></div>
     </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
@@ -145,6 +148,14 @@
       <div id="shots" class="shots"></div>
     </div>
   </main>
+  <div id="newModal" class="modal hide"><div class="modalBox nmBox"><div class="modalHead"><b id="nmTitle">Nová místnost</b><span class="sp"></span><button class="btn sm" id="bNmClose">Zrušit</button></div>
+    <div class="nmBody">
+      <div class="row"><div><label>Délka (m)</label><input type="number" id="nmW" step="0.5"></div><div><label>Šířka (m)</label><input type="number" id="nmH" step="0.5"></div><div id="nmZBox"><label>Výška stropu (m)</label><input type="number" id="nmZ" step="0.1"></div></div>
+      <div id="nmExtBox"><label>Povrch</label><select id="nmFloor"><option value="grass">tráva</option><option value="asphalt">asfalt</option><option value="grey">beton / dlažba</option></select>
+        <label class="chk"><input type="checkbox" id="nmTrees" checked> Stromy kolem</label><label class="chk"><input type="checkbox" id="nmFence"> Dřevěný plot kolem</label></div>
+      <p class="mut nmHint" id="nmHint"></p>
+      <div class="row nmBtns"><button class="btn" id="bNmCancel">Zrušit</button><button class="btn gold" id="bNmOk">Vytvořit</button></div>
+    </div></div></div>
   <div id="aboutModal" class="modal hide"><div class="modalBox" style="max-width:640px"><div class="modalHead"><b>Viewfinder Light</b><span class="sp"></span><button class="btn sm" id="bAboutClose">Zavřít</button></div>
     <div style="padding:14px 16px;line-height:1.6;font-size:13px">
       <p>Simulátor nasvícení scény. Půdorys s orientační fotometrií a 3D pohled kamery. © Svět v hledáčku / Špetla Film.</p>

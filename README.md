@@ -32,6 +32,14 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Okna** – nástroj **Okno** (klávesa O): táhni podél vnější nebo nakreslené zdi, označený úsek
   se stane oknem (parapet 0,9 m, nadpraží 2,1 m). Oken může být libovolný počet, seznam je v panelu
   „Okna a obloha“. Okna ve vnějších stěnách svítí oblohou, okna v příčkách jsou průhledný otvor.
+- **Cesta** – nástroj **Cesta** (jen v exteriéru: režim „Jen exteriér“ nebo zahrada kolem domu):
+  táhni a vznikne asfaltová cesta. Nastavitelná šířka, přerušovaná středová čára, bílé krajní čáry;
+  konce se přichytí ke konci jiné cesty (zatáčka, křižovatka). Do domu cesta nevede.
+- **Nová místnost / nový exteriér** – v menu Šablona. Zadáte délku, šířku a výšku stropu
+  (místnost 3–30 m, strop 2,2–6 m), u exteriéru rozměry do 50 × 50 m, povrch (tráva, asfalt,
+  beton), stromy a plot.
+- **Zdi zvenku** – obvodové zdi mají fasádu a plochou střechu: kamera venku vidí dům zvenku
+  (a okny dovnitř). Zeď se schová jen ve chvíli, kdy jí kamera prochází.
 - **Slunce** – zapni „Přímé slunce“, nastav výšku nad obzorem a směr (posuvník, nebo chyť žlutý
   kotouč vně místnosti v půdorysu a táhni ho). Barva slunce se mění s výškou (u obzoru teplá zlatá hodinka, od 25° denní). Slunce svítí okny dovnitř: v půdorysu vzniká
   sluneční skvrna (počítá se výška okna i výška obličeje), ve 3D vrhá ostré stíny. Odrazka umí

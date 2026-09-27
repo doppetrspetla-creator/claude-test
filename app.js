@@ -5,12 +5,28 @@ var S = window.LightSim, $ = function(id){ return document.getElementById(id); }
 var cv = $('stage'), ctx = cv.getContext('2d'), wrap = $('planWrap'), center = $('center');
 var scene, sel = null, uid = 1, res = null, meas = null, scale = 80, ox = 40, oy = 40, fineTimer = null, view3dReady = false, hover = null;
 var off = document.createElement('canvas'), offx = off.getContext('2d');
-var KIND = { light:'💡', person:'🧑', camera:'🎥', flag:'🏴', bounce:'⬜', diffuser:'◻️', box:'📦', furniture:'🪑', wall:'🧱' };
-var KINDNAME = { light:'Světlo', person:'Postava', camera:'Kamera', flag:'Vlajka', bounce:'Odrazka', diffuser:'Difuzní rám', box:'Nábytek', furniture:'Nábytek', wall:'Zeď' };
+var KIND = { light:'💡', person:'🧑', camera:'🎥', flag:'🏴', bounce:'⬜', diffuser:'◻️', box:'📦', furniture:'🪑', wall:'🧱', road:'🛣️' };
+var KINDNAME = { light:'Světlo', person:'Postava', camera:'Kamera', flag:'Vlajka', bounce:'Odrazka', diffuser:'Difuzní rám', box:'Nábytek', furniture:'Nábytek', wall:'Zeď', road:'Cesta' };
 
 function blank(){ return { room:{w:7,h:5,z:2.7}, walls:'normal', floor:'wood', sky:'overcast', windows:[{id:uid++,wall:'left',from:1.6,to:3.4}], doors:[], sun:{on:false,az:Math.PI*1.25,elev:35}, exterior:{on:false,trees:6}, format:'free', items:[] }; }
 function win(wall, from, to){ return {id:uid++,wall:wall,from:from,to:to}; }
 function wallItem(x1,y1,x2,y2){ var o={kind:'wall',id:uid++,x1:x1,y1:y1,x2:x2,y2:y2}; wallSyncXY(o); return o; }
+// cesta (asfalt) – úsečka se šířkou jako zeď, jen v exteriéru (režim Jen exteriér nebo zahrada kolem domu)
+function roadItem(x1,y1,x2,y2){ var o={kind:'road',id:uid++,x1:x1,y1:y1,x2:x2,y2:y2,wd:3.5,line:true}; wallSyncXY(o); return o; }
+function isSeg(it){ return !!it&&(it.kind==='wall'||it.kind==='road'); }
+function extOn(){ return !!(scene.outdoor||(scene.exterior&&scene.exterior.on)); }
+function roadBox(){ var W=scene.room.w, H=scene.room.h, m=scene.outdoor?0:7; return [-m,-m,W+m,H+m]; } // u domu se zahradou až k plotu
+function clampSeg(it){ if(it.kind!=='road'){ clampWall(it); return; } var b=roadBox(); it.x1=Math.max(b[0],Math.min(b[2],it.x1)); it.x2=Math.max(b[0],Math.min(b[2],it.x2)); it.y1=Math.max(b[1],Math.min(b[3],it.y1)); it.y2=Math.max(b[1],Math.min(b[3],it.y2)); wallSyncXY(it); }
+function roadPt(x,y,skip){ x=Math.round(x*10)/10; y=Math.round(y*10)/10; var best=null; scene.items.forEach(function(it){ if(it.kind!=='road'||it===skip) return; [[it.x1,it.y1],[it.x2,it.y2]].forEach(function(q){ var d=Math.hypot(q[0]-x,q[1]-y); if(d<0.5&&(!best||d<best.d)) best={d:d,p:q}; }); }); if(best) return [best.p[0],best.p[1]]; var b=roadBox(); return [Math.max(b[0],Math.min(b[2],x)),Math.max(b[1],Math.min(b[3],y))]; }
+function drawRoads(){ var rs=scene.items.filter(function(i){return i.kind==='road';}); if(!rs.length||!extOn()) return; ctx.save();
+  if(!scene.outdoor){ var p0=toPx(0,0), r=wrap.getBoundingClientRect(); ctx.beginPath(); ctx.rect(0,0,r.width,r.height); ctx.rect(p0[0],p0[1]+scene.room.h*scale,scene.room.w*scale,-scene.room.h*scale); ctx.clip('evenodd'); } // do domu cesta nevede
+  rs.forEach(function(it){ var a=toPx(it.x1,it.y1), b=toPx(it.x2,it.y2), isSel=sel===it, isHov=hover===it; ctx.lineCap='butt';
+    ctx.strokeStyle='rgba(38,38,40,.78)'; ctx.lineWidth=Math.max(6,(it.wd||3.5)*scale); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    if(it.line!==false){ ctx.strokeStyle='rgba(235,235,230,.8)'; ctx.lineWidth=Math.max(1,0.12*scale); ctx.setLineDash([3*scale,3*scale]); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash([]); }
+    if(isSel||isHov){ ctx.strokeStyle=isSel?'#d4b071':'rgba(212,176,113,.5)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]); var L=Math.hypot(b[0]-a[0],b[1]-a[1])||1, nx=-(b[1]-a[1])/L*(it.wd||3.5)*scale/2, ny=(b[0]-a[0])/L*(it.wd||3.5)*scale/2; ctx.beginPath(); ctx.moveTo(a[0]+nx,a[1]+ny); ctx.lineTo(b[0]+nx,b[1]+ny); ctx.lineTo(b[0]-nx,b[1]-ny); ctx.lineTo(a[0]-nx,a[1]-ny); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText('Cesta '+fmt(S.wallLen(it),1)+' m',(a[0]+b[0])/2+10,(a[1]+b[1])/2-10); }
+    if(isSel) [a,b].forEach(function(q){ ctx.fillStyle='#d4b071'; ctx.beginPath(); ctx.arc(q[0],q[1],6,0,7); ctx.fill(); ctx.strokeStyle='#111'; ctx.lineWidth=1; ctx.stroke(); }); });
+  ctx.restore(); }
 function wallSyncXY(w){ w.x=(w.x1+w.x2)/2; w.y=(w.y1+w.y2)/2; w.rot=Math.atan2(w.y2-w.y1,w.x2-w.x1); }
 function door(wall, at, extra){ var d={id:uid++,wall:wall,at:at,w:0.9,open:true,light:'dim'}; for(var k in extra) d[k]=extra[k]; return d; }
 function furn(type, x, y, rot, extra){ var f=S.FURNITURE[type]||S.FURNITURE.block; var o={kind:'furniture',id:uid++,type:type,x:x,y:y,rot:rot||0,w:f.w,d:f.d}; if(type==='block'){ o.h=f.h; o.mat='wood'; o.label=''; } if(['bed','ldesk','pcdesk','pc','kitchen','tree','sofa'].indexOf(type)>=0){ o.h=f.h; } if(f.elev!=null) o.elev=f.elev; if(type==='tree') o.variant=0; for(var k in extra) o[k]=extra[k]; return o; }
@@ -134,9 +150,11 @@ function renderMap(){
 function draw(){
   var dpr=devicePixelRatio; ctx.setTransform(dpr,0,0,dpr,0,0); var r=wrap.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height);
   var W=scene.room.w, H=scene.room.h, p0=toPx(0,0);
+  var rbt=document.querySelector('#tools [data-tool="road"]'); if(rbt) rbt.classList.toggle('dis',!extOn());
   if((scene.exterior&&scene.exterior.on)||scene.outdoor){ var gp=toPx(-4,-4); ctx.fillStyle='#1d2a17'; ctx.fillRect(gp[0],gp[1],(W+8)*scale,(H+8)*scale); S.exteriorTrees(scene).forEach(function(t){ var q=toPx(t.x,t.y); ctx.fillStyle= t.kind==='conifer'?'rgba(50,95,45,.85)':'rgba(70,125,55,.8)'; ctx.beginPath(); ctx.arc(q[0],q[1],t.r*scale,0,7); ctx.fill(); ctx.fillStyle='#3a2a1a'; ctx.beginPath(); ctx.arc(q[0],q[1],0.12*scale,0,7); ctx.fill(); }); }
   if(res){ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(off,p0[0],p0[1],res.nx*res.cell*scale,res.ny*res.cell*scale); }
   if($('gridOn').checked){ ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=1; for(var x=1;x<W;x++){ var a=toPx(x,0),b=toPx(x,H); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); } for(var y=1;y<H;y++){ var a2=toPx(0,y),b2=toPx(W,y); ctx.beginPath(); ctx.moveTo(a2[0],a2[1]); ctx.lineTo(b2[0],b2[1]); ctx.stroke(); } }
+  drawRoads();
   if(((scene.exterior&&scene.exterior.on)||scene.outdoor) && scene.fence!==false){ var fm=scene.outdoor?0:7.5, fp=toPx(-fm,-fm); ctx.strokeStyle='rgba(170,125,80,.9)'; ctx.lineWidth=2.5; ctx.setLineDash([2,5]); ctx.strokeRect(fp[0],fp[1],(W+2*fm)*scale,(H+2*fm)*scale); ctx.setLineDash([]); }
   if(scene.outdoor){ ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeRect(p0[0],p0[1],W*scale,H*scale); ctx.setLineDash([]); } else { ctx.strokeStyle='#8a8277'; ctx.lineWidth=5; ctx.strokeRect(p0[0],p0[1],W*scale,H*scale); }
   var envD=scene.env&&S.ENVS[scene.env]; if(envD) envD.parts.forEach(function(q){ var a=toPx(q.x0,q.y0); ctx.fillStyle=q.col||'rgba(120,110,95,.45)'; ctx.fillRect(a[0],a[1],(q.x1-q.x0)*scale,(q.y1-q.y0)*scale); ctx.strokeStyle='rgba(236,232,224,.35)'; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(a[0],a[1],(q.x1-q.x0)*scale,(q.y1-q.y0)*scale); ctx.setLineDash([]); ctx.fillStyle='rgba(236,232,224,.6)'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText(q.label,a[0]+6,a[1]+14); });
@@ -149,7 +167,7 @@ function draw(){
       ctx.strokeStyle='#d8cfbf'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+inw[0]*r*0.96+(b[0]-a[0])*0.08,hy+inw[1]*r*0.96+(b[1]-a[1])*0.08); ctx.stroke(); } });
   ctx.fillStyle='#8f8a80'; ctx.font='11px Inter,Lato,sans-serif'; var sb=toPx(0,H); ctx.fillRect(sb[0],sb[1]+14,scale,2); ctx.fillText('1 m',sb[0],sb[1]+30);
   ctx.fillText(W.toString().replace('.',',')+' × '+H.toString().replace('.',',')+' m', sb[0]+scale+14, sb[1]+30);
-  scene.items.forEach(function(it){ if(it.kind!=='light') drawItem(it); }); scene.items.forEach(function(it){ if(it.kind==='light') drawItem(it); });
+  scene.items.forEach(function(it){ if(it.kind!=='light'&&it.kind!=='road') drawItem(it); }); scene.items.forEach(function(it){ if(it.kind==='light') drawItem(it); });
   drawSun(); drawTool();
   if(meas){ meas.sides.forEach(function(s){ var q=toPx(s.x,s.y); ctx.fillStyle= s.E===meas.lux ? '#d4b071':'#6c93c9'; ctx.beginPath(); ctx.arc(q[0],q[1],3.2,0,7); ctx.fill(); }); }
 }
@@ -192,7 +210,7 @@ function drawItem(it){
     else if(t==='block'){ ctx.fillStyle='rgba(236,232,224,.7)'; ctx.font='10px Inter,Lato,sans-serif'; ctx.textAlign='center'; ctx.fillText((it.label||'Box')+' '+fmt(it.h==null?0.9:it.h,1)+' m', 0, 3); ctx.textAlign='start'; } }
   ctx.restore();
   if(isSel||isHov){ ctx.strokeStyle= isSel?'#d4b071':'rgba(212,176,113,.4)'; ctx.setLineDash([3,3]); ctx.lineWidth=1; ctx.beginPath(); ctx.arc(p[0],p[1],22,0,7); ctx.stroke(); ctx.setLineDash([]); }
-  if(isSel && it.kind!=='box' && it.kind!=='wall'){ var h=toPx.apply(null,rotHandle(it)); ctx.strokeStyle='rgba(212,176,113,.6)'; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(h[0],h[1]); ctx.stroke(); ctx.fillStyle='#d4b071'; ctx.beginPath(); ctx.arc(h[0],h[1],6,0,7); ctx.fill(); }
+  if(isSel && it.kind!=='box' && !isSeg(it)){ var h=toPx.apply(null,rotHandle(it)); ctx.strokeStyle='rgba(212,176,113,.6)'; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(h[0],h[1]); ctx.stroke(); ctx.fillStyle='#d4b071'; ctx.beginPath(); ctx.arc(h[0],h[1],6,0,7); ctx.fill(); }
   if(it.kind==='light'){ var nm=it.label||S.FIXTURES[it.fixture].name; ctx.fillStyle= it.label?'#ece8e0':'rgba(236,232,224,.55)'; ctx.font=(it.label?'bold ':'')+'11px Inter,Lato,sans-serif'; ctx.fillText(nm,p[0]+14,p[1]-14); }
   if(it.kind==='camera'){ ctx.fillStyle='rgba(236,232,224,.6)'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText((it.focal||35)+' mm',p[0]+14,p[1]-14); }
 }
@@ -221,7 +239,7 @@ function updateMeter(){
 }
 
 // ---------- seznam objektů ----------
-function itemName(it){ if(it.kind==='light') return (it.label?it.label+' · ':'')+S.FIXTURES[it.fixture].name+' · '+S.MODS[it.mod].name.split(' ')[0]; if(it.kind==='camera') return 'Kamera '+(it.focal||35)+' mm'; if(it.kind==='box') return it.tall?'Skříň / stěna':'Stůl'; if(it.kind==='furniture') return (it.type==='block'&&it.label) ? it.label : (S.FURNITURE[it.type]||S.FURNITURE.block).name; if(it.kind==='person') return (S.MODELS[it.model]?S.MODELS[it.model].name.split(' – ')[0]:'Postava')+(it.pose&&it.pose!=='stand'?' ('+((S.POSES[it.pose]||{}).name||'').split(' ')[0].toLowerCase()+')':''); if(it.kind==='wall') return 'Zeď '+fmt(S.wallLen(it),2)+' m'; return KINDNAME[it.kind]; }
+function itemName(it){ if(it.kind==='road') return 'Cesta · asfalt '+fmt(S.wallLen(it),1)+' m'; if(it.kind==='light') return (it.label?it.label+' · ':'')+S.FIXTURES[it.fixture].name+' · '+S.MODS[it.mod].name.split(' ')[0]; if(it.kind==='camera') return 'Kamera '+(it.focal||35)+' mm'; if(it.kind==='box') return it.tall?'Skříň / stěna':'Stůl'; if(it.kind==='furniture') return (it.type==='block'&&it.label) ? it.label : (S.FURNITURE[it.type]||S.FURNITURE.block).name; if(it.kind==='person') return (S.MODELS[it.model]?S.MODELS[it.model].name.split(' – ')[0]:'Postava')+(it.pose&&it.pose!=='stand'?' ('+((S.POSES[it.pose]||{}).name||'').split(' ')[0].toLowerCase()+')':''); if(it.kind==='wall') return 'Zeď '+fmt(S.wallLen(it),2)+' m'; return KINDNAME[it.kind]; }
 function objList(){
   var el=$('objList'), h='';
   scene.items.forEach(function(it){ h+='<div class="item'+(sel===it?' sel':'')+'" data-id="'+it.id+'"><span class="ic">'+KIND[it.kind]+'</span><span class="nm'+(it.on===false?' off':'')+'">'+itemName(it)+'</span>'+(it.kind==='light'?'<button data-tog="'+it.id+'" title="Zapnout / vypnout (H)">'+(it.on===false?'○':'●')+'</button>':'')+'<button data-del="'+it.id+'" title="Smazat">✕</button></div>'; });
@@ -234,9 +252,9 @@ var poseOn=false;
 function poseButtons(){ var ok=!!(sel&&sel.kind==='person'&&(sel.model||'proc')!=='proc'); $('bPose').classList.toggle('hide',!ok); $('bPoseReset').classList.toggle('hide',!(ok&&sel.bones&&Object.keys(sel.bones).length)); if(!ok&&poseOn){ poseOn=false; $('bPose').classList.remove('on'); } if(view3dReady) window.View3D.setPose(ok&&poseOn, ok?sel.id:null); }
 $('bPose').onclick=function(){ poseOn=!poseOn; this.classList.toggle('on',poseOn); poseButtons(); };
 $('bPoseReset').onclick=function(){ if(!sel||sel.kind!=='person') return; delete sel.bones; poseButtons(); sync3d(); snapshot(); };
-function dup(it){ if(!it) return; var c=JSON.parse(JSON.stringify(it)); c.id=uid++; if(c.kind==='wall'){ c.x1+=0.4; c.x2+=0.4; c.y1+=0.4; c.y2+=0.4; clampWall(c); } else { c.x=Math.min(scene.room.w-0.1,c.x+0.4); c.y=Math.min(scene.room.h-0.1,c.y+0.4); } scene.items.push(c); select(c); schedule(); }
+function dup(it){ if(!it) return; var c=JSON.parse(JSON.stringify(it)); c.id=uid++; if(isSeg(c)){ var off=c.kind==='road'?(c.wd||3.5)+0.5:0.4; c.x1+=off; c.x2+=off; c.y1+=c.kind==='road'?0:off; c.y2+=c.kind==='road'?0:off; clampSeg(c); } else { c.x=Math.min(scene.room.w-0.1,c.x+0.4); c.y=Math.min(scene.room.h-0.1,c.y+0.4); } scene.items.push(c); select(c); schedule(); }
 function clampWall(w){ var W=scene.room.w, H=scene.room.h; w.x1=Math.max(0,Math.min(W,w.x1)); w.x2=Math.max(0,Math.min(W,w.x2)); w.y1=Math.max(0,Math.min(H,w.y1)); w.y2=Math.max(0,Math.min(H,w.y2)); wallSyncXY(w); }
-function moveWall(w,dx,dy){ w.x1+=dx; w.x2+=dx; w.y1+=dy; w.y2+=dy; clampWall(w); }
+function moveWall(w,dx,dy){ w.x1+=dx; w.x2+=dx; w.y1+=dy; w.y2+=dy; clampSeg(w); }
 function del(it){ if(!it) return; scene.items=scene.items.filter(function(o){return o!==it;}); if(it.kind==='wall'){ scene.windows=scene.windows.filter(function(w){return w.wall!==it.id;}); scene.doors=(scene.doors||[]).filter(function(d){return d.wall!==it.id;}); renderDoors(); } if(sel===it) sel=null; props(); renderWindows(); schedule(); }
 
 // ---------- vlastnosti ----------
@@ -246,7 +264,9 @@ function props(){
   function rng(k,lab,min,max,step,unit){ h+='<label>'+lab+' <span class="pill" id="v_'+k+'">'+fmtv(k,it[k])+'</span></label><input type="range" data-k="'+k+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+it[k]+'">'; }
   function chk(k,lab){ h+='<label class="chk"><input type="checkbox" data-k="'+k+'"'+(it[k]?' checked':'')+'> '+lab+'</label>'; }
   function selc(k,lab,opts){ h+='<label>'+lab+'</label><select data-k="'+k+'">'+Object.keys(opts).map(function(o){return '<option value="'+o+'"'+(o===it[k]?' selected':'')+'>'+opts[o]+'</option>';}).join('')+'</select>'; }
-  if(it.kind==='wall'){ h+='<div class="row"><div><label>X1</label><input type="number" data-k="x1" step="0.05" value="'+it.x1.toFixed(2)+'"></div><div><label>Y1</label><input type="number" data-k="y1" step="0.05" value="'+it.y1.toFixed(2)+'"></div></div><div class="row"><div><label>X2</label><input type="number" data-k="x2" step="0.05" value="'+it.x2.toFixed(2)+'"></div><div><label>Y2</label><input type="number" data-k="y2" step="0.05" value="'+it.y2.toFixed(2)+'"></div></div><p class="mut">Délka '+fmt(S.wallLen(it),2)+' m, tloušťka 12 cm, plná výška. Táhni zlaté konce pro úpravu, mezera mezi zdmi = průchod. Okno na zdi označ nástrojem Okno.</p>'; }
+  if(it.kind==='road'){ h+='<div class="row"><div><label>X1</label><input type="number" data-k="x1" step="0.1" value="'+it.x1.toFixed(2)+'"></div><div><label>Y1</label><input type="number" data-k="y1" step="0.1" value="'+it.y1.toFixed(2)+'"></div></div><div class="row"><div><label>X2</label><input type="number" data-k="x2" step="0.1" value="'+it.x2.toFixed(2)+'"></div><div><label>Y2</label><input type="number" data-k="y2" step="0.1" value="'+it.y2.toFixed(2)+'"></div></div>';
+    rng('wd','Šířka cesty',1.5,12,0.5,'m'); chk('line','Přerušovaná středová čára'); chk('edge','Bílé krajní čáry'); h+='<p class="mut">Asfaltová cesta, délka '+fmt(S.wallLen(it),1)+' m. Táhni zlaté konce pro úpravu; konec se přichytí ke konci jiné cesty (křižovatka, zatáčka).</p>'; }
+  else if(it.kind==='wall'){ h+='<div class="row"><div><label>X1</label><input type="number" data-k="x1" step="0.05" value="'+it.x1.toFixed(2)+'"></div><div><label>Y1</label><input type="number" data-k="y1" step="0.05" value="'+it.y1.toFixed(2)+'"></div></div><div class="row"><div><label>X2</label><input type="number" data-k="x2" step="0.05" value="'+it.x2.toFixed(2)+'"></div><div><label>Y2</label><input type="number" data-k="y2" step="0.05" value="'+it.y2.toFixed(2)+'"></div></div><p class="mut">Délka '+fmt(S.wallLen(it),2)+' m, tloušťka 12 cm, plná výška. Táhni zlaté konce pro úpravu, mezera mezi zdmi = průchod. Okno na zdi označ nástrojem Okno.</p>'; }
   else h+='<div class="row"><div><label>X (m)</label><input type="number" data-k="x" step="0.05" value="'+it.x.toFixed(2)+'"></div><div><label>Y (m)</label><input type="number" data-k="y" step="0.05" value="'+it.y.toFixed(2)+'"></div><div><label>Otočení (°)</label><input type="number" data-k="rotDeg" step="5" value="'+Math.round(it.rot*180/Math.PI)+'"></div></div>';
   if(it.kind==='light'){
     h+='<label>Popisek</label><input type="text" data-k="label" value="'+(it.label||'')+'" placeholder="např. KEY, FILL, BACK">';
@@ -282,7 +302,7 @@ if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="co
     if(inp.type==='checkbox') v=inp.checked; else if(inp.type==='range'||inp.type==='number') v=parseFloat(inp.value); else v=inp.value;
     if(k==='rotDeg'){ if(isNaN(v)) return; it.rot=v*Math.PI/180; schedule(); return; }
     if((k==='x'||k==='y'||k==='x1'||k==='y1'||k==='x2'||k==='y2') && isNaN(v)) return;
-    it[k]=v; if(it.kind==='wall'){ clampWall(it); } if(k==='fixture'){ var f=S.FIXTURES[v]; it.mod=f.defMod; it.cct=f.cct; props(); }
+    it[k]=v; if(isSeg(it)){ clampSeg(it); } if(k==='fixture'){ var f=S.FIXTURES[v]; it.mod=f.defMod; it.cct=f.cct; props(); }
     if(k==='tiltAuto'){ if(v) delete it.tiltDeg; else it.tiltDeg=Math.round(S.autoTilt(it)); delete it.tiltAuto; props(); }
     if(k==='rgb'){ if(v&&!it.color) it.color='#3a6bff'; props(); }
     if(k==='aim'&&!v) aimOnce(scene,it);
@@ -309,14 +329,15 @@ function distSeg(px,py,ax,ay,bx,by){ var dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy, t=L
 function sunPos(){ var W=scene.room.w, H=scene.room.h, d=S.sunDir(scene), t=Math.min((W/2+0.7)/Math.max(1e-6,Math.abs(d[0])),(H/2+0.7)/Math.max(1e-6,Math.abs(d[1]))); return [W/2+d[0]*t, H/2+d[1]*t]; }
 function pick(mx,my){
   if(S.sunOn(scene)){ var sp=toPx.apply(null,sunPos()); if(Math.hypot(mx-sp[0],my-sp[1])<16) return {sun:true}; }
-  if(sel && sel.kind==='wall'){ var e1=toPx(sel.x1,sel.y1), e2=toPx(sel.x2,sel.y2); if(Math.hypot(mx-e1[0],my-e1[1])<10) return {it:sel,end:1}; if(Math.hypot(mx-e2[0],my-e2[1])<10) return {it:sel,end:2}; }
-  if(sel && sel.kind!=='box' && sel.kind!=='wall'){ var h=toPx.apply(null,rotHandle(sel)); if(Math.hypot(mx-h[0],my-h[1])<10) return {it:sel,rot:true}; }
-  for(var i=scene.items.length-1;i>=0;i--){ var it=scene.items[i]; if(it.kind==='wall') continue; var p=toPx(it.x,it.y), rr=18;
+  if(isSeg(sel)){ var e1=toPx(sel.x1,sel.y1), e2=toPx(sel.x2,sel.y2); if(Math.hypot(mx-e1[0],my-e1[1])<10) return {it:sel,end:1}; if(Math.hypot(mx-e2[0],my-e2[1])<10) return {it:sel,end:2}; }
+  if(sel && sel.kind!=='box' && !isSeg(sel)){ var h=toPx.apply(null,rotHandle(sel)); if(Math.hypot(mx-h[0],my-h[1])<10) return {it:sel,rot:true}; }
+  for(var i=scene.items.length-1;i>=0;i--){ var it=scene.items[i]; if(isSeg(it)) continue; var p=toPx(it.x,it.y), rr=18;
     if(it.kind==='box') rr=Math.max(it.w,it.d)*scale/2; if(it.kind==='flag'||it.kind==='bounce'||it.kind==='diffuser') rr=Math.max(14,it.len*scale/2);
     if(it.kind==='furniture'){ var cf=Math.cos(it.rot||0), sf=Math.sin(it.rot||0), fx=mx-p[0], fy=my-p[1], fu=fx*cf+fy*sf, fv=-fx*sf+fy*cf; if(Math.abs(fu)<=it.w*scale/2+4 && Math.abs(fv)<=it.d*scale/2+4) return {it:it}; continue; }
     if(it.kind==='flag'||it.kind==='bounce'||it.kind==='diffuser'){ var c=Math.cos(it.rot), s=Math.sin(it.rot), dx=mx-p[0], dy=my-p[1], u=dx*c+dy*s, v=-dx*s+dy*c; if(Math.abs(u)<=rr && Math.abs(v)<=9) return {it:it}; continue; }
     if(Math.hypot(mx-p[0],my-p[1])<=rr) return {it:it}; }
   for(var j=scene.items.length-1;j>=0;j--){ var wl=scene.items[j]; if(wl.kind!=='wall') continue; var a=toPx(wl.x1,wl.y1), b=toPx(wl.x2,wl.y2); if(distSeg(mx,my,a[0],a[1],b[0],b[1]).d<=Math.max(6,0.06*scale)+3) return {it:wl}; }
+  for(var k=scene.items.length-1;k>=0;k--){ var rd=scene.items[k]; if(rd.kind!=='road') continue; var ra=toPx(rd.x1,rd.y1), rb=toPx(rd.x2,rd.y2); if(distSeg(mx,my,ra[0],ra[1],rb[0],rb[1]).d<=Math.max(6,(rd.wd||3.5)/2*scale)) return {it:rd}; }
   return null;
 }
 // nejbližší zeď (vnější strana nebo nakreslená) k bodu v metrech; vrací {wall, t (m podél zdi), len}
@@ -331,8 +352,8 @@ function snapv(v){ return $('snap').checked ? Math.round(v/0.1)*0.1 : v; }
 function snapPt(x,y){ x=Math.round(x*10)/10; y=Math.round(y*10)/10; var best=null; scene.items.forEach(function(it){ if(it.kind!=='wall') return; [[it.x1,it.y1],[it.x2,it.y2]].forEach(function(q){ var d=Math.hypot(q[0]-x,q[1]-y); if(d<0.2 && (!best||d<best.d)) best={d:d,p:q}; }); }); if(best) return [best.p[0],best.p[1]]; return [Math.max(0,Math.min(scene.room.w,x)),Math.max(0,Math.min(scene.room.h,y))]; }
 function axisSnap(x1,y1,x2,y2,free){ var dx=x2-x1, dy=y2-y1; if(free){ var a=Math.atan2(dy,dx), L=Math.hypot(dx,dy), q=Math.round(a/(Math.PI/12))*(Math.PI/12); return [x1+Math.cos(q)*L, y1+Math.sin(q)*L]; } if(Math.abs(dx)>=Math.abs(dy)) return [x2,y1]; return [x1,y2]; }
 var tool='select', draft=null;
-function setTool(t){ tool=t; draft=null; document.querySelectorAll('#tools .btn').forEach(function(b){ b.classList.toggle('gold',b.dataset.tool===t); }); cv.classList.toggle('tool',t!=='select'); $('toolHint').textContent= t==='wall'?'táhni: nová zeď (Shift = šikmo po 15°)': t==='window'?'táhni podél zdi: nové okno':t==='door'?'klikni na zeď: nové dveře (i do nakreslené příčky)':''; draw(); }
-document.querySelectorAll('#tools .btn').forEach(function(b){ b.onclick=function(){ setTool(b.dataset.tool); }; });
+function setTool(t){ tool=t; draft=null; document.querySelectorAll('#tools .btn').forEach(function(b){ b.classList.toggle('gold',b.dataset.tool===t); }); cv.classList.toggle('tool',t!=='select'); $('toolHint').textContent= t==='wall'?'táhni: nová zeď (Shift = šikmo po 15°)': t==='window'?'táhni podél zdi: nové okno':t==='door'?'klikni na zeď: nové dveře (i do nakreslené příčky)':t==='road'?'táhni: nová cesta (Shift = šikmo po 15°), konce se chytají k jiné cestě':''; draw(); }
+document.querySelectorAll('#tools .btn').forEach(function(b){ b.onclick=function(){ if(b.dataset.tool==='road'&&!extOn()){ setTool('select'); $('toolHint').textContent='Cesta jde jen v exteriéru – zapněte „Jen exteriér“ nebo „Zahrada kolem domu“'; return; } setTool(b.dataset.tool); }; });
 function drawSun(){ if(!S.sunOn(scene)) return; var sp=toPx.apply(null,sunPos()), c=toPx(scene.room.w/2,scene.room.h/2);
   ctx.strokeStyle='rgba(255,210,90,.35)'; ctx.lineWidth=1.5; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.moveTo(sp[0],sp[1]); ctx.lineTo(c[0],c[1]); ctx.stroke(); ctx.setLineDash([]);
   if(S.isNight(scene)){ ctx.fillStyle='#dfe6f5'; ctx.beginPath(); ctx.arc(sp[0],sp[1],10,0,7); ctx.fill(); ctx.fillStyle='#1b2233'; ctx.beginPath(); ctx.arc(sp[0]+5,sp[1]-3,9,0,7); ctx.fill(); ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText('měsíc '+scene.sun.elev+'°',sp[0]+18,sp[1]+4); return; }
@@ -340,6 +361,8 @@ function drawSun(){ if(!S.sunOn(scene)) return; var sp=toPx.apply(null,sunPos())
   for(var k=0;k<8;k++){ var a=k*Math.PI/4; ctx.beginPath(); ctx.moveTo(sp[0]+Math.cos(a)*14,sp[1]+Math.sin(a)*14); ctx.lineTo(sp[0]+Math.cos(a)*19,sp[1]+Math.sin(a)*19); ctx.strokeStyle='#ffd25a'; ctx.lineWidth=2; ctx.stroke(); }
   ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText('slunce '+scene.sun.elev+'°',sp[0]+22,sp[1]+4); }
 function drawTool(){ if(!draft) return; ctx.save();
+  if(draft.kind==='road'){ var ra=toPx(draft.x1,draft.y1), rb=toPx(draft.x2,draft.y2); ctx.strokeStyle='rgba(60,60,64,.8)'; ctx.lineWidth=Math.max(6,draft.wd*scale); ctx.beginPath(); ctx.moveTo(ra[0],ra[1]); ctx.lineTo(rb[0],rb[1]); ctx.stroke(); ctx.strokeStyle='rgba(212,176,113,.9)'; ctx.lineWidth=2; ctx.stroke();
+    var rt=fmt(Math.hypot(draft.x2-draft.x1,draft.y2-draft.y1),1)+' m'; ctx.font='bold 12px Inter,Lato,sans-serif'; var rtw=ctx.measureText(rt).width; ctx.fillStyle='rgba(212,176,113,.95)'; ctx.fillRect((ra[0]+rb[0])/2-rtw/2-6,(ra[1]+rb[1])/2-24,rtw+12,18); ctx.fillStyle='#111'; ctx.fillText(rt,(ra[0]+rb[0])/2-rtw/2,(ra[1]+rb[1])/2-11); }
   if(draft.kind==='wall'){ var a=toPx(draft.x1,draft.y1), b=toPx(draft.x2,draft.y2); ctx.strokeStyle='rgba(212,176,113,.9)'; ctx.lineWidth=Math.max(4,0.12*scale); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
     var L=Math.hypot(draft.x2-draft.x1,draft.y2-draft.y1); ctx.fillStyle='#111'; ctx.font='bold 12px Inter,Lato,sans-serif'; var txt=fmt(L,2)+' m', tw=ctx.measureText(txt).width; ctx.fillStyle='rgba(212,176,113,.95)'; ctx.fillRect((a[0]+b[0])/2-tw/2-6,(a[1]+b[1])/2-24,tw+12,18); ctx.fillStyle='#111'; ctx.fillText(txt,(a[0]+b[0])/2-tw/2,(a[1]+b[1])/2-11); }
   if(draft.kind==='window'){ var p1=wallPointAny(draft.wall,draft.t1), p2=wallPointAny(draft.wall,draft.t2); if(p1&&p2){ var q1=toPx(p1[0],p1[1]), q2=toPx(p2[0],p2[1]); ctx.strokeStyle='#8fc0e8'; ctx.lineWidth=7; ctx.beginPath(); ctx.moveTo(q1[0],q1[1]); ctx.lineTo(q2[0],q2[1]); ctx.stroke();
@@ -352,31 +375,34 @@ function wallLenAny(wall){ if(typeof wall==='string') return (wall==='left'||wal
 function wallPointAny(wall,t){ if(typeof wall==='string'){ var W=scene.room.w, H=scene.room.h; return wall==='left'?[0,t]:wall==='right'?[W,t]:wall==='top'?[t,0]:[t,H]; } var it=byId(wall); return it?S.wallPoint(it,t):null; }
 cv.addEventListener('pointerdown',function(e){ var m=mpos(e), w=toM(m[0],m[1]); cv.setPointerCapture(e.pointerId);
   if(tool==='wall'){ var p=snapPt(w[0],w[1]); draft={kind:'wall',x1:p[0],y1:p[1],x2:p[0],y2:p[1]}; draw(); return; }
+  if(tool==='road'){ var pr0=roadPt(w[0],w[1]); draft={kind:'road',x1:pr0[0],y1:pr0[1],x2:pr0[0],y2:pr0[1],wd:3.5}; draw(); return; }
   if(tool==='door'){ var nd=nearestWall(w[0],w[1]); if(!nd) return; var dw=0.9, at=Math.round(Math.max(dw/2+0.05,Math.min(nd.len-dw/2-0.05,nd.t))*10)/10; if(!scene.doors) scene.doors=[]; scene.doors.push(door(nd.wall,at,{light:typeof nd.wall==='string'?'dim':'none'})); setTool('select'); renderDoors(); schedule(); return; }
   if(tool==='window'){ var nw=nearestWall(w[0],w[1]); if(!nw){ return; } draft={kind:'window',wall:nw.wall,t1:Math.round(nw.t*10)/10,t2:Math.round(nw.t*10)/10,len:nw.len}; draw(); return; }
   var hit=pick(m[0],m[1]);
   if(hit&&hit.sun){ drag={sun:true,moved:false}; return; }
   if(hit){ drag={it:hit.it,rot:!!hit.rot,end:hit.end||0,dx:hit.it.x-w[0],dy:hit.it.y-w[1],moved:false}; if(sel!==hit.it) select(hit.it); } else select(null); });
 cv.addEventListener('pointermove',function(e){ var m=mpos(e), w=toM(m[0],m[1]);
-  if(draft){ if(draft.kind==='wall'){ var p=snapPt(w[0],w[1]); var q=axisSnap(draft.x1,draft.y1,p[0],p[1],e.shiftKey); draft.x2=Math.max(0,Math.min(scene.room.w,Math.round(q[0]*10)/10)); draft.y2=Math.max(0,Math.min(scene.room.h,Math.round(q[1]*10)/10)); }
+  if(draft){ if(draft.kind==='road'){ var rp=roadPt(w[0],w[1]); var rq=e.shiftKey?axisSnap(draft.x1,draft.y1,rp[0],rp[1],true):(Math.hypot(rp[0]-w[0],rp[1]-w[1])<0.06?axisSnap(draft.x1,draft.y1,rp[0],rp[1],false):rp); var bx=roadBox(); draft.x2=Math.max(bx[0],Math.min(bx[2],Math.round(rq[0]*10)/10)); draft.y2=Math.max(bx[1],Math.min(bx[3],Math.round(rq[1]*10)/10)); }
+    else if(draft.kind==='wall'){ var p=snapPt(w[0],w[1]); var q=axisSnap(draft.x1,draft.y1,p[0],p[1],e.shiftKey); draft.x2=Math.max(0,Math.min(scene.room.w,Math.round(q[0]*10)/10)); draft.y2=Math.max(0,Math.min(scene.room.h,Math.round(q[1]*10)/10)); }
     else { var pr=projectOnWall(draft.wall,w[0],w[1]); draft.t2=Math.max(0,Math.min(draft.len,Math.round(pr*10)/10)); } draw(); return; }
   if(!drag){ if(tool!=='select') return; var h=pick(m[0],m[1]); var nh=h?(h.it||null):null; if(nh!==hover){ hover=nh; draw(); } cv.style.cursor= h ? ((h.rot||h.end||h.sun)?'grab':'move') : 'default'; return; }
   drag.moved=true;
   if(drag.sun){ scene.sun.az=Math.atan2(w[1]-scene.room.h/2,w[0]-scene.room.w/2); if(e.shiftKey) scene.sun.az=Math.round(scene.sun.az/(Math.PI/12))*(Math.PI/12); $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); }
   else { var it=drag.it;
-    if(drag.end){ var o= drag.end===1?[it.x2,it.y2]:[it.x1,it.y1]; var p2=snapPt(w[0],w[1]); var q2=e.altKey?p2:axisSnap(o[0],o[1],p2[0],p2[1],e.shiftKey); if(drag.end===1){ it.x1=q2[0]; it.y1=q2[1]; } else { it.x2=q2[0]; it.y2=q2[1]; } clampWall(it); }
-    else if(it.kind==='wall'){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
+    if(drag.end){ var o= drag.end===1?[it.x2,it.y2]:[it.x1,it.y1]; var p2=it.kind==='road'?roadPt(w[0],w[1],it):snapPt(w[0],w[1]); var q2=(e.altKey||it.kind==='road'&&!e.shiftKey)?p2:axisSnap(o[0],o[1],p2[0],p2[1],e.shiftKey); if(drag.end===1){ it.x1=q2[0]; it.y1=q2[1]; } else { it.x2=q2[0]; it.y2=q2[1]; } clampSeg(it); }
+    else if(isSeg(it)){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
     else if(drag.rot){ it.rot=Math.atan2(w[1]-it.y,w[0]-it.x); if(e.shiftKey) it.rot=Math.round(it.rot/(Math.PI/12))*(Math.PI/12); }
     else { var mg=it.kind==='camera'?15:-0.05; it.x=Math.max(-mg,Math.min(scene.room.w+mg,snapv(w[0]+drag.dx))); it.y=Math.max(-mg,Math.min(scene.room.h+mg,snapv(w[1]+drag.dy))); } }
   recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); });
 function projectOnWall(wall,x,y){ if(typeof wall==='string') return (wall==='left'||wall==='right')?y:x; var it=byId(wall); if(!it) return 0; var r=distSeg(x,y,it.x1,it.y1,it.x2,it.y2); return r.t*S.wallLen(it); }
 cv.addEventListener('pointerup',function(){
   if(draft){ var d=draft; draft=null;
+    if(d.kind==='road'){ if(Math.hypot(d.x2-d.x1,d.y2-d.y1)>=0.5){ var rd=roadItem(d.x1,d.y1,d.x2,d.y2); scene.items.push(rd); select(rd); schedule(); } else draw(); return; }
     if(d.kind==='wall'){ if(Math.hypot(d.x2-d.x1,d.y2-d.y1)>=0.2){ var wl=wallItem(d.x1,d.y1,d.x2,d.y2); scene.items.push(wl); select(wl); schedule(); } else draw(); }
     else { var a=Math.min(d.t1,d.t2), b=Math.max(d.t1,d.t2); if(b-a>=0.3){ scene.windows.push(win(d.wall,a,b)); renderWindows(); schedule(); } else draw(); }
     return; }
   if(drag&&drag.moved){ props(); objList(); snapshotSoon(); } drag=null; });
-cv.addEventListener('wheel',function(e){ if(!sel||sel.kind==='wall') return; e.preventDefault(); sel.rot+=(e.deltaY>0?1:-1)*Math.PI/36; props(); schedule(); },{passive:false});
+cv.addEventListener('wheel',function(e){ if(!sel||isSeg(sel)) return; e.preventDefault(); sel.rot+=(e.deltaY>0?1:-1)*Math.PI/36; props(); schedule(); },{passive:false});
 // levá lišta: sekce (nadpis + obsah až k dalšímu nadpisu) zabalit do rámečků
 (function(){ var L=document.querySelector('aside.l'); if(!L) return; var box=null; Array.prototype.slice.call(L.childNodes).forEach(function(n){ if(n.nodeType===1&&n.tagName==='H3'){ box=document.createElement('section'); box.className='box'; L.insertBefore(box,n); } if(box) box.appendChild(n); }); })();
 // ---------- nastavení kamery (pravá lišta): vyvážení bílé + simulace hloubky ostrosti ----------
@@ -420,7 +446,7 @@ window.addEventListener('keydown',function(e){ var tag=document.activeElement.ta
   if(e.key==='Delete'||e.key==='Backspace'){ del(sel); }
   else if(e.key.toLowerCase()==='d'){ dup(sel); }
   else if(e.key.toLowerCase()==='h' && sel.kind==='light'){ sel.on=sel.on===false; props(); schedule(); }
-  else if(e.key.startsWith('Arrow')){ e.preventDefault(); var st=e.shiftKey?0.25:0.05; var mx=(e.key==='ArrowLeft'?-st:e.key==='ArrowRight'?st:0), my=(e.key==='ArrowUp'?-st:e.key==='ArrowDown'?st:0); if(sel.kind==='wall') moveWall(sel,mx,my); else { sel.x=Math.max(0.05,Math.min(scene.room.w-0.05,sel.x+mx)); sel.y=Math.max(0.05,Math.min(scene.room.h-0.05,sel.y+my)); } props(); schedule(); }
+  else if(e.key.startsWith('Arrow')){ e.preventDefault(); var st=e.shiftKey?0.25:0.05; var mx=(e.key==='ArrowLeft'?-st:e.key==='ArrowRight'?st:0), my=(e.key==='ArrowUp'?-st:e.key==='ArrowDown'?st:0); if(isSeg(sel)) moveWall(sel,mx,my); else { sel.x=Math.max(0.05,Math.min(scene.room.w-0.05,sel.x+mx)); sel.y=Math.max(0.05,Math.min(scene.room.h-0.05,sel.y+my)); } props(); schedule(); }
 });
 
 document.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ var k=b.dataset.add, cx=scene.room.w/2, cy=scene.room.h/2, o;
@@ -476,14 +502,32 @@ $('fmt').addEventListener('input',function(){ scene.format=$('fmt').value; if(vi
 $('sunOn').addEventListener('input',function(){ scene.sun.on=$('sunOn').checked; skyUI(); fit(); schedule(); });
 $('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('sunElev').value); $('sunElevV').textContent=scene.sun.elev+'°'; skyUI(); schedule(); });
 $('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); schedule(); });
-['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ scene.room.w=Math.max(3,parseFloat($('rw').value)||7); scene.room.h=Math.max(3,parseFloat($('rh').value)||5); scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
+['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ var mx=scene.outdoor?NEW_LIM.ext.max:NEW_LIM.room.max; scene.room.w=Math.min(mx,Math.max(3,parseFloat($('rw').value)||7)); scene.room.h=Math.min(mx,Math.max(3,parseFloat($('rh').value)||5)); $('rw').value=scene.room.w; $('rh').value=scene.room.h; scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
 $('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=false; scene.exterior={on:false,trees:6}; scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
 $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; schedule(); });
 $('quality').addEventListener('input',function(){ try{ localStorage.setItem('viewfinder-quality',$('quality').value);}catch(e){} schedule(); });
 ['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ if(id==='autoEv'){ try{ localStorage.setItem('viewfinder-autoev',$('autoEv').checked?'1':'0');}catch(e){} } $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });
 ['gridOn','beams','snap'].forEach(function(id){ $(id).addEventListener('input',draw); });
-$('tpl').onchange=function(){ if(!this.value) return; scene=TEMPL[this.value](); freezeAim(scene); if(view3dReady) window.View3D.resetOrbit(); sel=null; syncRoom(); props(); fit(); schedule(); this.value=''; };
+// ---------- nová místnost / nový exteriér podle zadaných rozměrů ----------
+var NEW_LIM={room:{min:3,max:30,zmin:2.2,zmax:6}, ext:{min:5,max:50}}; // exteriér do 50 × 50 m – výpočet i 3D okolí (obloha, terén) zůstanou únosné
+var nmKind='room';
+function openNew(kind){ nmKind=kind; var ext=kind==='ext', L=ext?NEW_LIM.ext:NEW_LIM.room;
+  $('nmTitle').textContent=ext?'Nový exteriér':'Nová místnost'; $('nmZBox').classList.toggle('hide',ext); $('nmExtBox').classList.toggle('hide',!ext);
+  $('nmW').value=ext?20:6; $('nmH').value=ext?15:4.5; $('nmZ').value=2.7; ['nmW','nmH'].forEach(function(id){ $(id).min=L.min; $(id).max=L.max; }); $('nmZ').min=NEW_LIM.room.zmin; $('nmZ').max=NEW_LIM.room.zmax;
+  $('nmHint').textContent=ext?'Délka i šířka '+L.min+'–'+L.max+' m (větší plocha by zbytečně zatěžovala výpočet). Cestu pak nakreslíte nástrojem Cesta nad půdorysem.':'Délka a šířka '+L.min+'–'+L.max+' m, výška stropu '+fmt(NEW_LIM.room.zmin,1)+'–'+NEW_LIM.room.zmax+' m. Okna a dveře pak přidáte nástroji nad půdorysem.';
+  $('newModal').classList.remove('hide'); setTimeout(function(){ $('nmW').focus(); $('nmW').select(); },30); }
+function closeNew(){ $('newModal').classList.add('hide'); }
+function createNew(){ var ext=nmKind==='ext', L=ext?NEW_LIM.ext:NEW_LIM.room, cl=function(v,a,b,d){ v=parseFloat(String(v).replace(',','.')); return isFinite(v)?Math.max(a,Math.min(b,Math.round(v*10)/10)):d; };
+  var W=cl($('nmW').value,L.min,L.max,ext?20:6), H=cl($('nmH').value,L.min,L.max,ext?15:4.5), Z=cl($('nmZ').value,NEW_LIM.room.zmin,NEW_LIM.room.zmax,2.7);
+  var s=blank(); s.room={w:W,h:H,z:Z}; s.windows=[]; s.format='169';
+  if(ext){ s.outdoor=true; s.floor=$('nmFloor').value; s.sky='sunny'; s.sun={on:true,az:3.6,elev:35}; s.exterior={on:$('nmTrees').checked,trees:8}; s.fence=$('nmFence').checked; }
+  else { s.walls='normal'; s.floor='wood'; }
+  s.items=[item('camera',W/2,H-Math.min(1,H*0.15),-Math.PI/2,{focal:35,h:1.5,aim:false,tilt:0})];
+  scene=s; fixIds(); if(view3dReady) window.View3D.resetOrbit(); sel=null; syncRoom(); props(); fit(); schedule(); closeNew(); }
+$('bNmOk').onclick=createNew; $('bNmCancel').onclick=closeNew; $('bNmClose').onclick=closeNew; $('newModal').addEventListener('click',function(e){ if(e.target===this) closeNew(); });
+['nmW','nmH','nmZ'].forEach(function(id){ $(id).addEventListener('keydown',function(e){ if(e.key==='Enter') createNew(); if(e.key==='Escape') closeNew(); }); });
+$('tpl').onchange=function(){ if(!this.value) return; if(this.value==='__room'||this.value==='__ext'){ var k=this.value==='__ext'?'ext':'room'; this.value=''; openNew(k); return; } scene=TEMPL[this.value](); freezeAim(scene); if(view3dReady) window.View3D.resetOrbit(); sel=null; syncRoom(); props(); fit(); schedule(); this.value=''; };
 $('bSave').onclick=function(){ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(scene,null,1)],{type:'application/json'})); a.download='viewfinder-light-scena.json'; a.click(); };
 $('bLoad').onclick=function(){ $('fLoad').click(); };
 $('fLoad').onchange=function(){ var f=this.files[0]; if(!f) return; f.text().then(function(t){ try{ var sc=JSON.parse(t); if(!sc.room||!sc.items) throw 0; scene=sc; fixIds(); sel=null; syncRoom(); props(); fit(); schedule(); }catch(e){ alert('Soubor nejde načíst.'); } }); $('fLoad').value=''; };
