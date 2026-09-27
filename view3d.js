@@ -112,6 +112,15 @@ function init(cv) {
   // FPS ovládání kamery: hover + klávesy + myš
   cv.tabIndex = 0;
   cv.addEventListener('pointerenter', () => { over = true; }); cv.addEventListener('pointerleave', () => { over = false; keys = {}; });
+  // dotyk: dva prsty = ohnisko (sevřít / roztáhnout); registrováno dřív, aby druhý prst nespustil rozhlížení
+  const touches = new Map(); let pinch = null;
+  const pinchDist = () => { const v = [...touches.values()]; return Math.hypot(v[0][0] - v[1][0], v[0][1] - v[1][1]) || 1; };
+  cv.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') return; touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size === 2 && camItem && !orbit) { if (lookDrag) { camItem.rot = lookDrag.rot; camItem.tilt = lookDrag.tilt; lookDrag = null; } if (objDrag) objUp(); pinch = { d0: pinchDist(), f0: camItem.focal || 35 }; e.stopImmediatePropagation(); } });
+  cv.addEventListener('pointermove', e => { if (!touches.has(e.pointerId)) return; touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinch && touches.size >= 2) { camItem.focal = Math.round(Math.max(14, Math.min(135, pinch.f0 * pinchDist() / pinch.d0))); emitCam(false); e.stopImmediatePropagation(); } });
+  const touchEnd = e => { touches.delete(e.pointerId); if (pinch && touches.size < 2) { pinch = null; emitCam(true); e.stopImmediatePropagation(); } };
+  cv.addEventListener('pointerup', touchEnd); cv.addEventListener('pointercancel', touchEnd);
   cv.addEventListener('pointerdown', e => { cv.focus(); if (e.button === 0 && poseDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; }
     if (ctrlMode === 'object') { if (e.button === 0 && objDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; } return; } // OVLÁDÁNÍ OBJEKTU: chycení objektu → posun po podlaze
     // OVLÁDÁNÍ KAMERY: objekty se ignorují, levé tlačítko kdekoli = rozhlížení
@@ -1116,6 +1125,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { setMoveCallback, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { setMoveCallback, setKey: (k, on) => { if (on) keys[k] = true; else delete keys[k]; }, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

@@ -247,7 +247,7 @@ function objList(){
   el.querySelectorAll('.item').forEach(function(d){ d.onclick=function(e){ var t=e.target; if(t.dataset.tog){ var L=byId(t.dataset.tog); L.on=L.on===false; props(); schedule(); return; } if(t.dataset.del){ del(byId(t.dataset.del)); return; } select(byId(d.dataset.id)); }; });
 }
 function byId(id){ id=+id; return scene.items.find(function(i){return i.id===id;}); }
-function select(it){ sel=it; props(); objList(); draw(); if(view3dReady) window.View3D.setSel(sel?sel.id:null); poseButtons(); }
+function select(it){ sel=it; props(); objList(); draw(); if(view3dReady) window.View3D.setSel(sel?sel.id:null); poseButtons(); $('mSelDot').classList.toggle('on',!!sel); $('bRTog').classList.toggle('sel',!!sel); }
 var poseOn=false;
 function poseButtons(){ var ok=!!(sel&&sel.kind==='person'&&(sel.model||'proc')!=='proc'); $('bPose').classList.toggle('hide',!ok); $('bPoseReset').classList.toggle('hide',!(ok&&sel.bones&&Object.keys(sel.bones).length)); if(!ok&&poseOn){ poseOn=false; $('bPose').classList.remove('on'); } if(view3dReady) window.View3D.setPose(ok&&poseOn, ok?sel.id:null); }
 $('bPose').onclick=function(){ poseOn=!poseOn; this.classList.toggle('on',poseOn); poseButtons(); };
@@ -536,9 +536,27 @@ $('bShot').onclick=function(){ if(!view3dReady) return; var a=document.createEle
 $('bUndo').onclick=undo; $('bRedo').onclick=redo;
 $('bOrbit').onclick=function(){ if(!view3dReady) return; var o=window.View3D.toggleOrbit(); $('bOrbit').classList.toggle('gold',o); $('bOrbit').textContent= o?'Zpět do kamery':'Volný pohled'; };
 
-function setView(v){ center.className=v; document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.classList.toggle('active',t.dataset.view===v); }); try{ localStorage.setItem('viewfinder-view',v);}catch(e){} requestAnimationFrame(function(){ fit(); if(view3dReady) window.View3D.resize(); }); }
+function setView(v){ center.className=v; document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.classList.toggle('active',t.dataset.view===v); }); if(!isPhone()) try{ localStorage.setItem('viewfinder-view',v);}catch(e){} mNavSync(); requestAnimationFrame(function(){ fit(); if(view3dReady) window.View3D.resize(); }); }
 document.querySelectorAll('#viewTabs .tab').forEach(function(t){ t.onclick=function(){ setView(t.dataset.view); }; });
-window.addEventListener('resize',function(){ fit(); if(view3dReady) window.View3D.resize(); });
+window.addEventListener('resize',function(){ fit(); if(view3dReady) window.View3D.resize(); mNavSync(); });
+// ---------- škálování: nabídka ⋯, výsuvné lišty (tablet / telefon), spodní lišta telefonu, dotykové šipky kamery ----------
+var APP=$('app');
+function isPhone(){ return window.matchMedia('(max-width:760px), (max-height:520px) and (max-width:1000px)').matches; }
+function isDrawerR(){ return window.matchMedia('(max-width:1180px)').matches; }
+function drawer(side,open){ var c=side==='left'?'lOpen':'rOpen'; if(open==null) open=!APP.classList.contains(c); APP.classList.remove('lOpen','rOpen'); if(open) APP.classList.add(c); mNavSync(); }
+function mNavSync(){ var v=center.className; document.querySelectorAll('#mNav button').forEach(function(b){ var m=b.dataset.m; b.classList.toggle('on', m==='left'?APP.classList.contains('lOpen'): m==='right'?APP.classList.contains('rOpen'): m==='plan'?v==='plan': m==='cam'?(v==='cam'||v==='split'):false); }); }
+$('bMore').onclick=function(e){ e.stopPropagation(); $('tbMore').classList.toggle('open'); };
+document.addEventListener('pointerdown',function(e){ var m=$('tbMore'); if(m.classList.contains('open') && !m.contains(e.target) && e.target!==$('bMore')) m.classList.remove('open'); });
+$('tbMore').addEventListener('click',function(e){ if(e.target.closest('button')) setTimeout(function(){ $('tbMore').classList.remove('open'); },0); });
+$('bRTog').onclick=function(){ drawer('right'); };
+$('drawerBg').onclick=function(){ drawer('left',false); };
+document.querySelectorAll('#mNav button').forEach(function(b){ b.onclick=function(){ var m=b.dataset.m; if(m==='left'||m==='right') drawer(m); else if(m==='snap'){ drawer('left',false); $('bSnap').click(); } else { drawer('left',false); setView(m); } mNavSync(); }; });
+// na telefonu po přidání objektu zavřít lištu, ať je vidět, kam se přidal
+document.querySelector('aside.l').addEventListener('click',function(e){ if(isPhone() && e.target.closest('.add .btn, #objList .item')) setTimeout(function(){ drawer('left',false); },60); });
+document.querySelectorAll('#touchPad button').forEach(function(b){ var k=b.dataset.k;
+  var on=function(e){ e.preventDefault(); b.classList.add('on'); if(view3dReady) window.View3D.setKey(k,true); try{ b.setPointerCapture(e.pointerId); }catch(er){} };
+  var off=function(){ b.classList.remove('on'); if(view3dReady) window.View3D.setKey(k,false); };
+  b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('lostpointercapture',off); b.addEventListener('contextmenu',function(e){ e.preventDefault(); }); });
 var camTimer=null;
 window.addEventListener('view3d-model',function(){ if(res) sync3d(); });
 window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d')); view3dReady=true; window.View3D.resize();
@@ -577,7 +595,7 @@ function takeShot(suffix){ if(!view3dReady||!window.View3D.hasCamera()){ alert('
       meta:{lux:meas?Math.round(meas.lux):0, ratio:meas?fmt(meas.ratio,1):'-', stops:meas?fmt(meas.stops,1):'-', focal:cam.focal||35, format:(S.FORMATS[scene.format]||S.FORMATS.free).name, variant:(function(){ var v=(scene.variants||[]).find(function(x){return x.id===scene.variantId;}); return v?v.name:''; })(), lights:lightsSummary()},
       scene:JSON.stringify(sceneCore())};
     shots.push(sh); dbPut(sh); renderShots(); curShotFlash(sh.id); }); }); }
-function curShotFlash(id){ var el=document.querySelector('.shot[data-id="'+id+'"]'); if(el){ el.classList.add('cur'); el.scrollIntoView({inline:'end',block:'nearest'}); setTimeout(function(){ el.classList.remove('cur'); },1200); } }
+function curShotFlash(id){ var el=document.querySelector('.shot[data-id="'+id+'"]'); if(el){ el.classList.add('cur'); var sh=el.parentElement; if(sh) sh.scrollLeft=Math.max(0,el.offsetLeft+el.offsetWidth-sh.clientWidth+8); /* posunout jen lištu cvaků, ne celou stránku */ setTimeout(function(){ el.classList.remove('cur'); },1200); } }
 function renderShots(){ var el=$('shots'); el.innerHTML=''; $('shotCount').textContent=shots.length; shots.forEach(function(sh,i){ var d=document.createElement('div'); d.className='shot'; d.dataset.id=sh.id;
     d.innerHTML='<img src="'+sh.cam+'" alt=""><div class="cap"></div><span class="num">'+(i+1)+'</span><div class="mv"><button data-mv="-1" title="Posunout doleva">◀</button><button data-mv="1" title="Posunout doprava">▶</button><button data-del="1" title="Smazat">✕</button></div>';
     d.querySelector('.cap').textContent=sh.name+(sh.meta&&sh.meta.variant?' · '+sh.meta.variant:'');
@@ -657,7 +675,7 @@ var saved=null; try{ saved=localStorage.getItem('viewfinder-scene')||localStorag
 if(saved){ try{ scene=JSON.parse(saved); fixIds(); }catch(e){ scene=null; } }
 if(!scene){ scene=TEMPL.window(); freezeAim(scene); }
 var sv='split'; try{ sv=localStorage.getItem('viewfinder-view')||localStorage.getItem('lightlab-view')||'split'; var qq=localStorage.getItem('viewfinder-quality'); if(qq) $('quality').value=qq; $('autoEv').checked=localStorage.getItem('viewfinder-autoev')==='1'; }catch(e){}
-try{ if(localStorage.getItem('viewfinder-strip')==='0'){ $('strip').classList.add('collapsed'); $('bStripToggle').textContent='▴'; } }catch(e){}
+try{ if(localStorage.getItem('viewfinder-strip')==='0'||isPhone()){ $('strip').classList.add('collapsed'); $('bStripToggle').textContent='▴'; } }catch(e){} // na telefonu začít se sbalenou lištou cvaků
 setView(sv); syncRoom(); fit(); schedule(); snapshot();
 cloudLoad(function(d){ if(!d) return; var lts=0; try{ lts=parseInt(localStorage.getItem('viewfinder-ts')||'0',10); }catch(e){} if(!(d.ts>lts+2000)) return; try{ var sc=JSON.parse(d.scene); if(!sc.room||!sc.items) return; scene=sc; fixIds(); sel=null; syncRoom(); props(); fit(); schedule(); }catch(e){} });
 })();

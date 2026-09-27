@@ -1,8 +1,9 @@
 :root{--bg:#0b0b0c;--panel:#141416;--panel2:#1b1b1e;--line:#2a2a2e;--gold:#d4b071;--gold2:#8a7146;--txt:#ece8e0;--mut:#8f8a80;--red:#d0534a;--green:#6fb07e;--blue:#6c93c9}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:13px/1.45 Inter,Lato,-apple-system,"Segoe UI",Roboto,sans-serif}
-#app{display:grid;grid-template-columns:272px 1fr 300px;grid-template-rows:50px 1fr;height:100vh}
-header{grid-column:1/4;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(#131315,#0f0f11)}
+html,body{overflow:hidden;overscroll-behavior:none}
+#app{--lw:272px;--rw:300px;display:grid;grid-template-columns:var(--lw) minmax(0,1fr) var(--rw);grid-template-rows:50px minmax(0,1fr);height:100vh;height:100dvh;overflow:hidden}
+header{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 14px;min-width:0;overflow:hidden;border-bottom:1px solid var(--line);background:linear-gradient(#131315,#0f0f11)}
 .brand{display:flex;align-items:center;gap:10px;margin-right:12px}
 .logo{font-weight:800;letter-spacing:.08em;color:var(--gold);font-size:11px;text-transform:uppercase}
 .t{font-weight:700;font-size:16px}
@@ -36,9 +37,9 @@ input[type=range]{width:100%;accent-color:var(--gold);margin:2px 0}
 .chk input{accent-color:var(--gold);margin:0}
 .pill{display:inline-block;padding:1px 7px;border-radius:9px;background:#26262a;color:var(--mut);font-size:11px;font-weight:500}
 .hint{color:var(--mut);font-size:11.5px;margin-top:10px;line-height:1.5}
-main#center{display:grid;grid-template-rows:1fr 1fr auto;gap:6px;padding:6px;background:#070708;min-width:0;min-height:0}
-main#center.plan{grid-template-rows:1fr auto}
-main#center.cam{grid-template-rows:1fr auto}
+main#center{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr) auto;gap:6px;padding:6px;background:#070708;min-width:0;min-height:0}
+main#center.plan{grid-template-rows:minmax(0,1fr) auto}
+main#center.cam{grid-template-rows:minmax(0,1fr) auto}
 main#center.plan #camWrap,main#center.cam #planWrap{display:none}
 .pane{position:relative;overflow:hidden;background:#0a0a0b;border:1px solid var(--line);border-radius:10px;min-height:0}
 .pane canvas{position:absolute;left:0;top:0;display:block}
@@ -69,7 +70,6 @@ canvas#view3d{cursor:crosshair}
 .list div.c .bar i.lo{background:var(--blue)}
 .sect{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
 .kbd{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:10.5px;background:#0f0f11}
-@media (max-width:1100px){#app{grid-template-columns:240px 1fr 260px}}
 .door{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px 8px;margin-bottom:6px}
 .door .row{margin-top:4px}
 .door label{margin:4px 0 2px}
@@ -91,7 +91,7 @@ canvas#view3d:focus{outline:none}
 .wpbar a.btn{text-decoration:none}
 .variants{display:flex;gap:4px;align-items:center;margin-right:6px}
 .variants select{max-width:180px}
-.strip{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:32px;display:flex;flex-direction:column}
+.strip{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:32px;display:flex;flex-direction:column}
 .stripHead{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--line)}
 .stripTitle{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:flex;gap:6px;align-items:center}
 .strip.collapsed .shots{display:none}
@@ -202,3 +202,87 @@ aside.l .list{max-height:none}
 .nmBtns{margin-top:14px;justify-content:flex-end}
 .nmBtns>*{flex:0 0 auto}
 .camTools .btn.dis{opacity:.45}
+
+/* ================= rozvržení a škálování: desktop · tablet · telefon ================= */
+/* lišty mají pevnou šířku, přizpůsobuje se jen obraz uprostřed */
+.more{display:contents}
+.moreBtn,.rTog,.mNav,.drawerBg,.touchPad{display:none}
+.shots{min-width:0}
+.pane{min-width:0;min-height:0}
+@media (max-width:1500px){ #app{--lw:250px;--rw:282px} }
+/* horní lišta: méně častá tlačítka do nabídky ⋯ */
+@media (max-width:1760px){
+  .moreBtn{display:inline-flex}
+  .more{display:none;position:fixed;top:48px;right:10px;z-index:60;flex-direction:column;align-items:stretch;gap:6px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);min-width:250px;max-height:calc(100dvh - 60px);overflow:auto}
+  .more.open{display:flex}
+  .more .variants{display:flex;flex-wrap:wrap;gap:6px}
+  .more .variants select{flex:1 1 100%;max-width:none}
+  .more select.btn{max-width:none;width:100%}
+  .more>.btn{text-align:left}
+}
+@media (max-width:1300px){ .brand .logo,.brand .pill{display:none} .brand{margin-right:4px} header{gap:6px;padding:0 10px} #tpl{max-width:170px} .tab{padding:5px 8px} }
+/* tablet (iPad na výšku, menší notebooky): pravá lišta jako výsuvný panel */
+@media (max-width:1180px){
+  #app{--lw:236px;grid-template-columns:var(--lw) minmax(0,1fr)}
+  .rTog{display:inline-flex}
+  .rTog.sel{border-color:var(--gold);color:var(--gold)}
+  aside.r{position:fixed;top:50px;right:0;bottom:0;width:min(330px,92vw);z-index:40;transform:translateX(105%);transition:transform .22s ease;box-shadow:-12px 0 30px rgba(0,0,0,.5)}
+  #app.rOpen aside.r{transform:none}
+  #app.rOpen .drawerBg,#app.lOpen .drawerBg{display:block}
+  .drawerBg{position:fixed;inset:50px 0 0 0;z-index:35;background:rgba(0,0,0,.35)}
+}
+/* telefon (a telefon na šířku): jeden pohled – přepínání Půdorys / Kamera, dole ovládací lišta, obě lišty výsuvné */
+@media (max-width:760px), (max-height:520px) and (max-width:1000px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:46px minmax(0,1fr) calc(54px + env(safe-area-inset-bottom))}
+  header{padding:0 8px;gap:5px}
+  .brand .t{font-size:14px} #bAbout{display:none}
+  #viewTabs,#bSnap,.rTog{display:none}
+  #tpl{max-width:120px;font-size:12px}
+  .wpbar .btn{padding:3px 6px}
+  aside.l,aside.r{position:fixed;top:46px;bottom:calc(54px + env(safe-area-inset-bottom));width:min(340px,90vw);z-index:40;transition:transform .22s ease;box-shadow:0 0 30px rgba(0,0,0,.6)}
+  aside.l{left:0;transform:translateX(-105%)} aside.r{right:0;transform:translateX(105%)}
+  #app.lOpen aside.l,#app.rOpen aside.r{transform:none}
+  .drawerBg{inset:46px 0 calc(54px + env(safe-area-inset-bottom)) 0}
+  main#center{padding:4px;gap:4px}
+  main#center.split{grid-template-rows:minmax(0,1fr) auto} main#center.split #planWrap{display:none}
+  .shots{height:84px} .shot{width:110px}
+  .mNav{display:grid;grid-template-columns:repeat(5,1fr);grid-column:1/-1;background:#101012;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .mNav button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:0;color:var(--mut);font:600 10.5px Inter,Lato,sans-serif;cursor:pointer}
+  .mNav button b{font-size:18px;line-height:1.1;font-weight:400}
+  .mNav button.on{color:var(--gold)}
+  .mNav .mSnap b{filter:none}
+  #mSelDot{position:absolute;top:7px;left:calc(50% + 9px);width:7px;height:7px;border-radius:50%;background:var(--gold);display:none}
+  #mSelDot.on{display:block}
+  .modalBody{grid-template-columns:1fr}
+  #camWrap .paneTitle{display:none}
+  #planWrap .paneTitle{top:auto;bottom:6px;font-size:9.5px}
+  .keyLegend{top:auto;bottom:8px;left:8px;max-width:none}
+  .keyLegend .ctrlModes{grid-template-columns:1fr}
+  .keyLegend .ctrlModes button{justify-content:flex-start;min-width:118px}
+  .camTools .btn.sm,.camTools select.btn{font-size:11px;padding:3px 6px}
+  .ctrlModes button{min-height:40px;font-size:10.5px;padding:6px 4px;gap:4px}
+  .ctrlModes button svg{width:18px;height:18px}
+  .camTools{flex-wrap:wrap;justify-content:flex-end}
+}
+/* dotykové ovládání kamery (iPad, telefon): chůze šipkami, nahoru/dolů; dvěma prsty = ohnisko */
+@media (pointer:coarse){
+  .touchPad{display:flex;position:absolute;right:10px;bottom:10px;z-index:4;gap:10px;align-items:flex-end;pointer-events:none}
+  .touchPad button{pointer-events:auto;width:46px;height:46px;border-radius:12px;border:1px solid rgba(212,176,113,.55);background:rgba(14,14,16,.62);color:#f0e6d2;font-size:17px;touch-action:none;-webkit-user-select:none;user-select:none;backdrop-filter:blur(3px)}
+  .touchPad button.on{background:rgba(212,176,113,.85);color:#111}
+  .tpMove{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,46px);gap:5px}
+  .tpUp{display:flex;flex-direction:column;gap:5px}
+  .keyLegend .klBody,.keyLegend .klToggle{display:none}
+  .keyLegend,.keyLegend.collapsed{padding:6px}
+  .keyLegend .ctrlModes,.keyLegend.collapsed .ctrlModes{margin:0;width:auto}
+  canvas#stage,canvas#view3d{touch-action:none}
+  .btn{min-height:32px}
+}
+@media (pointer:coarse) and (max-width:760px){ .touchPad button{width:40px;height:40px} .tpMove{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,40px)} }
+/* telefon na šířku: nižší horní i spodní lišta, ať zbyde víc místa pro obraz */
+@media (max-height:520px) and (max-width:1000px){
+  #app{grid-template-rows:40px minmax(0,1fr) calc(40px + env(safe-area-inset-bottom))}
+  header .btn,header select.btn{padding:3px 8px}
+  .mNav button{flex-direction:row;gap:6px} .mNav button b{font-size:15px}
+  aside.l,aside.r{top:40px;bottom:calc(40px + env(safe-area-inset-bottom))} .drawerBg{inset:40px 0 calc(40px + env(safe-area-inset-bottom)) 0}
+  .stripHead{padding:2px 8px} .stripHead .btn{min-height:26px}
+}

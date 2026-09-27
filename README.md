@@ -35,6 +35,12 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Cesta** – nástroj **Cesta** (jen v exteriéru: režim „Jen exteriér“ nebo zahrada kolem domu):
   táhni a vznikne asfaltová cesta. Nastavitelná šířka, přerušovaná středová čára, bílé krajní čáry;
   konce se přichytí ke konci jiné cesty (zatáčka, křižovatka). Do domu cesta nevede.
+- **Různá zařízení** – boční lišty mají pevnou šířku, přizpůsobuje se jen obraz uprostřed.
+  Na menších obrazovkách jdou méně častá tlačítka (kvalita, varianty, otevřít/uložit, PNG) do nabídky ⋯.
+  Tablet (iPad na výšku, do 1180 px): pravá lišta se vysouvá tlačítkem ⚙ Vlastnosti.
+  Telefon: jeden pohled s přepínáním Půdorys / Kamera, dole lišta Scéna · Půdorys · Kamera ·
+  Vlastnosti · Cvak, obě boční lišty jako výsuvné panely. Na dotykových zařízeních ovládají kameru
+  šipky v rohu obrazu (chůze, nahoru/dolů) a dva prsty (sevřít/roztáhnout = ohnisko).
 - **Nová místnost / nový exteriér** – v menu Šablona. Zadáte délku, šířku a výšku stropu
   (místnost 3–30 m, strop 2,2–6 m), u exteriéru rozměry do 50 × 50 m, povrch (tráva, asfalt,
   beton), stromy a plot.
