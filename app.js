@@ -379,12 +379,18 @@ cv.addEventListener('pointerup',function(){
 cv.addEventListener('wheel',function(e){ if(!sel||sel.kind==='wall') return; e.preventDefault(); sel.rot+=(e.deltaY>0?1:-1)*Math.PI/36; props(); schedule(); },{passive:false});
 // levá lišta: sekce (nadpis + obsah až k dalšímu nadpisu) zabalit do rámečků
 (function(){ var L=document.querySelector('aside.l'); if(!L) return; var box=null; Array.prototype.slice.call(L.childNodes).forEach(function(n){ if(n.nodeType===1&&n.tagName==='H3'){ box=document.createElement('section'); box.className='box'; L.insertBefore(box,n); } if(box) box.appendChild(n); }); })();
+// režim ovládání pohledu kamery: OVLÁDÁNÍ KAMERY / OVLÁDÁNÍ OBJEKTU (půdorys se nemění)
+function ctrlModeUI(m){ var kl=$('keyLegend'); if(kl) kl.classList.toggle('m-object',m==='object'); Array.prototype.forEach.call(document.querySelectorAll('#ctrlModes button'),function(b){ b.classList.toggle('on',b.getAttribute('data-mode')===m); }); }
+function setCtrlMode(m){ if(view3dReady) m=window.View3D.setCtrlMode(m); ctrlModeUI(m); }
+Array.prototype.forEach.call(document.querySelectorAll('#ctrlModes button'),function(b){ b.onclick=function(){ setCtrlMode(b.getAttribute('data-mode')); }; });
+(function(){ var m='camera'; try{ if(localStorage.getItem('viewfinder-ctrlmode')==='object') m='object'; }catch(e){} ctrlModeUI(m); })();
 (function(){ var kl=$('keyLegend'); if(!kl) return; try{ if(localStorage.getItem('viewfinder-legend')==='0') kl.classList.add('collapsed'); }catch(e){} $('klToggle').onclick=function(){ var c=kl.classList.toggle('collapsed'); try{ localStorage.setItem('viewfinder-legend',c?'0':'1'); }catch(e){} }; })();
 window.addEventListener('keydown',function(e){ var tag=document.activeElement.tagName; if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
   if(view3dReady && window.View3D.wantsKeys() && !(e.ctrlKey||e.metaKey) && (/^[wasdqe]$/i.test(e.key)||e.key.startsWith('Arrow'))) return;
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
   if(e.key==='1'||e.key==='2'||e.key==='3'){ setView(['split','plan','cam'][+e.key-1]); return; }
+  if(e.key.toLowerCase()==='m' && !(e.ctrlKey||e.metaKey||e.altKey) && view3dReady){ setCtrlMode(window.View3D.ctrlMode()==='object'?'camera':'object'); e.preventDefault(); return; }
   if(e.key==='Escape'){ if(!$('shotModal').classList.contains('hide')){ closeShot(); return; } setTool('select'); return; } if(e.key.toLowerCase()==='k' && sel&&sel.kind==='person'&&(sel.model||'proc')!=='proc' && !(e.ctrlKey||e.metaKey)){ $('bPose').click(); return; } if(e.key.toLowerCase()==='c' && !(e.ctrlKey||e.metaKey)){ takeShot(); return; } if(e.key.toLowerCase()==='w'){ setTool('wall'); return; } if(e.key.toLowerCase()==='o'){ setTool('window'); return; }
   if(!sel) return;
   if(e.key==='Delete'||e.key==='Backspace'){ del(sel); }

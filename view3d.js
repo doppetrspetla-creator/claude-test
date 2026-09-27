@@ -109,12 +109,14 @@ function init(cv) {
   cv.tabIndex = 0;
   cv.addEventListener('pointerenter', () => { over = true; }); cv.addEventListener('pointerleave', () => { over = false; keys = {}; });
   cv.addEventListener('pointerdown', e => { cv.focus(); if (e.button === 0 && poseDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; }
-    if (e.button === 0 && objDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; return; } // chycení objektu → posun po podlaze
+    if (ctrlMode === 'object') { if (e.button === 0 && objDown(e)) { cv.setPointerCapture(e.pointerId); if (orbit) controls.enabled = false; } return; } // OVLÁDÁNÍ OBJEKTU: chycení objektu → posun po podlaze
+    // OVLÁDÁNÍ KAMERY: objekty se ignorují, levé tlačítko kdekoli = rozhlížení
     if (orbit || e.button !== 0 || !camItem) return; lookDrag = { x: e.clientX, y: e.clientY, rot: camItem.rot, tilt: camItem.tilt || 0 }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => { if (pose.drag) { poseMove(e); return; } if (objDrag) { objMove(e); return; } if (pose.on && !lookDrag) { cv.style.cursor = poseHoverAt(e) ? 'grab' : 'crosshair'; } if (!lookDrag || !camItem) return; const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y, f = (camItem.focal || 35);
     const k = 0.0025 * 35 / f; camItem.rot = lookDrag.rot + dx * k; camItem.tilt = Math.max(-1.2, Math.min(1.2, lookDrag.tilt - dy * k)); camItem.aim = false; emitCam(false); });
   cv.addEventListener('pointerup', () => { if (pose.drag) { poseUp(); if (orbit) controls.enabled = true; return; } if (objDrag) { objUp(); if (orbit) controls.enabled = true; return; } if (lookDrag) { lookDrag = null; emitCam(true); } });
-  cv.addEventListener('wheel', e => { if (orbit || !camItem) return; e.preventDefault(); camItem.focal = Math.round(Math.max(14, Math.min(135, (camItem.focal || 35) * (e.deltaY > 0 ? 0.92 : 1.087)))); emitCam(true); }, { passive: false });
+  cv.addEventListener('wheel', e => { if (ctrlMode === 'object' && !camSel()) { if (!orbit) e.preventDefault(); if (!selItem()) return; e.preventDefault(); objRotate((e.deltaY > 0 ? 1 : -1) * (e.shiftKey ? 1 : 5) * Math.PI / 180); return; }
+    if (orbit || !camItem) return; e.preventDefault(); camItem.focal = Math.round(Math.max(14, Math.min(135, (camItem.focal || 35) * (e.deltaY > 0 ? 0.92 : 1.087)))); emitCam(true); }, { passive: false });
   window.addEventListener('keydown', e => { if (!wantsKeys()) return; const k = e.key.toLowerCase(); if ('wasdqe'.includes(k) || e.key.startsWith('Arrow')) { keys[k === ' ' ? k : (e.key.startsWith('Arrow') ? e.key : k)] = true; e.preventDefault(); } });
   window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); delete keys[k]; delete keys[e.key]; });
   resize();
@@ -132,9 +134,39 @@ const hq = { active: false, done: false, building: false, pass: 0, passes: 0, ac
 function jit() { return hq.active ? (Math.random() - 0.5) : 0; }
 function applyQualityRatio() { const pr = Q().pr; if (Math.abs(pr - curPR) > 0.01) { curPR = pr; renderer.setPixelRatio(pr); resize(); } }
 function formatAspect() { const f = lastScene && lastScene.format, F = S.FORMATS[f]; return F ? F.a : 0; }
-function wantsKeys() { return !!(camItem && !orbit && (over || document.activeElement === canvas)); }
+function wantsKeys() { if (!(over || document.activeElement === canvas)) return false; if (ctrlMode === 'object' && !camSel()) return !!selItem(); return !!(camItem && !orbit); }
+// režim ovládání pohledu kamery: 'camera' = myš/klávesy vždy ovládají kameru (objekty se ignorují), 'object' = myš/klávesy ovládají objekty
+let ctrlMode = 'camera', onCtrlMode = null;
+try { if (localStorage.getItem('viewfinder-ctrlmode') === 'object') ctrlMode = 'object'; } catch (e) {}
+function setCtrlMode(m) { ctrlMode = m === 'object' ? 'object' : 'camera'; keys = {}; lookDrag = null; try { localStorage.setItem('viewfinder-ctrlmode', ctrlMode); } catch (e) {} updCtrl(); if (onCtrlMode) onCtrlMode(ctrlMode); return ctrlMode; }
+function updCtrl() { if (!canvas) return; const it = selItem(); canvas.style.cursor = ctrlMode === 'object' ? 'default' : 'crosshair'; if (controls) controls.enableZoom = !(ctrlMode === 'object' && it); } // v OVLÁDÁNÍ OBJEKTU kolečko otáčí vybraným objektem
+function camSel() { const it = selItem(); return !!(it && it.kind === 'camera' && !orbit); } // vybraná kamera v pohledu kamery → WASD/kolečko dál ovládají kameru
+function selItem() { const it = lastScene && selId != null ? lastScene.items.find(i => i.id === selId) : null; return it && it.kind !== 'wall' ? it : null; }
+// OVLÁDÁNÍ OBJEKTU: WASD posun vybraného objektu vůči směru pohledu, Q/E výška (světla, kamera, rámy), kolečko otáčení
+let objKeyT = 0;
+function objWalk(dt) {
+  const it = selItem(); if (!it || !dt) return false;
+  let yaw; if (orbit) { const d = new THREE.Vector3(); orbitCam.getWorldDirection(d); yaw = Math.atan2(d.z, d.x); } else yaw = camItem ? camItem.rot : 0;
+  const sp = 1.0 * dt, fx = Math.cos(yaw), fz = Math.sin(yaw), rx = -fz, rz = fx; let dx = 0, dz = 0, dy = 0;
+  if (keys.w || keys.ArrowUp) { dx += fx; dz += fz; } if (keys.s || keys.ArrowDown) { dx -= fx; dz -= fz; }
+  if (keys.d || keys.ArrowRight) { dx += rx; dz += rz; } if (keys.a || keys.ArrowLeft) { dx -= rx; dz -= rz; }
+  if (keys.e) dy += 1; if (keys.q) dy -= 1;
+  if (!dx && !dz && !dy) return false;
+  const L = Math.hypot(dx, dz) || 1, W = lastScene.room.w, H = lastScene.room.h;
+  const nx = Math.max(0.05, Math.min(W - 0.05, it.x + dx / L * sp)), ny = Math.max(0.05, Math.min(H - 0.05, it.y + dz / L * sp)), mx = nx - it.x, mz = ny - it.y;
+  let my = 0; if (dy && it.h != null && it.kind !== 'furniture') { const nh = Math.max(0.2, Math.min((lastScene.room.z || 2.7) + 3, it.h + dy * sp * 0.8)); my = nh - it.h; it.h = nh; }
+  it.x = nx; it.y = ny;
+  group.children.forEach(o => { if (o.userData.itemId === it.id) { o.position.x += mx; o.position.z += mz; o.position.y += my; } });
+  if (it.kind === 'camera') applyCamera();
+  floorRing.position.set(it.x, 0.005, it.y); dirty = true;
+  if (onMove) onMove(it.id, it.x, it.y, 'move');
+  clearTimeout(objKeyT); objKeyT = setTimeout(() => { if (onMove) onMove(it.id, it.x, it.y, 'end'); }, 250);
+  return true;
+}
+function objRotate(a) { const it = selItem(); if (!it) return; it.rot = (it.rot || 0) + a; if (it.kind === 'light' || it.kind === 'camera') it.aim = false; clearTimeout(objKeyT); if (onMove) onMove(it.id, it.x, it.y, 'end'); }
 // pohyb WASD (W/S vpřed/vzad, A/D do stran, Q/E dolů/nahoru), v m/s
 function walk(dt) {
+  if (ctrlMode === 'object' && !camSel()) return objWalk(dt);
   if (!camItem || orbit || !dt) return false; let mv = false; const sp = 1.6 * dt, fx = Math.cos(camItem.rot), fz = Math.sin(camItem.rot), rx = -fz, rz = fx;
   let dx = 0, dz = 0, dy = 0;
   if (keys.w || keys.ArrowUp) { dx += fx; dz += fz; } if (keys.s || keys.ArrowDown) { dx -= fx; dz -= fz; }
@@ -865,7 +897,7 @@ let orbitInit = false;
 function setSel(id) {
   selId = id;
   const it = lastScene && lastScene.items.find(i => i.id === id);
-  floorRing.visible = !!it && orbit; if (it) floorRing.position.set(it.x, 0.005, it.y); dirty = true;
+  floorRing.visible = !!it && (orbit || ctrlMode === 'object'); if (it) floorRing.position.set(it.x, 0.005, it.y); updCtrl(); dirty = true;
 }
 function toggleOrbit() { stopHQ(); orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
 function isOrbit() { return orbit; }
@@ -985,6 +1017,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { setMoveCallback, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { setMoveCallback, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();
