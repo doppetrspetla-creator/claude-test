@@ -377,7 +377,7 @@ function modelFor(id) {
   return null;
 }
 function addModelPerson(p, gltf) {
-  const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; group.add(g);
+  const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; if (p.mirror) g.scale.z = -1; group.add(g); // zrcadlení: levá ↔ pravá
   const inst = SkeletonUtils.clone(gltf.scene); inst.rotation.y = Math.PI / 2; // model kouká do +Z → náš směr je +X
   g.add(inst);
   const PS = S.POSES[p.pose] || S.POSES.stand, sit = !!PS.sit, clip = gltf.animations.find(a => a.name === PS.clip) || gltf.animations.find(a => a.name === 'idle');
@@ -387,10 +387,17 @@ function addModelPerson(p, gltf) {
   inst.updateMatrixWorld(true);
   if (PS.clip === 'carin') { // klip je „na místě“: v závěrečné fázi (usedání) postavu dosunout dozadu na sedadlo auta
     const tt = p.t == null ? 0.3 : p.t, k = Math.max(0, Math.min(1, (tt - 0.5) / 0.3)), sl = S.carSlide(lastScene, p) * (k * k * (3 - 2 * k));
-    if (sl > 0) { inst.position.z += sl; inst.updateMatrixWorld(true); } }
+    if (sl > 0) { inst.position.z += sl; inst.updateMatrixWorld(true); }
+    // po usednutí (klip končí bokem, čelem ze dveří) postavu otočit o 90° čelem dopředu na sedadle – kolem pánve
+    const k2 = Math.max(0, Math.min(1, (tt - 0.78) / 0.2)), a = Math.PI / 2 * k2 * k2 * (3 - 2 * k2);
+    if (a > 0 && sl > 0) { let hip = null; inst.traverse(o => { if (!hip && o.isBone && o.name === 'hip_02') hip = o; });
+      if (hip) { const hw = g.worldToLocal(hip.getWorldPosition(new THREE.Vector3())), pv = new THREE.Group(); pv.position.set(hw.x, 0, hw.z); g.add(pv); g.remove(inst); inst.position.x -= hw.x; inst.position.z -= hw.z; pv.add(inst); pv.rotation.y = a; pv.updateMatrixWorld(true); } } }
   if (!sit) { // položit na zem: nejnižší bod napózované sítě (dřep, leh, opření…)
     let minY = Infinity; inst.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); const bb = o.boundingBox.clone().applyMatrix4(o.matrixWorld); minY = Math.min(minY, bb.min.y); } });
     if (isFinite(minY) && Math.abs(minY) > 0.01) { inst.position.y -= minY; inst.updateMatrixWorld(true); }
+    if (PS.clip === 'carin' && S.carSlide(lastScene, p) > 0) { // v autě: pánev postupně do výšky sedadla (jako póza Sedí v autě)
+      const kk = Math.max(0, Math.min(1, ((p.t == null ? 0.3 : p.t) - 0.6) / 0.3)); let hip = null; inst.traverse(o => { if (!hip && o.isBone && o.name === 'hip_02') hip = o; });
+      if (hip && kk > 0) { const hy = hip.getWorldPosition(new THREE.Vector3()).y, dy = (hy - 0.49) * kk * kk * (3 - 2 * kk); if (dy > 0) { inst.position.y -= dy; inst.updateMatrixWorld(true); } } }
   }
   if (sit) { // posadit: pánev do výšky sedáku + ~13 cm
     let hip = null; inst.traverse(o => { if (o.isBone && o.name === 'hip_02') hip = o; });

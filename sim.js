@@ -200,8 +200,8 @@
     return found;
   }
   // sedadla v autě (poměr k délce/šířce auta): řidič vlevo, spolujezdec vpravo
-  // enter = postava u dveří spolujezdce (klip z Mixama: auto má po pravé ruce, dívá se k zádi, usedá dozadu)
-  function carSeat(car, which) { var ent = which === 'enter', fx = ent ? 0.02 * car.w : -0.04 * car.w, fy = ent ? 0.5 * car.d + 0.28 : (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: ent ? r + Math.PI : r }; }
+  // enter / enterDriver = postava u dveří spolujezdce / řidiče (klip z Mixama: auto má po pravé ruce, dívá se k zádi, usedá dozadu; u řidiče zrcadlově)
+  function carSeat(car, which) { var ent = which === 'enter' || which === 'enterDriver', fx = ent ? 0.02 * car.w : -0.04 * car.w, fy = which === 'enter' ? 0.5 * car.d + 0.28 : which === 'enterDriver' ? -(0.5 * car.d + 0.28) : (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: ent ? r + Math.PI : r }; }
   // o kolik se nastupující postava na konci klipu dosune dovnitř na sedadlo (m), podle nejbližšího auta
   function carSlide(scene, p) {
     var best = 0; (scene.items || []).forEach(function (it) { if (it.kind !== 'furniture' || it.type !== 'car') return; var c = Math.cos(it.rot || 0), sn = Math.sin(it.rot || 0), dx = p.x - it.x, dy = p.y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
