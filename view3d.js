@@ -385,6 +385,9 @@ function addModelPerson(p, gltf) {
   const bones = {}; inst.traverse(o => { if (o.isBone) bones[o.name] = o; }); rigs[p.id] = { inst: inst, bones: bones, group: g };
   if (p.bones) { for (const bn in p.bones) { const b = bones[bn], q = p.bones[bn]; if (b && q && q.length === 4) b.quaternion.set(q[0], q[1], q[2], q[3]); } }
   inst.updateMatrixWorld(true);
+  if (PS.clip === 'carin') { // klip je „na místě“: v závěrečné fázi (usedání) postavu dosunout dozadu na sedadlo auta
+    const tt = p.t == null ? 0.3 : p.t, k = Math.max(0, Math.min(1, (tt - 0.5) / 0.3)), sl = S.carSlide(lastScene, p) * (k * k * (3 - 2 * k));
+    if (sl > 0) { inst.position.z += sl; inst.updateMatrixWorld(true); } }
   if (!sit) { // položit na zem: nejnižší bod napózované sítě (dřep, leh, opření…)
     let minY = Infinity; inst.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); const bb = o.boundingBox.clone().applyMatrix4(o.matrixWorld); minY = Math.min(minY, bb.min.y); } });
     if (isFinite(minY) && Math.abs(minY) > 0.01) { inst.position.y -= minY; inst.updateMatrixWorld(true); }
