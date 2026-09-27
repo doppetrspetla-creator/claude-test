@@ -210,7 +210,7 @@ function updateMeter(){
   var html='', rows=[];
   scene.items.forEach(function(it){ if(it.kind==='light'||it.kind==='bounce'||it.kind==='diffuser'){ rows.push([it.label||(it.kind==='bounce'?(it.black?'Černá deska':it.silver?'Odrazka stříbrná':'Odrazka'):it.kind==='diffuser'?'Difuzní rám':S.FIXTURES[it.fixture].name)+(it.on===false?' (vyp.)':''), meas.per[it.id]||0, meas.perDark[it.id]||0]); } });
   if((scene.windows||[]).some(function(w){return typeof w.wall==='string';})) rows.push(['Okna (obloha)', meas.per.win||0, meas.perDark.win||0]);
-  if(S.sunOn(scene)) rows.push(['Slunce', meas.per.sun||0, meas.perDark.sun||0]);
+  if(S.sunOn(scene)) rows.push([S.isNight(scene)?'Měsíc':'Slunce', meas.per.sun||0, meas.perDark.sun||0]);
   if(scene.outdoor) rows.push(['Obloha', meas.per.sky||0, meas.perDark.sky||0]);
   if((scene.doors||[]).some(function(d){return d.open!==false && (S.DOORLIGHT[d.light]||{E:0}).E>0;})) rows.push(['Otevřené dveře', meas.per.doors||0, meas.perDark.doors||0]);
   rows.push(['Rozptyl od stěn', (res.amb||0)*0.5, (res.amb||0)*0.5]);
