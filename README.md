@@ -137,7 +137,9 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Dveře „Door with frame“: **witnessk**, sketchfab.com, CC BY 4.0
 - Plot „Fence (Wood)“: **trentspi**, sketchfab.com, CC BY 4.0
 - Obloha „FREE - SkyBox Basic Sky“: **Paul**, sketchfab.com, CC BY 4.0
-- Světla ARRI SkyPanel, ARRI 650, Kino Flo a filmová kamera (FBX): autor bude doplněn
+- Gauč „Sofa_3230“: **vasycrukov**, sketchfab.com, CC BY 4.0 (zjednodušeno, bez ozdobných polštářů)
+- Softbox „Simple Studio Light“: **AleixoAlonso**, sketchfab.com, CC BY 4.0 (hlava softboxu + stativ pro všechna světla)
+- Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené
 v `models/*.glb.js` stejně jako postavy.

@@ -138,7 +138,7 @@ function walk(dt) {
   if (keys.w || keys.ArrowUp) { dx += fx; dz += fz; } if (keys.s || keys.ArrowDown) { dx -= fx; dz -= fz; }
   if (keys.d || keys.ArrowRight) { dx += rx; dz += rz; } if (keys.a || keys.ArrowLeft) { dx -= rx; dz -= rz; }
   if (keys.e) dy += 1; if (keys.q) dy -= 1;
-  if (dx || dz || dy) { const L = Math.hypot(dx, dz) || 1; camItem.x = Math.max(0.1, Math.min(lastScene.room.w - 0.1, camItem.x + dx / L * sp)); camItem.y = Math.max(0.1, Math.min(lastScene.room.h - 0.1, camItem.y + dz / L * sp)); camItem.h = Math.max(0.2, Math.min((lastScene.room.z || 2.7) - 0.1, (camItem.h == null ? 1.5 : camItem.h) + dy * sp)); mv = true; }
+  if (dx || dz || dy) { const L = Math.hypot(dx, dz) || 1; camItem.x = Math.max(-15, Math.min(lastScene.room.w + 15, camItem.x + dx / L * sp)); camItem.y = Math.max(-15, Math.min(lastScene.room.h + 15, camItem.y + dz / L * sp)); camItem.h = Math.max(0.2, Math.min(12, (camItem.h == null ? 1.5 : camItem.h) + dy * sp)); mv = true; }
   if (mv) emitCam(false);
   return mv;
 }
@@ -180,7 +180,18 @@ function resize() {
 function clear(g) { while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
 
 // C-stand: „želví“ základna se třemi nohami v různých výškách, sloupek, kolínko
+// stativ světla: 3D model (nohy beze změny, tyč natažená na výšku h)
+let standProto = null;
+function standModel() {
+  if (standProto) return standProto; const gl = modelFor('stand'); if (!gl) return null;
+  const legs = gl.scene.getObjectByName('legs'), pole = gl.scene.getObjectByName('pole'); if (!legs || !pole) return null;
+  const pb = new THREE.Box3().setFromObject(pole); standProto = { legs, pole, y0: pb.min.y, len: pb.max.y - pb.min.y }; return standProto;
+}
 function stand(x, z, h, g) {
+  const P = standModel();
+  if (P) { const sg = new THREE.Group(); sg.position.set(x, 0, z); g.add(sg); const top = P.y0 + P.len;
+    if (h < top * 0.7) { const k = h / top; const a = P.legs.clone(true), b = P.pole.clone(true); a.scale.setScalar(k); b.scale.setScalar(k); sg.add(a, b); return; }
+    sg.add(P.legs.clone(true)); const pw = new THREE.Group(); pw.position.y = P.y0; const pc = P.pole.clone(true); pc.position.y = -P.y0; pw.add(pc); pw.scale.y = Math.max(0.2, (h - P.y0) / P.len); sg.add(pw); return; }
   const col = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, h, 10), MAT.chrome); col.position.set(x, h / 2, z); g.add(col);
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 10), MAT.metal); hub.position.set(x, 0.12, z); g.add(hub);
   [0, 2.094, 4.189].forEach((a, i) => { const top = 0.06 + i * 0.07, len = 0.5, lx = Math.cos(a), lz = Math.sin(a), L = Math.hypot(len, top);
@@ -263,12 +274,15 @@ function addLight(L, res) {
   const w = P.size, h = P.size * (P.aspect || 0.75);
   const headG = P.fx.model && L.mod === P.fx.defMod ? modelFor(P.fx.model) : null; // 3D model hlavy světla (SkyPanel, ARRI 650, Kino Flo)
   if (headG) lightHead(g, headG, pos, tgt, P.fx.headOff || 0);
+  const sbG = !headG && /^(softbox\d+|octa120)$/.test(L.mod) ? modelFor('sbhead') : null; // softbox (3D model), rozměr podle modifikátoru
+  const cobG = !headG && !P.soft && !P.omni ? modelFor('cobhead') : null; // COB s reflektorem a klapkami (3D model)
   if (P.soft) {
     const rl = new THREE.RectAreaLight(k.color, E1 * ((lastOpts.shadows && Q().soft > 0) ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl); addBeam(g, pos, tgt, P.beam / 2 * Math.PI / 180 * 0.6, k.color, E1, true);
     // vizuální panel softboxu
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lumL(k.color, E1 / (w * h)));
-    panel.position.copy(pos); panel.lookAt(tgt); panel.position.add(dir.clone().multiplyScalar(-0.01)); g.add(panel);
-    if (headG) { /* tělo = 3D model */ }
+    panel.position.copy(pos); panel.lookAt(tgt); panel.position.add(sbG ? tgt.clone().sub(pos).normalize().multiplyScalar(0.012) : dir.clone().multiplyScalar(-0.01)); g.add(panel);
+    if (sbG) { const hd = new THREE.Group(); hd.position.copy(pos); hd.lookAt(tgt); const inst = sbG.scene.clone(true); inst.rotation.y = -Math.PI / 2; inst.scale.set(Math.max(0.35, w * 0.55), h / 0.93, w / 0.93); hd.add(inst); g.add(hd); }
+    else if (headG) { /* tělo = 3D model */ }
     else if (P.mod.panel) { // LED panel: tenké tělo s rámečkem místo kužele softboxu
       const body = new THREE.Mesh(new THREE.BoxGeometry(w + 0.03, h + 0.03, 0.04), MAT.shoe);
       body.position.copy(pos).add(dir.clone().multiplyScalar(-0.035)); body.lookAt(tgt); g.add(body);
@@ -290,14 +304,15 @@ function addLight(L, res) {
     sp.position.copy(pos); if (hq.active) { const rr = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), uu = new THREE.Vector3().crossVectors(rr, dir).normalize(); sp.position.add(rr.multiplyScalar(jit() * P.size)).add(uu.multiplyScalar(jit() * P.size)); } sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(Q().spot, Q().spot); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
     if (L.gobo && L.gobo !== 'none' && S.GOBOS[L.gobo]) { sp.map = goboTexture(L.gobo); sp.castShadow = true; sp.shadow.focus = 1; }
     g.add(sp); g.add(sp.target); addBeam(g, pos, tgt, half, k.color, E1, false);
-    const fOff = headG ? (P.fx.faceOff || 0.115) : 0.115, fR = headG ? (P.fx.faceR || 0.075) : 0.075, tdir = tgt.clone().sub(pos).normalize();
-    if (!headG) { const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body); }
-    const face = new THREE.Mesh(new THREE.CircleGeometry(fR, 24), lumL(k.color, E1 / (0.018 * fR * fR / 0.0056))); face.position.copy(pos).add((headG ? tdir : dir).clone().multiplyScalar(fOff)); face.lookAt(tgt); g.add(face);
+    const fOff = headG ? (P.fx.faceOff || 0.115) : cobG ? 0.035 : 0.115, fR = headG ? (P.fx.faceR || 0.075) : cobG ? 0.065 : 0.075, tdir = tgt.clone().sub(pos).normalize();
+    if (cobG) lightHead(g, cobG, pos, tgt, 0);
+    if (!headG && !cobG) { const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body); }
+    const face = new THREE.Mesh(new THREE.CircleGeometry(fR, 24), lumL(k.color, E1 / (0.018 * fR * fR / 0.0056))); face.position.copy(pos).add((headG || cobG ? tdir : dir).clone().multiplyScalar(fOff)); face.lookAt(tgt); g.add(face);
     if (L.diff) { const d = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), lumL(k.color, E1 / 0.35)); d.material.transparent = true; d.material.opacity = 0.7; d.material.side = THREE.DoubleSide; d.position.copy(pos).add(dir.clone().multiplyScalar(0.18)); d.lookAt(tgt); g.add(d); }
   }
   // u plochých hlav (SkyPanel, Kino Flo) končí stojan pod spodní hranou, aby tyč nešla přes svítící plochu
   const hb = headG && P.soft ? headBox(headG) : null;
-  stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : P.h, g);
+  stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : sbG ? Math.max(0.3, P.h - 0.08) : cobG ? Math.max(0.3, P.h - 0.17) : P.h, g);
 }
 
 // filmová kamera na dřevěném stativu: objektiv ve výšce ch (stativ se natáhne / zkrátí)
@@ -321,9 +336,9 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', encodeURIComponent(p)) : p; }
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
-const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 } };
+const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 } };
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
 function treeProto(gltf, v) {
   if (!gltf.userData.protos) {
@@ -376,7 +391,7 @@ function addModelPerson(p, gltf) {
   }
   if (sit) { // posadit: pánev do výšky sedáku + ~13 cm
     let hip = null; inst.traverse(o => { if (o.isBone && o.name === 'hip_02') hip = o; });
-    const seatIt = S.seatUnder(lastScene, p), seatH = seatIt && seatIt.type === 'car' ? 0.36 : 0.45;
+    const seatIt = S.seatUnder(lastScene, p), seatH = seatIt && seatIt.type === 'car' ? 0.36 : seatIt && seatIt.type === 'sofa' && modelFor('sofa') ? 0.56 * (seatIt.h || 0.85) / 0.92 : 0.45;
     if (hip) { const hy = hip.getWorldPosition(new THREE.Vector3()).y; inst.position.y = (seatH + 0.13) - hy; }
     if (!S.seatUnder(lastScene, p)) chairMesh(g, 0.02, 0);
     if (!p.bones) pendingLift.push([inst, bones, p.pose === 'type']);
@@ -681,7 +696,7 @@ function addRoom(sc) {
   const floorMat = surfMat(FLOORTEX[sc.floor || 'wood'], FLOORCOL[sc.floor || 'wood'], W / 2, H / 2, { roughness: sc.floor === 'wood' ? 0.55 : 0.85, bumpScale: 0.5 });
   const ceilMat = surfMat('ceiling', 0xd0cbc2, W / 2.5, H / 2.5, { roughness: 1, bumpScale: 0.2 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, H / 2); floor.receiveShadow = true; group.add(floor);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); ceil.castShadow = true; group.add(ceil);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.userData.ceil = true; ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); ceil.castShadow = true; group.add(ceil);
   ['top', 'bottom', 'left', 'right'].forEach(side => {
     const fr = wallFrame(sc, side);
     // otvory: [s0, s1, z0, z1]
@@ -692,7 +707,7 @@ function addRoom(sc) {
     const pieces = []; let cur = 0;
     ops.forEach(o => { if (o[0] > cur) pieces.push([cur, o[0], 0, Z]); if (o[2] > 0) pieces.push([o[0], o[1], 0, o[2]]); if (o[3] < Z) pieces.push([o[0], o[1], o[3], Z]); cur = Math.max(cur, o[1]); });
     if (cur < fr.len) pieces.push([cur, fr.len, 0, Z]);
-    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; m.castShadow = true; group.add(m); });
+    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; m.castShadow = true; m.userData.side = side; group.add(m); });
   });
   const sk = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, 0.001, H)), new THREE.LineBasicMaterial({ color: 0x000000 })); sk.position.set(W / 2, 0.002, H / 2); group.add(sk);
   (sc.doors || []).forEach(d => addDoor(sc, d));
@@ -701,7 +716,7 @@ function addRoom(sc) {
 function addWallItem(sc, it) {
   const L = S.wallLen(it); if (L < 0.05) return;
   const Z = sc.room.z || 2.7, mat = surfMat('plaster', WALLCOL[sc.walls || 'normal'], L / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
-  const g = new THREE.Group(); g.position.set(it.x1, 0, it.y1); g.rotation.y = -Math.atan2(it.y2 - it.y1, it.x2 - it.x1); group.add(g);
+  const g = new THREE.Group(); g.userData.seg = [it.x1, it.y1, it.x2, it.y2]; g.position.set(it.x1, 0, it.y1); g.rotation.y = -Math.atan2(it.y2 - it.y1, it.x2 - it.x1); group.add(g);
   const ops = []; (sc.windows || []).forEach(w => { if (w.wall === it.id) ops.push([w.from, w.to, S.WIN_Z0, S.WIN_Z1]); });
   const drs = (sc.doors || []).filter(d => d.wall === it.id); drs.forEach(d => ops.push([d.at - d.w / 2, d.at + d.w / 2, 0, 2.05, d])); ops.sort((a, b) => a[0] - b[0]);
   const pieces = []; let cur = 0;
@@ -732,7 +747,7 @@ function addDoor(sc, d) {
   const fr = wallFrame(sc, d.wall), L = S.DOORLIGHT[d.light] || S.DOORLIGHT.none, k = kel(L.cct), open = d.open !== false;
   const inX = fr.inward[0], inZ = fr.inward[1], c = fr.at(d.at, 1.025);
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), leafMat = texMat('wood', 0xcdbba0, { roughness: 0.6, bumpScale: 0.3 });
-  const g = new THREE.Group(); g.position.set(c[0], 0, c[2]); g.rotation.y = fr.ry; group.add(g);
+  const g = new THREE.Group(); g.position.set(c[0], 0, c[2]); g.rotation.y = fr.ry; g.userData.side = d.wall; group.add(g);
   const useModel = d.w <= 1.4 && doorModel();
   // zárubeň (lokálně: x podél stěny, z = dovnitř místnosti)
   if (useModel) doorInstance(g, d.w, open);
@@ -777,7 +792,7 @@ function doorInstance(parent, w, open) {
 
 function sync(sc, res, meas, opts) {
   if (!renderer) return;
-  lastScene = sc; lastRes = res; lastOpts = opts || {};
+  const fa0 = formatAspect(); lastScene = sc; lastRes = res; lastOpts = opts || {}; if (formatAspect() !== fa0) resize(); // šablona / varianta s jiným formátem obrazu
   for (const k in rigs) delete rigs[k];
   if (!hq.building) stopHQ();
   applyQualityRatio();
@@ -797,6 +812,7 @@ function sync(sc, res, meas, opts) {
   group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = true; } });
   // rozptýlené světlo od stěn (z půdorysného výpočtu)
   let amb = res ? res.ambCol : [5, 5, 5];
+  { const rf = { dark: 0.03, normal: 0.08, white: 0.15 }[sc.walls || 'normal'] || 0.08, kb = Math.max(rf, 0.12) / rf; amb = amb.map(v => v * kb); } // světlý strop a podlaha odráží i v tmavé místnosti
   if (sc.outdoor) { const skd = S.SKY[sc.sky] || S.SKY.overcast, kc = kel(skd.cct); amb = [kc.color.r * skd.E * 2.2 * 0.5, kc.color.g * skd.E * 2.2 * 0.5, kc.color.b * skd.E * 2.2 * 0.5]; }
   const hemi = new THREE.HemisphereLight(new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(1.2), new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(0.6), 1); group.add(hemi);
   // kamera
@@ -823,7 +839,15 @@ function setSel(id) {
 }
 function toggleOrbit() { stopHQ(); orbit = !orbit; controls.enabled = orbit; if (camMesh) camMesh.visible = orbit; setSel(selId); dirty = true; return orbit; }
 function isOrbit() { return orbit; }
-function render() { if (!renderer || !lastScene) return;
+// kamera prochází zdmi: zeď (a strop), za kterou kamera stojí, se v pohledu kamery nevykreslí
+function camCull() {
+  const sc = lastScene, c = camItem, on = !orbit && c; const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7, ch = c ? (c.h == null ? 1.5 : c.h) : 0, e = 0.03;
+  group.children.forEach(o => { const u = o.userData; if (!u) return;
+    if (u.side) o.visible = !(on && ((u.side === 'left' && c.x < e) || (u.side === 'right' && c.x > W - e) || (u.side === 'top' && c.y < e) || (u.side === 'bottom' && c.y > H - e)));
+    else if (u.ceil) o.visible = !(on && ch > Z - 0.02);
+    else if (u.seg) { let hide = false; if (on) { const q = u.seg, dx = q[2] - q[0], dy = q[3] - q[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((c.x - q[0]) * dx + (c.y - q[1]) * dy) / L2)); hide = Math.hypot(c.x - q[0] - dx * t, c.y - q[1] - dy * t) < 0.1; } o.visible = !hide; } });
+}
+function render() { if (!renderer || !lastScene) return; camCull();
   const pr = renderer.getPixelRatio(), cw = canvas.width, ch = canvas.height;
   if (orbit || !region || formatAspect() <= 0) { renderer.setScissorTest(false); renderer.setViewport(0, 0, cw / pr, ch / pr); renderer.render(scene3, orbit ? orbitCam : camera); return; }
   renderer.setScissorTest(false); renderer.setClearColor(0x000000, 1); renderer.clear();
@@ -908,6 +932,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

@@ -39,7 +39,7 @@
   // nábytek: půdorys w×d (m), výška h (m), tall = stíní ve výšce obličeje
   var FURNITURE = {
     chair:    { name: 'Židle', w: 0.45, d: 0.45, h: 0.9, tall: false, grp: 'seat' },
-    sofa:     { name: 'Gauč', w: 0.9, d: 2.0, h: 0.85, tall: false, grp: 'seat' },
+    sofa:     { name: 'Gauč (trojsedák)', w: 0.95, d: 2.4, h: 0.85, tall: false, grp: 'seat', credit: 'vasycrukov', title: 'Sofa_3230' },
     armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false, grp: 'seat' },
     table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false, grp: 'table' },
     coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false, grp: 'table' },
@@ -83,6 +83,7 @@
     if ((scene.doors || []).some(function (d) { return d.w <= 1.4; }) && !scene.outdoor) out.push('3D model „Door with frame“: witnessk (sketchfab.com), licence CC BY 4.0');
     if (outside && scene.fence !== false) out.push('3D model „Fence (Wood)“: trentspi (sketchfab.com), licence CC BY 4.0');
     if (outside || (scene.windows || []).length) out.push('3D model „FREE - SkyBox Basic Sky“: Paul (sketchfab.com), licence CC BY 4.0');
+    if (items.some(function (i) { return i.kind === 'light'; })) out.push('3D model „Simple Studio Light“: AleixoAlonso (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push('3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0');
     Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
@@ -200,6 +201,12 @@
   }
   // sedadla v autě (poměr k délce/šířce auta): řidič vlevo, spolujezdec vpravo
   function carSeat(car, which) { var fx = -0.04 * car.w, fy = (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: r }; }
+  // místa na gauči (střed sedáku, čelem ven) – podle délky 2 nebo 3 místa
+  function sofaSeats(sofa) {
+    var n = sofa.d >= 2.1 ? 3 : 2, r = sofa.rot || 0, c = Math.cos(r), sn = Math.sin(r), out = [], use = sofa.d - 0.5; // pánev kousek za středem hloubky
+    for (var i = 0; i < n; i++) { var lz = -use / 2 + use * (i + 0.5) / n, lx = -0.01 * sofa.w / 0.95; out.push({ x: sofa.x + lx * c - lz * sn, y: sofa.y + lx * sn + lz * c, rot: r }); }
+    return out;
+  }
   function deskSpots(desk) {
     if (desk.type === 'pcdesk') { // sedí se před stůl (strana u šipky otočení), čelem k monitoru
       var r2 = desk.rot || 0, off = desk.w / 2 + 0.24;
@@ -427,6 +434,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
