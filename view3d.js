@@ -558,16 +558,20 @@ function addFurniture(it) {
     box(g, mats[it.mat] || MAT.wood, w, hh, d, 0, el + hh / 2, 0); }
 }
 
+// odrazka / difuzní rám: deska na stojanu + plošné světlo s jasem ze simulace (černá = záporný zdroj, ubírá rozptyl)
 function addBounce(b, res) {
+  const dif = b.kind === 'diffuser', P = S.boardParams(b), hh = P.hgt, cy = P.z;
   const g = new THREE.Group(); g.position.set(b.x, 0, b.y); g.rotation.y = -b.rot; group.add(g);
-  const mat = new THREE.MeshStandardMaterial({ color: b.black ? 0x050505 : (b.silver ? 0xc9ccd1 : 0xf4f1e8), roughness: b.silver ? 0.3 : 1, metalness: b.silver ? 0.6 : 0, side: THREE.DoubleSide });
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(b.len, 1.0), mat); pl.position.y = 1.5; pl.castShadow = pl.receiveShadow = true; g.add(pl);
-  stand(0, 0, 1.0, g);
-  const em = res && res.ems.find(e => e.bounce && e.id === b.id);
-  if (em && !b.black) {
-    const rl = new THREE.RectAreaLight(col3(em.col), em.E1 / (b.len * 1.0), b.len, 1.0);
-    rl.position.set(b.x + em.nx * 0.03, 1.5, b.y + em.ny * 0.03); rl.lookAt(b.x + em.nx * 2, 1.5, b.y + em.ny * 2); group.add(rl);
-  }
+  const ems = res ? res.ems.filter(e => e.bounce && e.id === b.id) : [], em = ems.find(e => !e.neg);
+  let mat;
+  if (dif) { const Lum = em ? em.E1 / P.area : 0; mat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 1, transparent: true, opacity: 0.88, side: THREE.DoubleSide, emissive: em ? col3(em.col) : new THREE.Color(0), emissiveIntensity: Lum * 0.9 }); }
+  else mat = new THREE.MeshStandardMaterial({ color: b.black ? 0x050505 : (b.silver ? 0xd8dce2 : 0xf4f1e8), roughness: b.silver ? 0.35 : 1, metalness: b.silver ? 0.45 : 0, side: THREE.DoubleSide });
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(b.len, hh), mat); pl.position.y = cy; pl.castShadow = !dif; pl.receiveShadow = true; g.add(pl);
+  if (dif) { const fm = MAT.metal, t = 0.025; [[b.len + t, t, 0, hh / 2], [b.len + t, t, 0, -hh / 2]].forEach(q => box(g, fm, q[0], q[1], t, 0, cy + q[3], 0)); [-1, 1].forEach(sd => box(g, fm, t, hh + t, t, sd * b.len / 2, cy, 0)); }
+  stand(0, 0, Math.max(0.4, cy - hh / 2), g);
+  ems.forEach(e => { if (Math.abs(e.E1) < 1e-6) return;
+    const rl = new THREE.RectAreaLight(col3(e.col), e.E1 / P.area * 1.7, b.len, hh); // ×1,7: plošné světlo three.js na krátkou vzdálenost vychází slabší než výpočet v simulaci
+    rl.position.set(b.x + e.nx * 0.03, cy, b.y + e.ny * 0.03); rl.lookAt(b.x + e.nx * 2, cy, b.y + e.ny * 2); group.add(rl); });
 }
 
 function addWindow(sc, w) {
@@ -809,9 +813,11 @@ function sync(sc, res, meas, opts) {
   clear(group); pendingLift = [];
   scene3.background = new THREE.Color(0x000000); addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
-    if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res); if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
+    if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res);
+      if (S.diffusedBy(sc, it)) { const drop = []; for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isLight || (o.userData && o.userData.beam)) drop.push(o); }); drop.forEach(o => o.parent && o.parent.remove(o)); } // světlo míří do difuzního rámu → svítí rám
+      if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
     else if (it.kind === 'person') addPerson(it);
-    else if (it.kind === 'bounce') addBounce(it, res);
+    else if (it.kind === 'bounce' || it.kind === 'diffuser') addBounce(it, res);
     else if (it.kind === 'flag') { const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -it.rot; const m = new THREE.Mesh(new THREE.PlaneGeometry(it.len, 0.9), MAT.flag); m.position.y = 1.5; m.castShadow = true; g.add(m); stand(0, 0, 1.05, g); group.add(g); }
     else if (it.kind === 'box' || it.kind === 'furniture') addFurniture(it);
     else if (it.kind === 'camera' && modelFor('filmcam')) { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; filmCamera(camMesh, modelFor('filmcam'), it.h == null ? 1.5 : it.h); group.add(camMesh); }

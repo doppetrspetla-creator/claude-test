@@ -174,7 +174,7 @@
         return;
       }
       if (it.kind === 'person') circs.push([it.x, it.y, 0.11]);
-      if (it.kind === 'flag' || it.kind === 'bounce') {
+      if (it.kind === 'flag' || it.kind === 'bounce' || it.kind === 'diffuser') {
         var h = it.len / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
         segs.push([it.x - c * h, it.y - s * h, it.x + c * h, it.y + s * h]);
       }
@@ -374,31 +374,46 @@
     return sum;
   }
 
+  // desky: odrazivost / propustnost, plocha, výška středu; stříbrná odráží víc a do užšího kužele (lalok cos^4 → ~3× v ose)
+  var GRIDS = { quarter: { name: '1/4 grid (lehká difuze)', t: 0.8 }, half: { name: '1/2 grid', t: 0.65 }, full: { name: 'plná difuze (full grid)', t: 0.45 } };
+  function boardParams(it) {
+    if (it.kind === 'diffuser') { var g = GRIDS[it.grid] || GRIDS.half, hh = it.hgt || it.len; return { k: g.t, area: it.len * hh, z: it.h == null ? 1.6 : it.h, hgt: hh, exp: 1, gain: 1 }; }
+    return { k: it.black ? 0.03 : (it.silver ? 0.85 : 0.75), area: it.len * 1.0, z: 1.5, hgt: 1.0, exp: it.silver ? 4 : 1, gain: it.silver ? 3 : 1 };
+  }
+  // světlo míří skrz difuzní rám (osa světla 3 m vpřed protíná rám) → přímé světlo nahradí rám
+  function diffusedBy(scene, L) {
+    var ax = L.x, ay = L.y, bx = L.x + Math.cos(L.rot) * 3, by = L.y + Math.sin(L.rot) * 3, hit = null;
+    (scene.items || []).forEach(function (it) { if (it.kind !== 'diffuser' || hit) return; var h = it.len / 2, c = Math.cos(it.rot), sn = Math.sin(it.rot);
+      if (segHit(ax, ay, bx, by, it.x - c * h, it.y - sn * h, it.x + c * h, it.y + sn * h)) hit = it; });
+    return hit;
+  }
   function emitters(scene, occ) {
     var ems = [];
     scene.items.forEach(function (it) { if (it.kind === 'light' && it.on !== false) ems.push(lightEmitter(it)); });
     windowEmitters(scene).forEach(function (e) { ems.push(e); });
     doorEmitters(scene).forEach(function (e) { ems.push(e); });
     var sd = sunDir(scene), sunCol = cctColor(sunCCT(scene));
+    // odrazky a difuzní rámy: sečíst světlo dopadající na desku a vyzářit ho jako plošný zdroj
+    // odrazka = lícová strana (normála), difuzní rám = světlo zezadu, vyzáří dopředu
     scene.items.forEach(function (it) {
-      if (it.kind !== 'bounce') return;
-      var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2);
+      if (it.kind !== 'bounce' && it.kind !== 'diffuser') return;
+      var dif = it.kind === 'diffuser', nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2);
       if (it.flip) { nx = -nx; ny = -ny; }
-      var cx = it.x + nx * 0.03, cy = it.y + ny * 0.03, col = [0, 0, 0], Etot = 0;
+      var sgn = dif ? -1 : 1, cx = it.x + sgn * nx * 0.03, cy = it.y + sgn * ny * 0.03, col = [0, 0, 0], Etot = 0;
       ems.forEach(function (em) {
         if (em.bounce) return;
         var p = em.pts[Math.floor(em.pts.length / 2)];
-        if ((p[0] - it.x) * nx + (p[1] - it.y) * ny <= 0) return;
-        var e = illum(em, occ, cx, cy); Etot += e;
+        if (sgn * ((p[0] - it.x) * nx + (p[1] - it.y) * ny) <= 0) return;
+        var e = illum(em, occ, cx, cy, sgn * nx, sgn * ny); Etot += e; // osvětlenost na plochu desky (s úhlem dopadu)
         col[0] += e * em.col[0]; col[1] += e * em.col[1]; col[2] += e * em.col[2];
       });
-      if (sunOn(scene)) { var lamS = nx * sd[0] + ny * sd[1]; if (lamS > 0) { var es = sunIllum(scene, occ, cx, cy) * lamS * Math.cos((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180); Etot += es; col[0] += es * sunCol[0]; col[1] += es * sunCol[1]; col[2] += es * sunCol[2]; } }
+      if (sunOn(scene)) { var lamS = sgn * (nx * sd[0] + ny * sd[1]); if (lamS > 0) { var es = sunIllum(scene, occ, cx, cy) * lamS * Math.cos((scene.sun.elev == null ? 35 : scene.sun.elev) * Math.PI / 180); Etot += es; col[0] += es * sunCol[0]; col[1] += es * sunCol[1]; col[2] += es * sunCol[2]; } }
       if (Etot < 0.5) return;
-      var refl = it.black ? 0.03 : (it.silver ? 0.55 : 0.75);
+      var P = boardParams(it), fx = it.x + nx * 0.03, fy = it.y + ny * 0.03;
       var pts = [], n = 7, tx = Math.cos(it.rot), ty = Math.sin(it.rot);
-      for (var i = 0; i < n; i++) { var o = (i / (n - 1) - 0.5) * it.len; pts.push([cx + tx * o, cy + ty * o]); }
-      ems.push({ pts: pts, nx: nx, ny: ny, z: FACE_Z, E1: Etot * refl * it.len / Math.PI, exp: 1, cosCut: 0.02,
-                 col: [col[0] / Etot, col[1] / Etot, col[2] / Etot], hard: false, omni: false, bounce: true, id: it.id });
+      for (var i = 0; i < n; i++) { var o = (i / (n - 1) - 0.5) * it.len; pts.push([fx + tx * o, fy + ty * o]); }
+      ems.push({ pts: pts, nx: nx, ny: ny, z: P.z, E1: Etot * P.k * P.area / Math.PI * P.gain, exp: P.exp, cosCut: 0.02,
+                 col: [col[0] / Etot, col[1] / Etot, col[2] / Etot], hard: false, omni: false, bounce: true, id: it.id, Ein: Etot });
     });
     return ems;
   }
@@ -424,6 +439,12 @@
     for (var q = 0; q < n; q++) { mr += R[q]; mg += G[q]; mb += B[q]; }
     var amb = [mr / n * refl, mg / n * refl, mb / n * refl];
     for (var q2 = 0; q2 < n; q2++) { R[q2] += amb[0]; G[q2] += amb[1]; B[q2] += amb[2]; }
+    // černá deska = negativní fill: zakryje část okolí, ze které by jinak přišlo rozptýlené světlo (záporný plošný zdroj o jasu okolí)
+    var ambM = (amb[0] + amb[1] + amb[2]) / 3;
+    scene.items.forEach(function (it) { if (it.kind !== 'bounce' || !it.black || ambM <= 0) return;
+      var nx = Math.cos(it.rot + Math.PI / 2), ny = Math.sin(it.rot + Math.PI / 2); if (it.flip) { nx = -nx; ny = -ny; }
+      [1, -1].forEach(function (sd) { var pts = [], tx = Math.cos(it.rot), ty = Math.sin(it.rot); for (var i = 0; i < 7; i++) { var o = (i / 6 - 0.5) * it.len; pts.push([it.x + sd * nx * 0.03 + tx * o, it.y + sd * ny * 0.03 + ty * o]); }
+        ems.push({ pts: pts, nx: sd * nx, ny: sd * ny, z: 1.5, E1: -ambM * 0.5 / Math.PI * it.len * 1.0, exp: 1, cosCut: 0.02, col: [1, 1, 1], hard: false, omni: false, bounce: true, neg: true, id: it.id }); }); });
     return { nx: nx, ny: ny, cell: cell, R: R, G: G, B: B, ems: ems, occ: occ, amb: (amb[0] + amb[1] + amb[2]) / 3, ambCol: amb, faceZ: curFaceZ };
   }
 
@@ -435,17 +456,17 @@
     var r = 0.125, out = [], base = person.rot;
     [0.75, -0.75].forEach(function (off) {
       var a = base + off, nx = Math.cos(a), ny = Math.sin(a);
-      var x = person.x + nx * r, y = person.y + ny * r, E = (res.amb || 0) * 0.5, per = {};
-      res.ems.forEach(function (em) { var v = illum(em, res.occ, x, y, nx, ny); E += v; if (em.id != null) per[em.id] = (per[em.id] || 0) + v; if (em.win) per.win = (per.win || 0) + v; if (em.door) per.doors = (per.doors || 0) + v; });
+      var x = person.x + nx * r, y = person.y + ny * r, E = (res.amb || 0) * 0.5, per = {}, negSum = 0;
+      res.ems.forEach(function (em) { var v = illum(em, res.occ, x, y, nx, ny); if (em.neg) { v = Math.max(v, -(res.amb || 0) * 0.5 - negSum); negSum += v; } E += v; if (em.id != null) per[em.id] = (per[em.id] || 0) + v; if (em.win) per.win = (per.win || 0) + v; if (em.door) per.doors = (per.doors || 0) + v; });
       if (sunOn(scene)) { var sv = sunIllum(scene, res.occ, x, y, nx, ny); E += sv; per.sun = sv; }
       if (scene.outdoor) { var skD2 = SKY[scene.sky] || SKY.overcast, se = skD2.E * 2.2 * 0.5 * (0.6 + 0.4 * Math.max(0, -(nx * 0) )); E += se; per.sky = se; }
-      out.push({ x: x, y: y, E: E, per: per });
+      E = Math.max(0.05, E); out.push({ x: x, y: y, E: E, per: per });
     });
     var a = out[0].E, b = out[1].E, hi = Math.max(a, b), lo = Math.max(Math.min(a, b), 0.01);
     var bright = a >= b ? out[0] : out[1], dark = a >= b ? out[1] : out[0];
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

@@ -5,8 +5,8 @@ var S = window.LightSim, $ = function(id){ return document.getElementById(id); }
 var cv = $('stage'), ctx = cv.getContext('2d'), wrap = $('planWrap'), center = $('center');
 var scene, sel = null, uid = 1, res = null, meas = null, scale = 80, ox = 40, oy = 40, fineTimer = null, view3dReady = false, hover = null;
 var off = document.createElement('canvas'), offx = off.getContext('2d');
-var KIND = { light:'💡', person:'🧑', camera:'🎥', flag:'🏴', bounce:'⬜', box:'📦', furniture:'🪑', wall:'🧱' };
-var KINDNAME = { light:'Světlo', person:'Postava', camera:'Kamera', flag:'Vlajka', bounce:'Odrazka', box:'Nábytek', furniture:'Nábytek', wall:'Zeď' };
+var KIND = { light:'💡', person:'🧑', camera:'🎥', flag:'🏴', bounce:'⬜', diffuser:'◻️', box:'📦', furniture:'🪑', wall:'🧱' };
+var KINDNAME = { light:'Světlo', person:'Postava', camera:'Kamera', flag:'Vlajka', bounce:'Odrazka', diffuser:'Difuzní rám', box:'Nábytek', furniture:'Nábytek', wall:'Zeď' };
 
 function blank(){ return { room:{w:7,h:5,z:2.7}, walls:'normal', floor:'wood', sky:'overcast', windows:[{id:uid++,wall:'left',from:1.6,to:3.4}], doors:[], sun:{on:false,az:Math.PI*1.25,elev:35}, exterior:{on:false,trees:6}, format:'free', items:[] }; }
 function win(wall, from, to){ return {id:uid++,wall:wall,from:from,to:to}; }
@@ -15,7 +15,7 @@ function wallSyncXY(w){ w.x=(w.x1+w.x2)/2; w.y=(w.y1+w.y2)/2; w.rot=Math.atan2(w
 function door(wall, at, extra){ var d={id:uid++,wall:wall,at:at,w:0.9,open:true,light:'dim'}; for(var k in extra) d[k]=extra[k]; return d; }
 function furn(type, x, y, rot, extra){ var f=S.FURNITURE[type]||S.FURNITURE.block; var o={kind:'furniture',id:uid++,type:type,x:x,y:y,rot:rot||0,w:f.w,d:f.d}; if(type==='block'){ o.h=f.h; o.mat='wood'; o.label=''; } if(['bed','ldesk','pcdesk','pc','kitchen','tree','sofa'].indexOf(type)>=0){ o.h=f.h; } if(f.elev!=null) o.elev=f.elev; if(type==='tree') o.variant=0; for(var k in extra) o[k]=extra[k]; return o; }
 function light(fix, x, y, rot, extra){ var f=S.FIXTURES[fix]; var L={kind:'light',id:uid++,fixture:fix,mod:f.defMod,x:x,y:y,h:1.7,rot:rot,power:70,cct:f.cct,zoom:30,grid:false,diff:false,barn:false,gel:'none',on:true,label:''}; for(var k in extra) L[k]=extra[k]; if(fix==='lamp') L.h=extra&&extra.h!=null?extra.h:1.0; if(fix==='tube') L.h=extra&&extra.h!=null?extra.h:1.5; return L; }
-function item(kind, x, y, rot, extra){ var o={kind:kind,id:uid++,x:x,y:y,rot:rot||0}; if(kind==='flag') o.len=0.9; if(kind==='bounce'){o.len=1.0;o.flip=false;o.silver=false;o.black=false;} if(kind==='box'){o.w=1.2;o.d=0.6;o.tall=false;} if(kind==='camera'){o.focal=35;o.h=1.5;} if(kind==='person'){ o.pose='stand'; o.t=0.3; o.model='zena1'; o.outfit='dark'; o.hair='short'; o.hairColor='dark'; o.skin='light'; } for(var k in extra) o[k]=extra[k]; return o; }
+function item(kind, x, y, rot, extra){ var o={kind:kind,id:uid++,x:x,y:y,rot:rot||0}; if(kind==='flag') o.len=0.9; if(kind==='bounce'){o.len=1.0;o.flip=false;o.silver=false;o.black=false;} if(kind==='diffuser'){o.len=1.2;o.h=1.6;o.grid='half';o.flip=false;} if(kind==='box'){o.w=1.2;o.d=0.6;o.tall=false;} if(kind==='camera'){o.focal=35;o.h=1.5;} if(kind==='person'){ o.pose='stand'; o.t=0.3; o.model='zena1'; o.outfit='dark'; o.hair='short'; o.hairColor='dark'; o.skin='light'; } for(var k in extra) o[k]=extra[k]; return o; }
 
 var TEMPL = {
   window: function(){ var s=blank(); s.items=[item('person',2.6,2.5,1.6,{model:'zena1'}), item('camera',4.4,3.5,Math.PI+0.5,{focal:50}), item('flag',3.4,1.6,-0.9,{len:0.9}), light('lamp',5.9,0.8,0), furn('table',6.0,1.3,0,{w:0.8,d:0.5})]; s.items[0].pose='sit'; s.windows=[win('left',1.4,3.2)]; return s; },
@@ -169,6 +169,7 @@ function drawItem(it){
   else if(it.kind==='camera'){ if($('beams').checked){ var fov=S.fovs(it.focal||35, (S.FORMATS[scene.format]||{a:0}).a || 1.5).h, R2=3.5*s; ctx.fillStyle='rgba(140,180,230,.06)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R2,-fov/2,fov/2); ctx.closePath(); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.setLineDash([3,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(fov/2)*R2,Math.sin(fov/2)*R2); ctx.moveTo(0,0); ctx.lineTo(Math.cos(-fov/2)*R2,Math.sin(-fov/2)*R2); ctx.stroke(); ctx.setLineDash([]); }
     ctx.fillStyle='#111'; ctx.strokeStyle='#d4b071'; ctx.lineWidth=1; ctx.fillRect(-16,-9,22,18); ctx.strokeRect(-16,-9,22,18); ctx.fillRect(6,-5,10,10); ctx.strokeRect(6,-5,10,10); }
   else if(it.kind==='flag'){ var L=it.len*s; ctx.fillStyle='#111'; ctx.strokeStyle='#555'; ctx.fillRect(-L/2,-3,L,6); ctx.strokeRect(-L/2,-3,L,6); }
+  else if(it.kind==='diffuser'){ var L3=it.len*s; ctx.fillStyle='rgba(240,240,236,.35)'; ctx.strokeStyle='#bbb'; ctx.setLineDash([3,2]); ctx.fillRect(-L3/2,-3,L3,6); ctx.strokeRect(-L3/2,-3,L3,6); ctx.setLineDash([]); ctx.fillStyle='#d4b071'; var sg3=it.flip?-1:1; ctx.beginPath(); ctx.moveTo(-4,sg3*6); ctx.lineTo(4,sg3*6); ctx.lineTo(0,sg3*11); ctx.closePath(); ctx.fill(); }
   else if(it.kind==='bounce'){ var L2=it.len*s; ctx.fillStyle= it.black?'#111': (it.silver?'#c9ccd1':'#f4f1e8'); ctx.strokeStyle='#666'; ctx.fillRect(-L2/2,-3,L2,6); ctx.strokeRect(-L2/2,-3,L2,6); ctx.fillStyle='#d4b071'; var sg=it.flip?-1:1; ctx.beginPath(); ctx.moveTo(-4,sg*6); ctx.lineTo(4,sg*6); ctx.lineTo(0,sg*11); ctx.fill(); }
   else if(it.kind==='wall'){ ctx.restore(); ctx.save(); var a=toPx(it.x1,it.y1), b=toPx(it.x2,it.y2); ctx.strokeStyle='#8a8277'; ctx.lineWidth=Math.max(4,0.12*s); ctx.lineCap='butt'; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
     if(isSel||isHov){ ctx.fillStyle='#ece8e0'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText(fmt(S.wallLen(it),2)+' m',(a[0]+b[0])/2+8,(a[1]+b[1])/2-8); }
@@ -207,7 +208,7 @@ function updateMeter(){
   var pos=Math.min(1,meas.stops/3.2); $('mBar').style.left='calc('+(pos*100)+'% - 1px)';
   $('mSide').textContent = meas.stops<0.5?'Plochý obličej – přidej směr nebo odeber doplňkové světlo.': meas.stops<1.6?'Měkké, přívětivé (rozhovor, korporát).': meas.stops<2.6?'Modelované, filmové.':'Dramatické, low-key.';
   var html='', rows=[];
-  scene.items.forEach(function(it){ if(it.kind==='light'||it.kind==='bounce'){ rows.push([it.label||(it.kind==='bounce'?'Odrazka':S.FIXTURES[it.fixture].name)+(it.on===false?' (vyp.)':''), meas.per[it.id]||0, meas.perDark[it.id]||0]); } });
+  scene.items.forEach(function(it){ if(it.kind==='light'||it.kind==='bounce'||it.kind==='diffuser'){ rows.push([it.label||(it.kind==='bounce'?(it.black?'Černá deska':it.silver?'Odrazka stříbrná':'Odrazka'):it.kind==='diffuser'?'Difuzní rám':S.FIXTURES[it.fixture].name)+(it.on===false?' (vyp.)':''), meas.per[it.id]||0, meas.perDark[it.id]||0]); } });
   if((scene.windows||[]).some(function(w){return typeof w.wall==='string';})) rows.push(['Okna (obloha)', meas.per.win||0, meas.perDark.win||0]);
   if(S.sunOn(scene)) rows.push(['Slunce', meas.per.sun||0, meas.perDark.sun||0]);
   if(scene.outdoor) rows.push(['Obloha', meas.per.sky||0, meas.perDark.sky||0]);
@@ -272,7 +273,8 @@ function props(){
     h+='<p class="mut">Model: '+fm.credit+' · CC BY 4.0 · sketchfab.com</p>'; }
 if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="color" value="'+(it.color||'#e77f00')+'"><div class="row" style="margin-top:8px"><button class="btn sm" id="bDriver" type="button">+ Řidič</button><button class="btn sm" id="bPassenger" type="button">+ Spolujezdec</button></div><div class="row" style="margin-top:6px"><button class="btn sm" id="bEnterDrv" type="button">+ Nastupuje řidič</button><button class="btn sm" id="bEnterCar" type="button">+ Nastupuje spolujezdec</button></div><p class="mut">Nastupování: posuvník Fáze pohybu vede od příchodu ke dveřím (0 %) po usednutí (100 %).</p><p class="mut">Model: Lexyc16 · CC BY 4.0 · sketchfab.com</p>'; } if(it.type==='block'){ rng('h','Výška',0.1,2.6,0.05,'m'); selc('mat','Materiál',{wood:'dřevo',white:'bílá',dark:'tmavá',metal:'kov',concrete:'beton',fabric:'látka'}); h+='<p class="mut">Box vyšší než 1,3 m stíní ve výšce obličeje.</p>'; } h+='<p class="mut">Opěradlo / čelo je na straně proti směru otočení.</p>'; }
   else if(it.kind==='flag'){ rng('len','Délka',0.3,2.4,0.1,'m'); }
-  else if(it.kind==='bounce'){ rng('len','Šířka',0.3,2.4,0.1,'m'); chk('silver','Stříbrná'); chk('black','Černá (negativní fill)'); chk('flip','Otočit lícovou stranu'); }
+  else if(it.kind==='bounce'){ rng('len','Šířka',0.3,2.4,0.1,'m'); chk('silver','Stříbrná (silnější, užší odraz)'); chk('black','Černá (negativní fill – ubírá rozptýlené světlo)'); chk('flip','Otočit lícovou stranu'); var eb=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id&&!e.neg;}); h+='<p class="mut">'+(it.black?'Černá deska stíní okolí – nejvíc působí v bílé místnosti, blízko stinné strany obličeje.':(eb?'Na desku dopadá ≈ '+Math.round(eb.Ein)+' lx.':'Na lícovou stranu (šipka) nedopadá žádné světlo – natoč ji ke světlu.'))+'</p>'; }
+  else if(it.kind==='diffuser'){ var gr={}; Object.keys(S.GRIDS).forEach(function(k){gr[k]=S.GRIDS[k].name;}); selc('grid','Difuzní látka',gr); rng('len','Velikost rámu',0.6,2.4,0.1,'m'); rng('h','Výška středu',0.8,2.4,0.05,'m'); chk('flip','Otočit (šipka = strana k postavě)'); var ed=res&&res.ems.find(function(e){return e.bounce&&e.id===it.id;}); h+='<p class="mut">Postav rám mezi světlo a postavu, šipkou k postavě. Světlo mířící do rámu pak svítí jen přes rám – velký měkký zdroj. '+(ed?'Na rám dopadá ≈ '+Math.round(ed.Ein)+' lx.':'Zatím na něj zezadu nesvítí žádné světlo.')+'</p>'; }
   else if(it.kind==='box'){ rng('w','Šířka',0.3,3,0.1,'m'); rng('d','Hloubka',0.3,3,0.1,'m'); chk('tall','Vysoký – vrhá stín (skříň, stěna)'); }
   if(it.kind==='wall'){ } h+='<div class="row" style="margin-top:12px"><button class="btn" id="bDup">Duplikovat <span class="kbd">D</span></button><button class="btn danger" id="bDel">Smazat <span class="kbd">Del</span></button></div>';
   el.innerHTML=h;
@@ -309,9 +311,9 @@ function pick(mx,my){
   if(sel && sel.kind==='wall'){ var e1=toPx(sel.x1,sel.y1), e2=toPx(sel.x2,sel.y2); if(Math.hypot(mx-e1[0],my-e1[1])<10) return {it:sel,end:1}; if(Math.hypot(mx-e2[0],my-e2[1])<10) return {it:sel,end:2}; }
   if(sel && sel.kind!=='box' && sel.kind!=='wall'){ var h=toPx.apply(null,rotHandle(sel)); if(Math.hypot(mx-h[0],my-h[1])<10) return {it:sel,rot:true}; }
   for(var i=scene.items.length-1;i>=0;i--){ var it=scene.items[i]; if(it.kind==='wall') continue; var p=toPx(it.x,it.y), rr=18;
-    if(it.kind==='box') rr=Math.max(it.w,it.d)*scale/2; if(it.kind==='flag'||it.kind==='bounce') rr=Math.max(14,it.len*scale/2);
+    if(it.kind==='box') rr=Math.max(it.w,it.d)*scale/2; if(it.kind==='flag'||it.kind==='bounce'||it.kind==='diffuser') rr=Math.max(14,it.len*scale/2);
     if(it.kind==='furniture'){ var cf=Math.cos(it.rot||0), sf=Math.sin(it.rot||0), fx=mx-p[0], fy=my-p[1], fu=fx*cf+fy*sf, fv=-fx*sf+fy*cf; if(Math.abs(fu)<=it.w*scale/2+4 && Math.abs(fv)<=it.d*scale/2+4) return {it:it}; continue; }
-    if(it.kind==='flag'||it.kind==='bounce'){ var c=Math.cos(it.rot), s=Math.sin(it.rot), dx=mx-p[0], dy=my-p[1], u=dx*c+dy*s, v=-dx*s+dy*c; if(Math.abs(u)<=rr && Math.abs(v)<=9) return {it:it}; continue; }
+    if(it.kind==='flag'||it.kind==='bounce'||it.kind==='diffuser'){ var c=Math.cos(it.rot), s=Math.sin(it.rot), dx=mx-p[0], dy=my-p[1], u=dx*c+dy*s, v=-dx*s+dy*c; if(Math.abs(u)<=rr && Math.abs(v)<=9) return {it:it}; continue; }
     if(Math.hypot(mx-p[0],my-p[1])<=rr) return {it:it}; }
   for(var j=scene.items.length-1;j>=0;j--){ var wl=scene.items[j]; if(wl.kind!=='wall') continue; var a=toPx(wl.x1,wl.y1), b=toPx(wl.x2,wl.y2); if(distSeg(mx,my,a[0],a[1],b[0],b[1]).d<=Math.max(6,0.06*scale)+3) return {it:wl}; }
   return null;
