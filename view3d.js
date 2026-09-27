@@ -400,7 +400,10 @@ function modelFor(id) {
   const m = S.MODELS[id] || EXTRA_MODELS[id]; if (!m || !m.file) return null;
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
   modelCache[id] = { loading: true };
-  const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0; } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
+  const solid = !!(S.MODELS[id] && S.MODELS[id].solid);
+  // model má celé oblečení i tělo omylem jako „alpha blend“ (Muž 3) → kreslí se bez zápisu hloubky a kalhoty i vnitřek úst prosvítají přes kabát a obličej; převést na ořez alfou
+  const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0;
+    if (solid && o.material.transparent) { o.material.transparent = false; o.material.depthWrite = true; o.material.alphaTest = 0.5; } } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
   // Model je zabalený ve skriptu (models/<id>.glb.js, base64) – funguje i z disku (file://), kde fetch .glb selže.
   const fail = () => { modelCache[id] = { error: true }; };
   const fromB64 = b64 => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); new GLTFLoader().parse(u8.buffer, '', onLoad, fail); };

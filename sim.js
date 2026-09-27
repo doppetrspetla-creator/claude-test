@@ -73,7 +73,7 @@
     zena2: { name: 'Žena 2 – sako', file: 'models/zena2.glb', stand: 1.59, sit: 1.17, credit: 'Renderpeople', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz1:  { name: 'Muž 1 – vesta a kravata', file: 'models/muz1.glb', stand: 1.71, sit: 1.30, credit: '1-3D.com', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz2:  { name: 'Muž 2 – mikina, kšiltovka, brýle', file: 'models/muz2.glb', stand: 1.70, sit: 1.24, credit: 'Eyasu Biyaylgn', license: 'CC BY 4.0', source: 'sketchfab.com' },
-    muz3:  { name: 'Muž 3 – dlouhý kabát, maska', file: 'models/muz3.glb', stand: 1.68, sit: 1.23, credit: 'Saitam', license: 'CC BY 4.0', source: 'sketchfab.com' },
+    muz3:  { name: 'Muž 3 – dlouhý kabát a čepice', file: 'models/muz3.glb', solid: true, stand: 1.68, sit: 1.23, credit: 'Saitam', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz4:  { name: 'Muž 4 – mikina a modré tričko', file: 'models/muz4.glb', stand: 1.67, sit: 1.22, credit: 'Mike Alger', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz5:  { name: 'Muž 5 – ostraha (uniforma)', file: 'models/muz5.glb', stand: 1.50, sit: 1.10, credit: 'Q.SARDOR', license: 'CC BY 4.0', source: 'sketchfab.com' },
     zena3: { name: 'Žena 3 – červený top a sukně', file: 'models/zena3.glb', stand: 1.64, sit: 1.20, credit: 'Veterock', license: 'CC BY 4.0', source: 'sketchfab.com' }
