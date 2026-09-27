@@ -27,6 +27,9 @@
     panel1: { name: 'LED panel 30×30 cm', lux1m: 1500, cct: 5600, defMod: 'panel', pw: 0.30, ph: 0.30 },
     panel2: { name: 'LED panel 60×30 cm', lux1m: 2800, cct: 5600, defMod: 'panel', pw: 0.60, ph: 0.30 },
     ledmat: { name: 'LED matrace 60×60 cm (flexibilní)', lux1m: 2000, cct: 5600, defMod: 'panel', pw: 0.60, ph: 0.60, beam: 110 },
+    skypanel: { name: 'ARRI SkyPanel S60-C (LED)', lux1m: 6000, cct: 5600, defMod: 'panel', pw: 0.60, ph: 0.30, beam: 105, model: 'skypanel', headOff: -0.11 },
+    kinoflo: { name: 'Kino Flo 4Bank (zářivky)', lux1m: 2800, cct: 5600, defMod: 'panel', pw: 0.50, ph: 0.60, beam: 95, model: 'kinoflo', headOff: -0.05 },
+    arri650: { name: 'ARRI 650 Plus (Fresnel, halogen)', lux1m: 7500, cct: 3200, defMod: 'fresnel', model: 'arri650', faceOff: 0.105, faceR: 0.08 },
     tube:   { name: 'LED tuba', lux1m: 380, cct: 3200, defMod: 'tube' },
     lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' }
   };
@@ -51,6 +54,15 @@
     kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter', grp: 'kitchen' },
     tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly', grp: 'tree' }
   };
+  // prostředí = celá místnost jako 3D model (sken / hotový ateliér); off = posun modelu do půdorysu, parts = pevné prvky kreslené v půdorysu
+  var ENVS = {
+    photostudio: { name: 'Fotoateliér (papírové pozadí, stůl s PC)', model: 'photostudio', room: { w: 10.1, h: 8.9, z: 3.75 }, off: [5.05, 4.45], walls: 'dark', floor: 'dark',
+      parts: [{ label: 'Papírové pozadí', x0: 0.06, y0: 2.87, x1: 3.46, y1: 6.03, col: 'rgba(245,245,245,.55)' }, { label: 'Stůl s PC', x0: 6.5, y0: 6.05, x1: 7.6, y1: 8.22 }],
+      credit: 'Zachey', title: 'Photo Studio' },
+    cyclorama: { name: 'Hala s cykloramou (sken ateliéru)', model: 'cyclorama', room: { w: 22.75, h: 12.36, z: 4.7 }, off: [15.3, 6.63], walls: 'normal', floor: 'grey',
+      parts: [{ label: 'Cyklorama (bílý horizont)', x0: 11.8, y0: 0.07, x1: 21.0, y1: 9.87, col: 'rgba(245,245,245,.35)' }],
+      credit: 'tojek_vfx', title: 'Studio Scan with Cyclorama for realtime VR' }
+  };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
   var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Auto', block: 'Box' };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
@@ -66,6 +78,7 @@
     items.forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); });
     var types = {}; items.forEach(function (i) { if (i.kind === 'furniture' && FURNITURE[i.type] && FURNITURE[i.type].credit) types[i.type] = 1; });
     if (exteriorTrees(scene).length) types.tree = 1;
+    var env = scene.env && ENVS[scene.env]; if (env) out.push('3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0');
     Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
     return out;
@@ -408,6 +421,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

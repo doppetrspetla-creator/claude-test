@@ -78,6 +78,14 @@ var TEMPL = {
       light('tube',1.9,3.75,Math.PI/2,{power:100,h:0.3,rgb:true,color:'#00c8ff',label:'RGB 2'}),
       furn('armchair',0.7,3.3,-0.6,{}), item('camera',3.9,0.75,2.88,{focal:35,h:1.25})];
     return s; },
+  photostudio: function(){ var s=blank(), E=S.ENVS.photostudio; s.env='photostudio'; s.room={w:E.room.w,h:E.room.h,z:E.room.z}; s.walls=E.walls; s.floor=E.floor; s.windows=[]; s.format='43';
+    s.items=[item('person',2.3,4.45,0,{model:'zena1',pose:'stand',t:0.3}), item('camera',6.6,4.45,Math.PI,{focal:70,h:1.5}),
+      light('skypanel',3.9,3.3,2.52,{power:30,h:1.9,label:'KEY'}), light('kinoflo',4.1,5.9,-2.46,{power:14,h:1.6,label:'FILL'}),
+      light('arri650',0.9,2.3,0.99,{zoom:24,power:30,h:2.5,label:'VLASY'}), light('arri650',1.9,6.1,-2.35,{zoom:40,power:30,h:1.0,label:'POZADÍ'})];
+    return s; },
+  cyclo: function(){ var s=blank(), E=S.ENVS.cyclorama; s.env='cyclorama'; s.room={w:E.room.w,h:E.room.h,z:E.room.z}; s.walls=E.walls; s.floor=E.floor; s.windows=[]; s.format='169';
+    s.items=[item('person',16.4,4.2,2.74,{model:'zena1',pose:'stand',t:0.3}), item('camera',11.0,6.5,-0.4,{focal:50,h:1.5}), light('skypanel',13.5,2.5,0.53,{power:90,h:2.0,label:'KEY'}), light('kinoflo',13.0,7.4,-0.755,{power:60,h:1.7,label:'FILL'}), light('arri650',20.0,6.8,-2.51,{zoom:25,power:55,h:2.8,label:'KONTRA'}), light('cob600',15.0,0.8,0.3,{mod:'frame',power:70,h:3.2,label:'HORIZONT'})];
+    return s; },
   empty: function(){ var s=blank(); s.windows=[]; return s; }
 };
 
@@ -100,7 +108,7 @@ function toM(px,py){ return [(px-ox)/scale, (py-oy)/scale]; }
 
 // ---------- výpočet ----------
 function recompute(cell){ res=S.compute(scene,cell); meas=S.measure(scene,res); renderMap(); updateMeter(); draw(); sync3d(); }
-function fineCell(){ var q=$('quality').value; return q==='low'?0.06:q==='high'?0.025:0.035; }
+function fineCell(){ var q=$('quality').value, base=q==='low'?0.06:q==='high'?0.025:0.035; return Math.max(base, Math.sqrt(scene.room.w*scene.room.h/40000)); }
 function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
 function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? Math.max(8000, sk*2.2) : sk*2.2*0.9; } return 300; }
 function exposureRef(){ var ev=parseFloat($('ev').value); return baseRef()*Math.pow(2,-ev); }
@@ -124,6 +132,7 @@ function draw(){
   if(res){ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(off,p0[0],p0[1],res.nx*res.cell*scale,res.ny*res.cell*scale); }
   if($('gridOn').checked){ ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=1; for(var x=1;x<W;x++){ var a=toPx(x,0),b=toPx(x,H); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); } for(var y=1;y<H;y++){ var a2=toPx(0,y),b2=toPx(W,y); ctx.beginPath(); ctx.moveTo(a2[0],a2[1]); ctx.lineTo(b2[0],b2[1]); ctx.stroke(); } }
   if(scene.outdoor){ ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeRect(p0[0],p0[1],W*scale,H*scale); ctx.setLineDash([]); } else { ctx.strokeStyle='#8a8277'; ctx.lineWidth=5; ctx.strokeRect(p0[0],p0[1],W*scale,H*scale); }
+  var envD=scene.env&&S.ENVS[scene.env]; if(envD) envD.parts.forEach(function(q){ var a=toPx(q.x0,q.y0); ctx.fillStyle=q.col||'rgba(120,110,95,.45)'; ctx.fillRect(a[0],a[1],(q.x1-q.x0)*scale,(q.y1-q.y0)*scale); ctx.strokeStyle='rgba(236,232,224,.35)'; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(a[0],a[1],(q.x1-q.x0)*scale,(q.y1-q.y0)*scale); ctx.setLineDash([]); ctx.fillStyle='rgba(236,232,224,.6)'; ctx.font='11px Inter,Lato,sans-serif'; ctx.fillText(q.label,a[0]+6,a[1]+14); });
   (scene.outdoor?[]:(scene.windows||[])).forEach(function(w){ var a,b; if(typeof w.wall==='string'){ var fr=wallPt(w.wall); a=fr(w.from); b=fr(w.to); } else { var wi=byId(w.wall); if(!wi) return; a=toPx.apply(null,S.wallPoint(wi,w.from)); b=toPx.apply(null,S.wallPoint(wi,w.to)); }
     var bl=S.blindOf(w); ctx.strokeStyle='#0a0a0a'; ctx.lineWidth=7; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.strokeStyle= bl>=1?'#55595e': bl>0?'#5f86a6':'#8fc0e8'; ctx.lineWidth=3; if(bl>0) ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]); });
   (scene.outdoor?[]:(scene.doors||[])).forEach(function(d){ var fr=wallPt(d.wall), a=fr(d.at-d.w/2), b=fr(d.at+d.w/2), open=d.open!==false, L=S.DOORLIGHT[d.light]||S.DOORLIGHT.none;
@@ -238,7 +247,7 @@ function props(){
     rng('power','Výkon',1,100,1,'%'); chk('rgb','Barevné světlo (RGB)');
     if(it.rgb){ h+='<label>Barva</label><div class="row" style="align-items:center"><input type="color" data-k="color" value="'+(it.color||'#3a6bff')+'" style="flex:0 0 52px"><div class="swatches">'+['#ff2a2a','#ff8a00','#ffd400','#2adf4a','#00d4ff','#2a5bff','#8a2aff','#ff2ad4'].map(function(c){return '<button type="button" class="sw" data-sw="'+c+'" style="background:'+c+'" title="'+c+'"></button>';}).join('')+'</div></div><p class="mut">Saturované barvy mají menší jas (lux) – jako RGB světla v HSI režimu.</p>'; }
     else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m');
-    if(S.MODS[it.mod].zoom) rng('zoom','Fresnel – úhel',12,60,1,'°');
+    if(S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
     h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>';
     if(!it.rgb) selc('gel','Gel',{none:'bez gelu',cto:'CTO (oteplit)',ctb:'CTB (ochladit)'});
     if(!S.MODS[it.mod].soft){ var gb={}; Object.keys(S.GOBOS).forEach(function(k){gb[k]=S.GOBOS[k].name;}); selc('gobo','Gobo (promítaný tvar)',gb); }
@@ -378,7 +387,7 @@ function renderDoors(){ var el=$('doors'), h=''; (scene.doors||[]).forEach(funct
     div.querySelectorAll('[data-k]').forEach(function(inp){ inp.addEventListener('input',function(){ var k=inp.dataset.k; if(inp.type==='checkbox') d[k]=inp.checked; else if(inp.type==='number'){ var v=parseFloat(inp.value); if(isNaN(v)) return; d[k]=k==='w'?Math.max(0.6,v):v; } else d[k]=inp.value; var len=(d.wall==='left'||d.wall==='right')?scene.room.h:scene.room.w; d.at=Math.max(d.w/2,Math.min(len-d.w/2,d.at)); if(k==='wall'||k==='w') inp.closest('.door').querySelector('[data-k=at]').value=d.at.toFixed(1); schedule(); }); });
     div.querySelector('[data-x]').onclick=function(){ scene.doors.splice(+div.dataset.i,1); renderDoors(); schedule(); }; }); }
 $('bDoor').onclick=function(){ if(!scene.doors) scene.doors=[]; var walls=['bottom','right','top','left'], w=walls[scene.doors.length%4], len=(w==='left'||w==='right')?scene.room.h:scene.room.w; scene.doors.push(door(w,Math.round(len/2*10)/10)); renderDoors(); schedule(); };
-function syncRoom(){ renderDoors(); renderWindows(); renderVariants(); $('outdoor').checked=!!scene.outdoor; $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°'; }
+function syncRoom(){ renderDoors(); renderWindows(); renderVariants(); $('outdoor').checked=!!scene.outdoor; $('exOn').checked=!!(scene.exterior&&scene.exterior.on); $('exTrees').value=scene.exterior?scene.exterior.trees:6; $('exTreesV').textContent=$('exTrees').value; $('fmt').value=scene.format||'free'; $('walls').value=scene.walls||'normal'; $('env').value=scene.env||''; $('floor').value=scene.floor||'wood'; $('rw').value=scene.room.w; $('rh').value=scene.room.h; $('rz').value=scene.room.z||2.7; $('sky').value=scene.sky||'overcast'; $('sunOn').checked=!!scene.sun.on; $('sunElev').value=scene.sun.elev; $('sunAz').value=Math.round(((scene.sun.az*180/Math.PI)%360+360)%360); $('sunElevV').textContent=scene.sun.elev+'°'; $('sunAzV').textContent=$('sunAz').value+'°'; }
 function wallLabel(w){ return typeof w==='string' ? 'vnější '+wallName(w) : 'zeď '+(function(){ var it=byId(w); return it?fmt(S.wallLen(it),1)+' m':'?'; })(); }
 function renderWindows(){ var el=$('windows'), h=''; (scene.windows||[]).forEach(function(w,i){
     h+='<div class="win" data-i="'+i+'"><div class="hd"><b>Okno '+(i+1)+' · '+wallLabel(w.wall)+'</b><button data-x="'+i+'" title="Odebrat">✕</button></div><div class="row"><div><label>Od (m)</label><input type="number" data-k="from" step="0.1" value="'+w.from.toFixed(1)+'"></div><div><label>Do (m)</label><input type="number" data-k="to" step="0.1" value="'+w.to.toFixed(1)+'"></div><div><label>Roleta</label><select data-k="blind"><option value="none"'+(!w.blind||w.blind==='none'?' selected':'')+'>otevřená</option><option value="half"'+(w.blind==='half'?' selected':'')+'>napůl</option><option value="closed"'+(w.blind==='closed'?' selected':'')+'>zatažená</option></select></div></div></div>'; });
@@ -397,6 +406,7 @@ $('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('s
 $('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; schedule(); });
 ['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ scene.room.w=Math.max(3,parseFloat($('rw').value)||7); scene.room.h=Math.max(3,parseFloat($('rh').value)||5); scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
+$('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=false; scene.exterior={on:false,trees:6}; scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
 $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; schedule(); });
 $('quality').addEventListener('input',function(){ try{ localStorage.setItem('viewfinder-quality',$('quality').value);}catch(e){} schedule(); });
 ['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ if(id==='autoEv'){ try{ localStorage.setItem('viewfinder-autoev',$('autoEv').checked?'1':'0');}catch(e){} } $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });

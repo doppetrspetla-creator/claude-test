@@ -37,6 +37,8 @@
       <option value="sun">Dvě místnosti – příčka, slunce oknem</option>
       <option value="office">Home office – rohový stůl s počítačem</option>
       <option value="kitchen">Kuchyň – ranní slunce oknem, rozhovor</option>
+      <option value="photostudio">Fotoateliér – portrét na papírovém pozadí (ARRI, SkyPanel, Kino Flo)</option>
+      <option value="cyclo">Hala s cykloramou – postava na bílém horizontu</option>
       <option value="stream">Streamer – stůl s PC, LED panel a RGB světla</option>
       <option value="house">Dům s garáží – kuchyně, obývák, ložnice, zahrada</option>
       <option value="yard">Exteriér – dvůr s autem, slunce</option>
@@ -54,11 +56,12 @@
   <aside class="l">
     <h3>Přidat do scény</h3>
     <div class="add">
-      <button class="btn" data-add="cob100"><i>💡</i>COB 100 W</button>
-      <button class="btn" data-add="cob300"><i>💡</i>COB 300 W</button>
-      <button class="btn" data-add="cob600"><i>💡</i>COB 600 W</button>
+      <button class="btn" data-add="cob300" title="COB 100 / 300 / 600 W – výkon a modifikátor zvolíš vpravo"><i>💡</i>COB</button>
       <button class="btn" data-add="softbox" title="COB 300 W se softboxem – velikost 45 / 60 / 90 / 150 cm zvolíš vpravo v Modifikátoru"><i>🔳</i>COB + softbox</button>
+      <button class="btn" data-add="arri650" title="ARRI 650 Plus – Fresnel, spot ↔ flood posunem čočky"><i>🔦</i>Fresnel ARRI 650</button>
+      <button class="btn" data-add="skypanel" title="ARRI SkyPanel S60-C – LED panel, RGB"><i>▬</i>SkyPanel</button>
       <button class="btn" data-add="panel2" title="LED panel – typ (30×30, 60×30, matrace 60×60) zvolíš vpravo"><i>▭</i>LED panel</button>
+      <button class="btn" data-add="kinoflo" title="Kino Flo 4Bank – zářivkový panel"><i>▥</i>Kino Flo</button>
       <button class="btn" data-add="tube"><i>🔦</i>LED tuba</button>
       <button class="btn" data-add="lamp"><i>🛋️</i>Praktikál</button>
       <button class="btn" data-add="person"><i>🧑</i>Postava</button>
@@ -83,7 +86,8 @@
     <div class="list" id="objList"></div>
 
     <h3>Místnost</h3>
-    <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="20"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="20"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
+    <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="30"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="30"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
+    <label>Prostředí</label><select id="env"><option value="">vlastní místnost (kreslené stěny)</option><option value="photostudio">Fotoateliér – papírové pozadí (3D model)</option><option value="cyclorama">Hala s cykloramou – sken ateliéru (3D model)</option></select>
     <label class="chk"><input type="checkbox" id="outdoor"> Jen exteriér (bez místnosti – dvůr, ulice, louka)</label>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
     <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option></select></div></div>
@@ -152,7 +156,10 @@
       • Počítač „Desktop Computer“: autor <b>Tyler P Halterman</b>, sketchfab.com, CC BY 4.0<br>
       • Kuchyňská linka „Kitchen Counter“: autor <b>euanford12321</b>, sketchfab.com, CC BY 4.0<br>
       • Stromy „Tree low poly“: autor <b>00amza</b>, sketchfab.com, CC BY 4.0<br>
-      • Pracovní stůl „PC Desk“: autor <b>Ren Viro Store</b>, sketchfab.com, CC BY 4.0</p>
+      • Pracovní stůl „PC Desk“: autor <b>Ren Viro Store</b>, sketchfab.com, CC BY 4.0<br>
+      • Fotoateliér „Photo Studio“: autor <b>Zachey</b>, sketchfab.com, CC BY 4.0<br>
+      • Hala „Studio Scan with Cyclorama for realtime VR“: autor <b>tojek_vfx</b>, sketchfab.com, CC BY 4.0<br>
+      • Světla ARRI SkyPanel, ARRI 650, Kino Flo a filmová kamera: autor bude doplněn</p>
       <p><b>Knihovny:</b> Three.js (MIT). Textury a nábytek jsou generované procedurálně.</p>
       <p class="mut">Hodnoty luxů jsou přibližné; principy (vzdálenost, velikost zdroje, směr, stíny, poměry) odpovídají realitě.</p>
     </div></div></div>

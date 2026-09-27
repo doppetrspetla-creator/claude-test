@@ -261,12 +261,15 @@ function addLight(L, res) {
     return;
   }
   const w = P.size, h = P.size * (P.aspect || 0.75);
+  const headG = P.fx.model && L.mod === P.fx.defMod ? modelFor(P.fx.model) : null; // 3D model hlavy světla (SkyPanel, ARRI 650, Kino Flo)
+  if (headG) lightHead(g, headG, pos, tgt, P.fx.headOff || 0);
   if (P.soft) {
     const rl = new THREE.RectAreaLight(k.color, E1 * ((lastOpts.shadows && Q().soft > 0) ? 0.6 : 1) / (w * h), w, h); rl.position.copy(pos); rl.lookAt(tgt); g.add(rl); addBeam(g, pos, tgt, P.beam / 2 * Math.PI / 180 * 0.6, k.color, E1, true);
     // vizuální panel softboxu
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lumL(k.color, E1 / (w * h)));
     panel.position.copy(pos); panel.lookAt(tgt); panel.position.add(dir.clone().multiplyScalar(-0.01)); g.add(panel);
-    if (P.mod.panel) { // LED panel: tenké tělo s rámečkem místo kužele softboxu
+    if (headG) { /* tělo = 3D model */ }
+    else if (P.mod.panel) { // LED panel: tenké tělo s rámečkem místo kužele softboxu
       const body = new THREE.Mesh(new THREE.BoxGeometry(w + 0.03, h + 0.03, 0.04), MAT.shoe);
       body.position.copy(pos).add(dir.clone().multiplyScalar(-0.035)); body.lookAt(tgt); g.add(body);
     } else {
@@ -287,13 +290,30 @@ function addLight(L, res) {
     sp.position.copy(pos); if (hq.active) { const rr = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize(), uu = new THREE.Vector3().crossVectors(rr, dir).normalize(); sp.position.add(rr.multiplyScalar(jit() * P.size)).add(uu.multiplyScalar(jit() * P.size)); } sp.target.position.copy(tgt); sp.castShadow = !!lastOpts.shadows; sp.shadow.mapSize.set(Q().spot, Q().spot); sp.shadow.bias = -0.0015; sp.shadow.radius = L.diff ? 6 : 2;
     if (L.gobo && L.gobo !== 'none' && S.GOBOS[L.gobo]) { sp.map = goboTexture(L.gobo); sp.castShadow = true; sp.shadow.focus = 1; }
     g.add(sp); g.add(sp.target); addBeam(g, pos, tgt, half, k.color, E1, false);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body);
-    const face = new THREE.Mesh(new THREE.CircleGeometry(0.075, 16), lumL(k.color, E1 / 0.018)); face.position.copy(pos).add(dir.clone().multiplyScalar(0.115)); face.lookAt(tgt); g.add(face);
+    const fOff = headG ? (P.fx.faceOff || 0.115) : 0.115, fR = headG ? (P.fx.faceR || 0.075) : 0.075, tdir = tgt.clone().sub(pos).normalize();
+    if (!headG) { const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.22, 16), MAT.metal); body.position.copy(pos); body.lookAt(tgt); body.rotateX(-Math.PI / 2); g.add(body); }
+    const face = new THREE.Mesh(new THREE.CircleGeometry(fR, 24), lumL(k.color, E1 / (0.018 * fR * fR / 0.0056))); face.position.copy(pos).add((headG ? tdir : dir).clone().multiplyScalar(fOff)); face.lookAt(tgt); g.add(face);
     if (L.diff) { const d = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), lumL(k.color, E1 / 0.35)); d.material.transparent = true; d.material.opacity = 0.7; d.material.side = THREE.DoubleSide; d.position.copy(pos).add(dir.clone().multiplyScalar(0.18)); d.lookAt(tgt); g.add(d); }
   }
-  stand(L.x, L.y, P.h, g);
+  // u plochých hlav (SkyPanel, Kino Flo) končí stojan pod spodní hranou, aby tyč nešla přes svítící plochu
+  const hb = headG && P.soft ? headBox(headG) : null;
+  stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : P.h, g);
 }
 
+// filmová kamera na dřevěném stativu: objektiv ve výšce ch (stativ se natáhne / zkrátí)
+const FILMCAM_LENS = 1.22, FILMCAM_TOP = 1.085;
+function filmCamera(parent, gltf, ch) {
+  const src = gltf.scene, trip = src.getObjectByName('tripod'), cam = src.getObjectByName('cam'); if (!trip || !cam) return;
+  const t = trip.clone(true); t.scale.y = Math.max(0.1, (ch - (FILMCAM_LENS - FILMCAM_TOP)) / FILMCAM_TOP); parent.add(t);
+  const c = cam.clone(true); c.position.y = ch - FILMCAM_LENS; parent.add(c);
+}
+const headBoxes = new WeakMap();
+function headBox(gltf) { let b = headBoxes.get(gltf); if (!b) { const bb = new THREE.Box3().setFromObject(gltf.scene); b = { y: (bb.max.y - bb.min.y) / 2 }; headBoxes.set(gltf, b); } return b; }
+// 3D model hlavy světla: model má přední stranu na +x, střed v počátku; natočí se k cíli, off = posun podél osy světla (m)
+function lightHead(g, gltf, pos, tgt, off) {
+  const d = tgt.clone().sub(pos).normalize(), holder = new THREE.Group(); holder.position.copy(pos).add(d.multiplyScalar(off)); holder.lookAt(tgt);
+  const inst = gltf.scene.clone(true); inst.rotation.y = -Math.PI / 2; holder.add(inst); g.add(holder);
+}
 function limb(mat, r, len, g, x, y, z, rx, rz) {
   const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
 }
@@ -301,7 +321,7 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', encodeURIComponent(p)) : p; }
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
 const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 } };
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
@@ -592,6 +612,13 @@ function addExterior(sc) {
   // vzdálený horizont (pás keřů/lesa), aby nebyla obloha úplně prázdná
   const hedge = new THREE.Mesh(new THREE.CylinderGeometry(38, 38, 2.2, 48, 1, true), ext(0x35592a, 'fabric', 30)); hedge.position.set(W / 2, 1.1, H / 2); hedge.material.side = THREE.BackSide; group.add(hedge);
 }
+// prostředí jako 3D model (fotoateliér, hala s cykloramou) místo procedurálních stěn
+function addEnv(sc) {
+  const E = sc.env && S.ENVS[sc.env]; if (!E) return false; const gl = modelFor(E.model); if (!gl) return false;
+  const inst = gl.scene.clone(true); inst.position.set(E.off[0], 0, E.off[1]);
+  inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = true; if (o.material && o.material.emissive && o.material.emissiveIntensity > 0 && !o.material.emissiveMap) o.material = o.material.clone(), o.material.emissiveIntensity = 0; } });
+  group.add(inst); return true;
+}
 function addRoom(sc) {
   const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7;
   if (sc.outdoor) return; // exteriér: zem, obloha a stromy dělá addExterior
@@ -671,13 +698,14 @@ function sync(sc, res, meas, opts) {
   if (!hq.building) stopHQ();
   applyQualityRatio();
   clear(group); pendingLift = [];
-  scene3.background = new THREE.Color(0x000000); addExterior(sc); addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
+  scene3.background = new THREE.Color(0x000000); addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
     if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res); if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
     else if (it.kind === 'person') addPerson(it);
     else if (it.kind === 'bounce') addBounce(it, res);
     else if (it.kind === 'flag') { const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -it.rot; const m = new THREE.Mesh(new THREE.PlaneGeometry(it.len, 0.9), MAT.flag); m.position.y = 1.5; m.castShadow = true; g.add(m); stand(0, 0, 1.05, g); group.add(g); }
     else if (it.kind === 'box' || it.kind === 'furniture') addFurniture(it);
+    else if (it.kind === 'camera' && modelFor('filmcam')) { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; filmCamera(camMesh, modelFor('filmcam'), it.h == null ? 1.5 : it.h); group.add(camMesh); }
     else if (it.kind === 'camera') { camMesh = new THREE.Group(); camMesh.position.set(it.x, 0, it.y); camMesh.rotation.y = -it.rot; const ch = it.h == null ? 1.5 : it.h; const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.13), MAT.metal); b.position.y = ch + 0.07; camMesh.add(b); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.047, 0.14, 14), MAT.metal); l.position.set(0.18, ch + 0.07, 0); l.rotation.z = -Math.PI / 2; camMesh.add(l); const lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 12), MAT.eye); lens.position.set(0.251, ch + 0.07, 0); lens.rotation.y = Math.PI / 2; camMesh.add(lens); const mon = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.14), MAT.metal); mon.position.set(-0.1, ch + 0.2, 0.05); camMesh.add(mon); tripod(camMesh, ch); group.add(camMesh); }
   });
   group.updateMatrixWorld(true); pendingLift.forEach(a => liftHands(a[0], a[1], a[2])); pendingLift = [];
