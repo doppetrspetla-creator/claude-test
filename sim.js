@@ -78,6 +78,11 @@
     items.forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); });
     var types = {}; items.forEach(function (i) { if (i.kind === 'furniture' && FURNITURE[i.type] && FURNITURE[i.type].credit) types[i.type] = 1; });
     if (exteriorTrees(scene).length) types.tree = 1;
+    var outside = scene.outdoor || (scene.exterior && scene.exterior.on);
+    if ((scene.windows || []).length && !scene.outdoor) out.push('3D model „Plastic window“: Annelida (sketchfab.com), licence CC BY 4.0');
+    if ((scene.doors || []).some(function (d) { return d.w <= 1.4; }) && !scene.outdoor) out.push('3D model „Door with frame“: witnessk (sketchfab.com), licence CC BY 4.0');
+    if (outside && scene.fence !== false) out.push('3D model „Fence (Wood)“: trentspi (sketchfab.com), licence CC BY 4.0');
+    if (outside || (scene.windows || []).length) out.push('3D model „FREE - SkyBox Basic Sky“: Paul (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push('3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0');
     Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
@@ -156,6 +161,7 @@
       if (it.kind === 'wall') {
         var L = wallLen(it), ops = [], cur = 0;
         (scene.windows || []).forEach(function (w) { if (w.wall === it.id) ops.push([w.from, w.to]); });
+        (scene.doors || []).forEach(function (d) { if (d.wall === it.id && d.open !== false) ops.push([d.at - d.w / 2, d.at + d.w / 2]); });
         ops.sort(function (p, q) { return p[0] - q[0]; });
         ops.forEach(function (o) { if (o[0] > cur) { var a = wallPoint(it, cur), b = wallPoint(it, o[0]); segs.push([a[0], a[1], b[0], b[1]]); } cur = Math.max(cur, o[1]); });
         if (cur < L) { var a2 = wallPoint(it, cur), b2 = wallPoint(it, L); segs.push([a2[0], a2[1], b2[0], b2[1]]); }
@@ -317,7 +323,7 @@
   function doorEmitters(scene) {
     var out = []; if (scene.outdoor) return out;
     (scene.doors || []).forEach(function (d) {
-      var L = DOORLIGHT[d.light] || DOORLIGHT.none; if (d.open === false || L.E <= 0) return;
+      var L = DOORLIGHT[d.light] || DOORLIGHT.none; if (typeof d.wall !== 'string' || d.open === false || L.E <= 0) return; // dveře v nakreslené zdi = průchod mezi místnostmi
       var pts = [], n = 8, nx, ny, from = d.at - d.w / 2, to = d.at + d.w / 2;
       for (var i = 0; i < n; i++) {
         var t = from + (i + 0.5) / n * d.w;

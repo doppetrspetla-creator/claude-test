@@ -133,6 +133,10 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Pracovní stůl „PC Desk“: **Ren Viro Store**, sketchfab.com, CC BY 4.0
 - Fotoateliér „Photo Studio“: **Zachey**, sketchfab.com, CC BY 4.0
 - Hala „Studio Scan with Cyclorama for realtime VR“: **tojek_vfx**, sketchfab.com, CC BY 4.0 (odstraněno robotické rameno a oktabox)
+- Plastové okno „Plastic window“: **Annelida**, sketchfab.com, CC BY 4.0
+- Dveře „Door with frame“: **witnessk**, sketchfab.com, CC BY 4.0
+- Plot „Fence (Wood)“: **trentspi**, sketchfab.com, CC BY 4.0
+- Obloha „FREE - SkyBox Basic Sky“: **Paul**, sketchfab.com, CC BY 4.0
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo a filmová kamera (FBX): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené

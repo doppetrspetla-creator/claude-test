@@ -95,6 +95,7 @@
     <label class="chk"><input type="checkbox" id="exOn"> Zahrada kolem domu (tráva, stromy, obloha)</label>
     <label>Počet stromů <span id="exTreesV" class="pill">6</span></label>
     <input type="range" id="exTrees" min="0" max="14" step="1" value="6">
+    <label class="chk"><input type="checkbox" id="fenceOn" checked> Dřevěný plot kolem pozemku / dvora</label>
     <h3>Okna a obloha</h3>
     <label>Obloha</label><select id="sky"><option value="overcast">zataženo</option><option value="sunny">jasno</option><option value="dusk">soumrak</option></select>
     <div id="windows"></div>
@@ -127,7 +128,7 @@
 
   <main id="center">
     <div id="planWrap" class="pane"><div class="paneTitle">Půdorys · 1 díl = 1 m <span id="toolHint" class="pill"></span></div><canvas id="stage"></canvas>
-      <div class="camTools" id="tools"><button class="btn sm gold" data-tool="select" title="Výběr a přesun (Esc)">Vybrat</button><button class="btn sm" data-tool="wall" title="Kreslit zeď tažením (W)">Zeď</button><button class="btn sm" data-tool="window" title="Označit okno tažením podél zdi (O)">Okno</button></div>
+      <div class="camTools" id="tools"><button class="btn sm gold" data-tool="select" title="Výběr a přesun (Esc)">Vybrat</button><button class="btn sm" data-tool="wall" title="Kreslit zeď tažením (W)">Zeď</button><button class="btn sm" data-tool="window" title="Označit okno tažením podél zdi (O)">Okno</button><button class="btn sm" data-tool="door" title="Vložit dveře kliknutím na zeď (i do příčky)">Dveře</button></div>
     </div>
     <div id="camWrap" class="pane"><div class="paneTitle">Pohled kamery <span id="camInfo" class="pill"></span></div><canvas id="view3d"></canvas>
       <div id="camHint" class="camHint">Přidej kameru a postavu.</div>
@@ -159,6 +160,10 @@
       • Pracovní stůl „PC Desk“: autor <b>Ren Viro Store</b>, sketchfab.com, CC BY 4.0<br>
       • Fotoateliér „Photo Studio“: autor <b>Zachey</b>, sketchfab.com, CC BY 4.0<br>
       • Hala „Studio Scan with Cyclorama for realtime VR“: autor <b>tojek_vfx</b>, sketchfab.com, CC BY 4.0<br>
+      • Plastové okno „Plastic window“: autor <b>Annelida</b>, sketchfab.com, CC BY 4.0<br>
+      • Dveře „Door with frame“: autor <b>witnessk</b>, sketchfab.com, CC BY 4.0<br>
+      • Plot „Fence (Wood)“: autor <b>trentspi</b>, sketchfab.com, CC BY 4.0<br>
+      • Obloha „FREE - SkyBox Basic Sky“: autor <b>Paul</b>, sketchfab.com, CC BY 4.0<br>
       • Světla ARRI SkyPanel, ARRI 650, Kino Flo a filmová kamera: autor bude doplněn</p>
       <p><b>Knihovny:</b> Three.js (MIT). Textury a nábytek jsou generované procedurálně.</p>
       <p class="mut">Hodnoty luxů jsou přibližné; principy (vzdálenost, velikost zdroje, směr, stíny, poměry) odpovídají realitě.</p>
