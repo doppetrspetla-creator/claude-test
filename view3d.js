@@ -293,7 +293,31 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', encodeURIComponent(p)) : p; }
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' } };
+// usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
+const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 } };
+// strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
+function treeProto(gltf, v) {
+  if (!gltf.userData.protos) {
+    gltf.scene.updateMatrixWorld(true); const list = [];
+    gltf.scene.traverse(o => { if (o.isMesh) list.push(o); });
+    list.sort((a, b) => a.name < b.name ? -1 : 1);
+    gltf.userData.protos = list.map(m => { const c = m.clone(); m.matrixWorld.decompose(c.position, c.quaternion, c.scale);
+      c.material = m.material.clone(); c.material.transparent = false; c.material.alphaTest = 0.45; c.material.side = THREE.DoubleSide; c.material.depthWrite = true;
+      const g = new THREE.Group(); g.add(c); const bb = new THREE.Box3().setFromObject(g, true), ctr = bb.getCenter(new THREE.Vector3()); c.position.x -= ctr.x; c.position.z -= ctr.z; c.position.y -= bb.min.y; return g; });
+  }
+  const P = gltf.userData.protos; return P[(v || 0) % P.length];
+}
+function fitModelInto(g, gltf, key, w, d, h, elev, it) {
+  const cfg = MODEL_FIT[key], src = key === 'tree' ? treeProto(gltf, it && it.variant) : gltf.scene;
+  const n = cfg.tile ? Math.max(1, Math.round(d / cfg.tile)) : 1, segD = d / n;
+  for (let i = 0; i < n; i++) {
+    const inst = src.clone(true); inst.traverse(o => { if (o.isMesh && o.material && o.material.transparent) o.material.depthWrite = false; });
+    const outer = new THREE.Group(), rotG = new THREE.Group(); rotG.rotation.y = cfg.rot; rotG.add(inst); outer.add(rotG); outer.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(rotG, true), sz = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+    rotG.position.set(-c.x, -bb.min.y, -c.z); outer.scale.set(w / sz.x, h / sz.y, segD / sz.z); outer.position.set(0, elev || 0, -d / 2 + segD * (i + 0.5)); g.add(outer);
+  }
+}
 function modelFor(id) {
   const m = S.MODELS[id] || EXTRA_MODELS[id]; if (!m || !m.file) return null;
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
@@ -407,6 +431,7 @@ function cushion(g, mat, w, h, d, x, y, z) { const r = Math.min(w, h) / 2; const
 function addFurniture(it) {
   const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -(it.rot || 0); group.add(g);
   const f = S.FURNITURE[it.type] || S.FURNITURE.block, w = it.w || f.w, d = it.d || f.d, t = it.type;
+  if (MODEL_FIT[t]) { const gl = modelFor(t); if (gl) { fitModelInto(g, gl, t, w, d, it.h != null ? it.h : f.h, it.elev != null ? it.elev : (f.elev || 0), it); return; } }
   const fabric = texMat('fabric', 0x4e5a70, { roughness: 1, bumpScale: 0.3 }), fabric2 = texMat('fabric', 0x5b6780, { roughness: 1, bumpScale: 0.3 }), bedding = texMat('cloth', 0xe4dfd3, { roughness: 1, bumpScale: 0.2 }), blanket = texMat('fabric', 0x7a6a5a, { roughness: 1, bumpScale: 0.3 });
   if (t === 'sofa' || t === 'armchair') {
     box(g, fabric, w, 0.22, d, 0, 0.16, 0);                                   // rám
@@ -447,9 +472,10 @@ function addFurniture(it) {
     [0.03, 0.4, 0.8, 1.2, 1.6, f.h - 0.03].forEach(y => box(g, MAT.wood, w, 0.03, d, 0, y, 0));
     box(g, MAT.wood, 0.03, f.h, d, -w / 2 + 0.015, f.h / 2, 0); box(g, MAT.wood, 0.03, f.h, d, w / 2 - 0.015, f.h / 2, 0);
     const r = mulberry(77); [0.4, 0.8, 1.2, 1.6].forEach(y => { let x = -w / 2 + 0.06; while (x < w / 2 - 0.08) { const bw = 0.025 + r() * 0.03, bh = 0.2 + r() * 0.13; const bk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d * 0.7), new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(r(), 0.4, 0.3 + r() * 0.3), roughness: 0.8 })); bk.position.set(x + bw / 2, y + bh / 2 + 0.015, 0); g.add(bk); x += bw + 0.004; if (r() < 0.15) x += 0.08; } });
-  } else { const hh = it.h == null ? (it.tall ? 2.0 : f.h) : it.h;
+  } else if (t === 'tree') { const hh = it.h || f.h; const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, hh * 0.45, 8), MAT.wood); tr.position.y = hh * 0.225; g.add(tr); const cr = new THREE.Mesh(new THREE.SphereGeometry(w / 2, 12, 10), new THREE.MeshStandardMaterial({ color: 0x3f7a33, roughness: 1 })); cr.position.y = hh * 0.65; g.add(cr);
+  } else { const hh = it.h == null ? (it.tall ? 2.0 : f.h) : it.h; const el = it.elev != null ? it.elev : (f.elev || 0);
     const mats = { wood: MAT.wood, white: texMat('plaster', 0xe8e4dc, { roughness: 0.6, bumpScale: 0.1 }), dark: texMat('plaster', 0x2c2a28, { roughness: 0.7, bumpScale: 0.1 }), metal: MAT.chrome, concrete: texMat('concrete', 0x8a8a8a, { roughness: 0.9 }), fabric: texMat('fabric', 0x6a6f7a, { roughness: 1 }) };
-    box(g, mats[it.mat] || MAT.wood, w, hh, d, 0, hh / 2, 0); }
+    box(g, mats[it.mat] || MAT.wood, w, hh, d, 0, el + hh / 2, 0); }
 }
 
 function addBounce(b, res) {
@@ -499,7 +525,7 @@ function wallFrame(sc, side) {
 }
 function addExterior(sc) {
   const ex = sc.exterior; if (!(ex && ex.on) && !sc.outdoor) return;
-  const sk = S.SKY[sc.sky] || S.SKY.overcast, W = sc.room.w, H = sc.room.h, k = kel(sk.cct), Lsky = sk.E / Math.PI;
+  const sk = S.SKY[sc.sky] || S.SKY.overcast, W = sc.room.w, H = sc.room.h, k = kel(sk.cct), k2 = k, Lsky = sk.E / Math.PI;
   const skyTint = sc.sky === 'sunny' ? new THREE.Color(0.55, 0.72, 1.0) : sc.sky === 'dusk' ? new THREE.Color(0.55, 0.5, 0.75) : new THREE.Color(0.85, 0.87, 0.9);
   // obloha jako kopule (tone-mapovaná spolu se scénou – barva pozadí by expozici ignorovala), přechod obzor → zenit
   { const R = 48, geo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
@@ -514,8 +540,15 @@ function addExterior(sc) {
   if (!sc.outdoor) { const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.12, H + 0.6), ext(0x8c8880, 'concrete', 4)); slab.position.set(W / 2, -0.06, H / 2); group.add(slab); }
   else { const pav = new THREE.Mesh(new THREE.PlaneGeometry(W, H), surfMat(sc.floor === 'wood' ? 'wood' : FLOORTEX[sc.floor || 'grey'], sc.floor === 'wood' ? 0x8a6444 : (sc.floor === 'dark' ? 0x3a3a3a : 0x8d8d88), W / 2, H / 2, { roughness: 0.9 })); pav.rotation.x = -Math.PI / 2; pav.position.set(W / 2, 0.005, H / 2); pav.receiveShadow = true; group.add(pav); }
   const trunkMat = ext(0x5a4030, 'wood', 1), leafMat = ext(0x3f7a33, 'fabric', 3), conMat = ext(0x2f5a2c, 'fabric', 3);
+  const treeGl = modelFor('tree');
   (sc.outdoor && !(ex && ex.on) ? [] : S.exteriorTrees(sc)).forEach(t => {
     const g = new THREE.Group(); g.position.set(t.x, 0, t.y); group.add(g);
+    if (treeGl) { // model stromu; mimo režim „jen exteriér“ dostane jas oblohy jako emisi (uvnitř domu je okolní světlo slabé)
+      const pr = treeProto(treeGl, t.kind === 'b' ? 1 : 0), inst = pr.clone(true), bb = new THREE.Box3().setFromObject(pr, true), k = t.h / (bb.max.y - bb.min.y);
+      inst.scale.setScalar(k); inst.rotation.y = t.rot || 0;
+      if (!sc.outdoor) inst.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.emissive = k2.color.clone(); o.material.emissiveMap = o.material.map; o.material.emissiveIntensity = Lsky * 0.3; } });
+      g.add(inst); g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return;
+    }
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, t.h * 0.45, 8), trunkMat); trunk.position.y = t.h * 0.225; g.add(trunk);
     if (t.kind === 'conifer') { [0, 1, 2].forEach(i => { const c = new THREE.Mesh(new THREE.ConeGeometry(t.r * (1 - i * 0.25), t.h * 0.35, 10), conMat); c.position.y = t.h * 0.35 + i * t.h * 0.2; g.add(c); }); }
     else { [[0, t.h * 0.62, 0, 1], [t.r * 0.5, t.h * 0.75, t.r * 0.2, 0.75], [-t.r * 0.45, t.h * 0.7, -t.r * 0.3, 0.7], [0, t.h * 0.85, 0, 0.6]].forEach(o => { const b = new THREE.Mesh(new THREE.SphereGeometry(t.r * o[3], 12, 10), leafMat); b.position.set(o[0], o[1], o[2]); b.scale.y = 0.85; g.add(b); }); }
@@ -605,7 +638,7 @@ function sync(sc, res, meas, opts) {
   clear(group);
   scene3.background = new THREE.Color(0x000000); addExterior(sc); addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); });
   sc.items.forEach(it => {
-    if (it.kind === 'light') addLight(it, res);
+    if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res); if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
     else if (it.kind === 'person') addPerson(it);
     else if (it.kind === 'bounce') addBounce(it, res);
     else if (it.kind === 'flag') { const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -it.rot; const m = new THREE.Mesh(new THREE.PlaneGeometry(it.len, 0.9), MAT.flag); m.position.y = 1.5; m.castShadow = true; g.add(m); stand(0, 0, 1.05, g); group.add(g); }

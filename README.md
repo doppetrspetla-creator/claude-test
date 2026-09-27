@@ -125,6 +125,14 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Muž – vesta a kravata: **1-3D.com**, sketchfab.com
 - Pózy: animace Mixamo (Adobe), přemapované na kostru modelů
 - Auto „Classic Muscle car“: **Lexyc16**, sketchfab.com, CC BY 4.0
+- Postel „Bed“: **rickmaolly**, sketchfab.com, CC BY 4.0
+- Rohový stůl „L shape desk, drawers and shelfs“: **fthylmaz**, sketchfab.com, CC BY 4.0
+- Počítač „Desktop Computer“: **Tyler P Halterman**, sketchfab.com, CC BY 4.0
+- Kuchyňská linka „Kitchen Counter“: **euanford12321**, sketchfab.com, CC BY 4.0
+- Stromy „Tree low poly“: **00amza**, sketchfab.com, CC BY 4.0
+
+Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené
+v `models/*.glb.js` stejně jako postavy.
 
 ## Struktura
 

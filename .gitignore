@@ -2,3 +2,8 @@
 Thumbs.db
 models/*.glb
 models/car.glb
+models/bed.glb
+models/ldesk.glb
+models/pc.glb
+models/kitchen.glb
+models/tree.glb

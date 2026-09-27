@@ -34,11 +34,15 @@
     armchair: { name: 'Křeslo', w: 0.9, d: 0.9, h: 0.85, tall: false },
     table:    { name: 'Stůl', w: 1.2, d: 0.7, h: 0.75, tall: false },
     coffee:   { name: 'Konferenční stolek', w: 0.9, d: 0.5, h: 0.45, tall: false },
-    bed:      { name: 'Postel', w: 1.6, d: 2.0, h: 0.5, tall: false },
+    bed:      { name: 'Postel (manželská)', w: 2.2, d: 1.76, h: 1.06, tall: false, credit: 'rickmaolly', title: 'Bed' },
     wardrobe: { name: 'Skříň', w: 1.2, d: 0.6, h: 2.1, tall: true },
     shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true },
     block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false },
-    car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false }
+    car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false, credit: 'Lexyc16', title: 'Classic Muscle car' },
+    ldesk:    { name: 'Rohový stůl (L) s nástavbou', w: 2.11, d: 1.55, h: 1.57, tall: false, top: 0.75, credit: 'fthylmaz', title: 'L shape desk, drawers and shelfs' },
+    pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer' },
+    kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter' },
+    tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly' }
   };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
@@ -48,7 +52,15 @@
     muz1:  { name: 'Muž – vesta a kravata', file: 'models/muz1.glb', stand: 1.71, sit: 1.30, credit: '1-3D.com', license: 'CC BY 4.0', source: 'sketchfab.com' }
   };
   // atribuce pro použité modely (CC BY vyžaduje uvedení autora)
-  function credits(scene) { var out = [], seen = {}; (scene.items || []).forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); }); if ((scene.items || []).some(function (i) { return i.kind === 'furniture' && i.type === 'car'; })) out.push('3D model auta „Classic Muscle car“: Lexyc16 (sketchfab.com), licence CC BY 4.0'); out.push('Animace: Mixamo (Adobe)'); return out; }
+  function credits(scene) {
+    var out = [], seen = {}, items = scene.items || [];
+    items.forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); });
+    var types = {}; items.forEach(function (i) { if (i.kind === 'furniture' && FURNITURE[i.type] && FURNITURE[i.type].credit) types[i.type] = 1; });
+    if (exteriorTrees(scene).length) types.tree = 1;
+    Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
+    if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
+    return out;
+  }
   // pózy = klipy v modelech; sit: obličej ve výšce sedu
   var POSES = { stand: { name: 'Stojí (klid)', clip: 'idle', sit: false }, sit: { name: 'Sedí', clip: 'sit', sit: true }, talk: { name: 'Mluví (gesta)', clip: 'talk', sit: false }, point: { name: 'Ukazuje', clip: 'point', sit: false }, phone: { name: 'Telefonuje', clip: 'phone', sit: false }, type: { name: 'Píše na klávesnici (sedí)', clip: 'type', sit: true }, walk: { name: 'Jde', clip: 'walk', sit: false }, clap: { name: 'Tleská', clip: 'clap', sit: false }, lean: { name: 'Opírá se (zády ke zdi)', clip: 'lean', sit: false, face: 0.94 }, look: { name: 'Rozhlíží se', clip: 'look', sit: false }, crouch: { name: 'Dřepí', clip: 'crouch', sit: false, face: 0.68 }, lay: { name: 'Leží (na zádech)', clip: 'lay', sit: false, face: 0.13, lay: true } };
   function faceZ(person) { if (!person) return FACE_Z; var m = MODELS[person.model] || MODELS.proc, ps = POSES[person.pose] || POSES.stand; return ps.sit ? m.sit : (ps.face ? m.stand * ps.face : m.stand); }
@@ -160,6 +172,12 @@
   }
   // sedadla v autě (poměr k délce/šířce auta): řidič vlevo, spolujezdec vpravo
   function carSeat(car, which) { var fx = -0.04 * car.w, fy = (which === 'passenger' ? 0.2 : -0.2) * car.d, r = car.rot || 0, c = Math.cos(r), sn = Math.sin(r); return { x: car.x + fx * c - fy * sn, y: car.y + fx * sn + fy * c, rot: r }; }
+  function deskSpots(desk) {
+    var w = desk.w, d = desk.d, aw = 0.6 * w / 2.11, ad = 0.6 * d / 1.55, r = desk.rot || 0, c = Math.cos(r), sn = Math.sin(r);
+    function P(lx, lz) { return { x: desk.x + lx * c - lz * sn, y: desk.y + lx * sn + lz * c }; }
+    var ps = P(-w / 2 + aw + 0.42, -d / 2 + ad + 0.42), pc = P(-w / 2 + aw * 0.5, -d / 2 + ad * 0.5), top = (desk.h || 1.57) * 0.75 / 1.57;
+    return { person: { x: ps.x, y: ps.y, rot: r - 3 * Math.PI / 4 }, pc: { x: pc.x, y: pc.y, rot: r + Math.PI / 4, elev: top } };
+  }
   function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
   // zorné úhly kamery (rad) pro ohnisko (mm, full frame 36×24) a poměr stran záběru
   var FORMATS = { free: { name: 'volný (podle okna)', a: 0 }, '43': { name: '4:3', a: 4 / 3 }, '169': { name: '16:9', a: 16 / 9 }, '916': { name: '9:16 (na výšku)', a: 9 / 16 }, scope: { name: '2.39:1 cinemascope', a: 2.39 } };
@@ -175,7 +193,7 @@
     for (var i = 0; i < n; i++) {
       var a = (i + 0.5) / n * Math.PI * 2 + (rnd() - 0.5) * 0.6, r = 2.5 + rnd() * 4;
       var cx = W / 2 + Math.cos(a) * (W / 2 + r), cy = H / 2 + Math.sin(a) * (H / 2 + r);
-      out.push({ x: cx, y: cy, h: 3.5 + rnd() * 3, r: 1.2 + rnd() * 1.2, kind: rnd() < 0.3 ? 'conifer' : 'leaf' });
+      var th = 4.5 + rnd() * 3.5; out.push({ x: cx, y: cy, h: th, r: th * 0.3, kind: rnd() < 0.5 ? 'a' : 'b', rot: rnd() * 6.283 });
     }
     return out;
   }
@@ -368,6 +386,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { sunCCT: sunCCT, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, deskSpots: deskSpots, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
