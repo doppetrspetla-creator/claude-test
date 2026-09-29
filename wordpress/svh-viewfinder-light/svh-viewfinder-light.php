@@ -715,6 +715,9 @@ function svhvl_rewrite_html( $html ) {
 		}
 		return esc_url( add_query_arg( array( SVHVL_QUERY => $file, 'v' => $ver ), home_url( '/' ) ) );
 	};
+	if ( ! $pretty ) { // bez vlastní adresy /viewfinder-app/ instalace nejde – manifest vynechat (ikony v něm by vedly mimo aplikaci)
+		$html = preg_replace( '#<link rel="manifest"[^>]*>\s*#i', '', $html );
+	}
 	// src="app.js", href="style.css", src="vendor/three-bundle.js" … (jen relativní cesty bez schématu)
 	$html = preg_replace_callback( '#\b(src|href)="(?![a-z]+:|//|\#|data:)([^"]+\.(?:js|css|json|png|jpe?g|webp|svg|woff2?|glb|gltf|bin))"#i', function ( $m ) use ( $proxy ) {
 		return $m[1] . '="' . $proxy( $m[2] ) . '"';
