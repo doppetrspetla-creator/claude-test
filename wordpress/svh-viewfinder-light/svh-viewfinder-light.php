@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:  Špetla Film – Viewfinder Light
- * Description:  Webová aplikace Viewfinder Light (simulátor nasvícení) pro zákazníky, kteří koupili vybrané produkty. Objeví se v „Můj účet“ a otevírá se na celou obrazovku. Build aplikace se nahrává v administraci jako ZIP, soubory se servírují přes PHP až po ověření nákupu (wc_customer_bought_product), rozpracovaná scéna se ukládá do účtu.
- * Version:      1.0.0
+ * Description:  Webová aplikace Viewfinder Light (simulátor nasvícení) pro zákazníky, kteří koupili vybrané produkty. Objeví se v „Můj účet“ a otevírá se na celou obrazovku. Build aplikace se nahrává v administraci jako ZIP, soubory se servírují přes PHP až po ověření nákupu (dokončená objednávka), rozpracovaná scéna se ukládá do účtu. Do e-mailů k objednávce, na děkovací stránku a do detailu objednávky vkládá blok „Vstup do aplikace“.
+ * Version:      1.1.0
  * Author:       Špetla Film
  * Requires Plugins: woocommerce
  */
@@ -61,19 +61,31 @@ function svhvl_user_has_access( $user_id = 0 ) {
 	if ( user_can( $user_id, 'manage_woocommerce' ) ) {
 		return true;
 	}
-	if ( ! function_exists( 'wc_customer_bought_product' ) ) {
+	if ( ! function_exists( 'wc_get_orders' ) ) {
 		return false;
 	}
 	$user = get_userdata( $user_id );
-	if ( ! $user ) {
+	if ( ! $user || ! svhvl_products() ) {
 		return false;
 	}
-	foreach ( svhvl_products() as $pid ) {
-		if ( wc_customer_bought_product( $user->user_email, $user_id, $pid ) ) {
-			return true;
+	static $cache = array();
+	if ( isset( $cache[ $user_id ] ) ) {
+		return $cache[ $user_id ];
+	}
+	// Přístup dává jen DOKONČENÁ objednávka (ne „zpracovává se“, „čeká na platbu“ apod.):
+	// objednávky účtu + objednávky bez účtu se stejným e-mailem.
+	$orders = array_merge(
+		wc_get_orders( array( 'customer_id' => $user_id, 'status' => array( 'wc-completed' ), 'limit' => -1 ) ),
+		wc_get_orders( array( 'billing_email' => $user->user_email, 'status' => array( 'wc-completed' ), 'limit' => -1 ) )
+	);
+	$cache[ $user_id ] = false;
+	foreach ( $orders as $order ) {
+		if ( svhvl_order_has_app( $order ) ) {
+			$cache[ $user_id ] = true;
+			break;
 		}
 	}
-	return false;
+	return $cache[ $user_id ];
 }
 
 /** Odkaz na první nastavený produkt (pro tlačítko koupě). */
@@ -283,7 +295,7 @@ function svhvl_settings_page() {
 					<th scope="row"><label for="svhvl_products">ID produktů ve WooCommerce</label></th>
 					<td>
 						<input type="text" id="svhvl_products" name="svhvl_products" value="<?php echo esc_attr( implode( ', ', $ids ) ); ?>" class="regular-text" placeholder="např. 123, 456">
-						<p class="description">Koupě kteréhokoli z těchto produktů (kurzů) aplikaci odemkne. Více ID oddělte čárkou. ID je v adrese produktu jako <code>post=123</code>.</p>
+						<p class="description">Dokončená objednávka kteréhokoli z těchto produktů (kurzů) aplikaci odemkne – objednávka ve stavu „Zpracovává se“ nebo „Čeká na platbu“ ještě ne. Více ID oddělte čárkou. ID je v adrese produktu jako <code>post=123</code>.</p>
 						<?php if ( $ids && function_exists( 'wc_get_product' ) ) : ?>
 							<ul style="margin:6px 0 0;color:#555">
 								<?php foreach ( $ids as $pid ) : $p = wc_get_product( $pid ); ?>
@@ -361,6 +373,7 @@ function svhvl_settings_page() {
 		<?php endif; ?>
 
 		<hr>
+		<p style="color:#666">Jakmile je objednávka <strong>dokončená</strong>, vloží se do e-mailu zákazníkovi (Dokončená objednávka), na děkovací stránku a do detailu objednávky v Můj účet blok <strong>VSTUP DO APLIKACE</strong> s tlačítkem a informací, že se zákazník může kdykoli přihlásit v Můj účet → Viewfinder Light. U ostatních stavů objednávky se odkaz neposílá a aplikace se neodemyká. Týká se jen objednávek s některým z produktů výše.</p>
 		<p style="color:#666">Zkratka: <code>[viewfinder_light_button]</code> vloží kamkoli tlačítko „Otevřít aplikaci“ (kdo nemá nákup, uvidí odkaz na produkt).</p>
 	</div>
 	<?php
@@ -431,9 +444,106 @@ function svhvl_render() {
 	if ( $ts ) {
 		echo '<p style="color:#8f8a80;font-size:.82rem;margin:12px 0 0">Rozpracovaná scéna uložená v účtu: ' . esc_html( wp_date( 'j. n. Y H:i', (int) ( $ts / 1000 ) ) ) . '. Aplikace ji při otevření sama načte.</p>';
 	}
-	echo '<p style="color:#8f8a80;font-size:.82rem;margin:6px 0 0">Doporučujeme počítač s myší a klávesnicí. Aplikace běží přímo v prohlížeči, nic se neinstaluje.</p>';
+	echo '<p style="color:#8f8a80;font-size:.82rem;margin:6px 0 0">Nejlépe funguje na počítači nebo iPadu, na telefonu má zjednodušené ovládání. Aplikace běží přímo v prohlížeči, nic se neinstaluje.</p>';
 	echo '</div>';
 }
+
+/* =============================================
+   VSTUP DO APLIKACE v objednávce
+   (e-maily zákazníkovi, děkovací stránka, detail objednávky v Můj účet)
+   Aplikace je virtuální produkt – bez tohoto bloku by zákazníkovi přišla jen objednávka a faktura.
+   ============================================= */
+
+/** Obsahuje objednávka některý z produktů, které aplikaci odemykají? (i varianty produktu) */
+function svhvl_order_has_app( $order ) {
+	if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
+		return false;
+	}
+	$ids = svhvl_products();
+	if ( ! $ids ) {
+		return false;
+	}
+	foreach ( $order->get_items() as $item ) {
+		if ( ! is_a( $item, 'WC_Order_Item_Product' ) ) {
+			continue;
+		}
+		if ( in_array( (int) $item->get_product_id(), $ids, true ) || in_array( (int) $item->get_variation_id(), $ids, true ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/** Adresa záložky Viewfinder Light v Můj účet (nepřihlášenému WooCommerce nejdřív ukáže přihlášení). */
+function svhvl_account_url() {
+	return function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( SVHVL_ENDPOINT ) : wp_login_url( svhvl_app_url() );
+}
+
+/** Blok „Vstup do aplikace“ patří jen k DOKONČENÉ objednávce s produktem aplikace. */
+function svhvl_order_grants_access( $order ) {
+	return svhvl_order_has_app( $order ) && $order->has_status( 'completed' );
+}
+
+/** Texty bloku (účet / nákup bez účtu). */
+function svhvl_order_access_texts( $order ) {
+	$guest       = ! $order->get_user_id();
+	$email       = $order->get_billing_email();
+	$t           = array( 'lead' => 'Aplikace Viewfinder Light je pro vás připravená. Otevřete ji tlačítkem níže.' );
+	$t['always'] ='Do aplikace se můžete kdykoli vrátit: přihlaste se na webu a v sekci „Můj účet“ klikněte na záložku „Viewfinder Light“. Rozpracovaná scéna se ukládá do vašeho účtu.';
+	if ( $guest && $email ) {
+		$t['always'] .= ' Objednávku jste dokončili bez účtu – přihlaste se, prosím, nebo si účet založte se stejným e-mailem (' . $email . '), přístup se k němu přiřadí automaticky.';
+	}
+	return $t;
+}
+
+/** Blok v e-mailu zákazníkovi (HTML i prostý text) – jen u dokončené objednávky, ne v e-mailech pro správce. */
+add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_admin, $plain_text, $email = null ) {
+	if ( $sent_to_admin || ! svhvl_order_grants_access( $order ) ) {
+		return;
+	}
+	$t   = svhvl_order_access_texts( $order );
+	$url = svhvl_account_url();
+	if ( $plain_text ) {
+		echo "\n==============================\n";
+		echo "VSTUP DO APLIKACE – Viewfinder Light\n";
+		echo "==============================\n";
+		echo wp_strip_all_tags( $t['lead'] ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prostý text e-mailu
+		echo esc_url_raw( $url ) . "\n\n";
+		echo wp_strip_all_tags( $t['always'] ) . "\n\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		return;
+	}
+	?>
+	<table cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 32px;border-collapse:separate;background:#111;border-radius:10px">
+		<tr><td style="padding:22px 24px;color:#ece8e0;font-family:Helvetica,Arial,sans-serif">
+			<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d4b071;font-weight:bold;margin:0 0 6px">Svět v hledáčku · Viewfinder Light</div>
+			<div style="font-size:20px;font-weight:bold;color:#ffffff;margin:0 0 10px">VSTUP DO APLIKACE</div>
+			<p style="margin:0 0 16px;color:#ddd6c8;font-size:14px;line-height:1.5"><?php echo esc_html( $t['lead'] ); ?></p>
+			<table cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius:8px;background:#d4b071">
+				<a href="<?php echo esc_url( $url ); ?>" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:bold;color:#111111;text-decoration:none;border-radius:8px">Vstoupit do aplikace</a>
+			</td></tr></table>
+			<p style="margin:16px 0 0;color:#a8a194;font-size:13px;line-height:1.5"><?php echo esc_html( $t['always'] ); ?></p>
+			<p style="margin:8px 0 0;color:#8f8a80;font-size:12px;line-height:1.5">Odkaz: <a href="<?php echo esc_url( $url ); ?>" style="color:#d4b071"><?php echo esc_html( $url ); ?></a></p>
+		</td></tr>
+	</table>
+	<?php
+}, 10, 4 );
+
+/** Blok na děkovací stránce a v detailu objednávky v Můj účet – jen u dokončené objednávky. */
+add_action( 'woocommerce_order_details_after_order_table', function ( $order ) {
+	if ( ! svhvl_order_grants_access( $order ) ) {
+		return;
+	}
+	$t      = svhvl_order_access_texts( $order );
+	$ready  = is_user_logged_in() && svhvl_user_has_access() && svhvl_build_dir();
+	$target = $ready ? svhvl_app_url() : svhvl_account_url();
+	echo '<section class="svhvl-order-access" style="margin:24px 0;padding:22px 24px;border-radius:12px;background:#111;color:#ece8e0">';
+	echo '<div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#d4b071;font-weight:700">Svět v hledáčku · Viewfinder Light</div>';
+	echo '<h2 style="margin:4px 0 10px;color:#fff;font-size:1.35rem">VSTUP DO APLIKACE</h2>';
+	echo '<p style="color:#ddd6c8;margin:0 0 14px">' . esc_html( $t['lead'] ) . '</p>';
+	echo '<p style="margin:0"><a class="button" style="background:#d4b071;color:#111;border:0;font-weight:700" href="' . esc_url( $target ) . '">' . ( $ready ? 'Otevřít aplikaci na celou obrazovku' : 'Vstoupit do aplikace' ) . '</a></p>';
+	echo '<p style="color:#a8a194;font-size:.88rem;margin:14px 0 0">' . esc_html( $t['always'] ) . '</p>';
+	echo '</section>';
+}, 5 );
 
 /* Zkratka [viewfinder_light_button] – tlačítko kamkoli na web */
 add_shortcode( 'viewfinder_light_button', function ( $atts ) {
