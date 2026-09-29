@@ -619,6 +619,14 @@ add_action( 'template_redirect', function () {
 		}
 	}
 	if ( $f ) {
+		// /viewfinder-app bez lomítka → s lomítkem (jinak by relativní cesty k souborům vedly mimo aplikaci)
+		if ( 'index.html' === $f && svhvl_pretty() && ! isset( $_GET[ SVHVL_QUERY ] ) ) {
+			$p = (string) wp_parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH );
+			if ( '/' !== substr( $p, -1 ) && '/index.html' !== substr( $p, -11 ) ) {
+				wp_safe_redirect( svhvl_app_url() );
+				exit;
+			}
+		}
 		svhvl_serve_file( (string) $f );
 	}
 }, 0 );
@@ -628,7 +636,11 @@ function svhvl_serve_file( $rel ) {
 	$rel = preg_replace( '#\.\.+/#', '', $rel );
 	$ext = strtolower( pathinfo( $rel, PATHINFO_EXTENSION ) );
 
-	if ( ! is_user_logged_in() ) {
+	// manifest a ikony si prohlížeč stahuje bez přihlašovacích cookies – jsou veřejné (nic citlivého)
+	$public = ( 'manifest.json' === $rel || 0 === strpos( $rel, 'icons/' ) );
+	if ( $public ) {
+		// přeskočit ověření přihlášení a nákupu
+	} elseif ( ! is_user_logged_in() ) {
 		// HTML: poslat na přihlášení a vrátit se zpět; ostatní soubory jen odmítnout.
 		if ( 'html' === $ext ) {
 			wp_safe_redirect( wp_login_url( svhvl_app_url() ) );
@@ -637,7 +649,7 @@ function svhvl_serve_file( $rel ) {
 		status_header( 403 );
 		exit( 'Přístup zamítnut.' );
 	}
-	if ( ! svhvl_user_has_access() ) {
+	if ( ! $public && ! svhvl_user_has_access() ) {
 		if ( 'html' === $ext && function_exists( 'wc_get_account_endpoint_url' ) ) {
 			wp_safe_redirect( wc_get_account_endpoint_url( SVHVL_ENDPOINT ) );
 			exit;

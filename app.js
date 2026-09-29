@@ -672,7 +672,7 @@ function cloudLoad(cb){ if(!VF||!VF.rest){ cb(null); return; } fetch(VF.rest,{cr
 if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.className='btn sm'; a.href=VF.back; a.textContent='← Můj účet'; bar.appendChild(a); }
   var fs=document.createElement('button'); fs.className='btn sm'; fs.textContent='Celá obrazovka'; fs.title='Přepnout celou obrazovku (F11 / Esc)'; fs.onclick=function(){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen().catch(function(){}); } }; bar.appendChild(fs);
   // instalovatelná aplikace (PWA): service worker = offline cache + pravidelné ověření nákupu v e-shopu
-  if(VF.pwa && 'serviceWorker' in navigator && window.isSecureContext){ navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(function(){}); }
+  if(VF.pwa && 'serviceWorker' in navigator && window.isSecureContext){ navigator.serviceWorker.register('sw.js'+(VF.version?'?v='+encodeURIComponent(VF.version):''),{scope:'./'}).catch(function(){}); }
   document.addEventListener('fullscreenchange',function(){ fs.textContent= document.fullscreenElement?'Ukončit celou obrazovku':'Celá obrazovka'; setTimeout(function(){ fit(); if(view3dReady) window.View3D.resize(); },100); }); }
 
 // ---------- tlačítko „Nainstalovat“ (Chrome/Edge: nabídka prohlížeče; Safari/iPad: návod) ----------
@@ -682,11 +682,12 @@ if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.cl
   var ua=navigator.userAgent, ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1), safari=/^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
   window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); ev=e; btn.classList.remove('hide'); });
   window.addEventListener('appinstalled',function(){ btn.classList.add('hide'); });
-  if(ios||safari) btn.classList.remove('hide'); // Safari událost nemá – ukážeme návod
+  btn.classList.remove('hide'); // Chrome/Edge: nabídka prohlížeče; jinde (Safari, iPad, Firefox) návod
   function help(){ var h;
     if(ios) h='<p>Na iPadu / iPhonu v Safari klepněte na <b>Sdílet</b> <span style="font-size:17px">⎋</span> a zvolte <b>Přidat na plochu</b>. Aplikace pak bude mít vlastní ikonu a poběží v celé obrazovce i bez internetu.</p>';
     else if(safari) h='<p>V Safari na Macu zvolte v menu <b>Soubor → Přidat do Docku</b>. Aplikace pak poběží ve vlastním okně s ikonou v Docku, i bez internetu.</p>';
-    else h='<p>V Chrome nebo Edge klikněte na ikonu instalace vpravo v adresním řádku (monitor se šipkou), případně v menu ⋮ zvolte <b>Nainstalovat Viewfinder Light</b>.</p>';
+    else if(/firefox|fxios/i.test(ua)) h='<p>Firefox instalaci aplikací nepodporuje. Otevřete, prosím, aplikaci v <b>Chrome</b> nebo <b>Edge</b> (Windows, Mac) či v <b>Safari</b> (Mac, iPad) a nainstalujte ji tam. V prohlížeči můžete pracovat i bez instalace.</p>';
+    else h='<p>V Chrome nebo Edge klikněte na ikonu instalace vpravo v adresním řádku (monitor se šipkou), případně v menu ⋮ zvolte <b>Nainstalovat Viewfinder Light</b>. Pokud tam volba není, aplikace už je nejspíš nainstalovaná – najdete ji mezi programy.</p>';
     h+='<p class="mut">Po instalaci se aplikace jednou za čas ověří přes váš účet v e-shopu (stačí být občas online). Rozpracovaná scéna se dál ukládá do účtu.</p>';
     $('installBody').innerHTML=h; $('installModal').classList.remove('hide'); }
   btn.onclick=function(){ if(ev){ ev.prompt(); ev.userChoice.then(function(){ ev=null; }); } else help(); };

@@ -4,9 +4,11 @@
    - Stránka aplikace se vždy nejdřív zkouší stáhnout ze serveru: e-shop tím ověří přihlášení a nákup.
      Když ověření projde, uloží se čas („lease“). Bez internetu aplikace naběhne z cache, ale jen
      po dobu OFFLINE_DAYS od posledního úspěšného ověření (počet dní posílá server v hlavičce). */
-const VERSION = 'e6016d9281e7';
+const VERSION = '69531d311fd6';
 const FILES = ["style.css","sim.js","view3d.js","app.js","manifest.json","vendor/three-bundle.js","icons/apple-touch-icon.png","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable-512.png","icons/icon.svg","models/arri650.glb.js","models/bed.glb.js","models/car.glb.js","models/cobhead.glb.js","models/cyclorama.glb.js","models/door.glb.js","models/fence.glb.js","models/filmcam.glb.js","models/kinoflo.glb.js","models/kitchen.glb.js","models/ldesk.glb.js","models/muz1.glb.js","models/muz2.glb.js","models/muz3.glb.js","models/muz4.glb.js","models/muz5.glb.js","models/pc.glb.js","models/pcdesk.glb.js","models/photostudio.glb.js","models/sbhead.glb.js","models/skybox.glb.js","models/skypanel.glb.js","models/sofa.glb.js","models/stand.glb.js","models/tree.glb.js","models/window.glb.js","models/zena1.glb.js","models/zena2.glb.js","models/zena3.glb.js"];
-const CACHE = 'vfl-app-' + VERSION;
+const BUILD = new URL(self.location.href).searchParams.get('v') || ''; // verze buildu z e-shopu (sw.js?v=…)
+const Q = BUILD ? '?v=' + encodeURIComponent(BUILD) : '';
+const CACHE = 'vfl-app-' + VERSION + (BUILD ? '-' + BUILD : '');
 const META = 'vfl-meta';
 const SCOPE = self.registration.scope; // např. https://eshop.cz/viewfinder-app/
 const LEASE_KEY = SCOPE + '__lease';
@@ -14,7 +16,7 @@ const PAGE_KEY = SCOPE + '__page';
 const DEFAULT_DAYS = 30;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(new URL(f, SCOPE).href, { cache: 'reload', credentials: 'same-origin' })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(new URL(f, SCOPE).href + Q, { cache: 'reload', credentials: 'same-origin' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('vfl-app-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -63,8 +65,11 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || !req.url.startsWith(SCOPE)) return; // REST API, přihlášení atd. jdou normálně na síť
   if (req.mode === 'navigate') { e.respondWith(handlePage(req)); return; }
   if (req.url.split('?')[0].endsWith('/sw.js')) return;
-  e.respondWith(caches.match(req, { ignoreSearch: true, cacheName: CACHE }).then(hit => hit || fetch(req).then(res => {
-    if (res.ok && res.type === 'basic') { const cp = res.clone(); caches.open(CACHE).then(c => c.put(req.url.split('?')[0], cp)); }
-    return res;
-  })));
+  // přesná shoda (včetně ?v=verze) → jinak síť → offline záložně i jiná verze téhož souboru
+  e.respondWith((async () => {
+    const c = await caches.open(CACHE), hit = await c.match(req);
+    if (hit) return hit;
+    try { const res = await fetch(req); if (res.ok && res.type === 'basic') c.put(req, res.clone()); return res; }
+    catch (err) { const any = await c.match(req, { ignoreSearch: true }); if (any) return any; throw err; }
+  })());
 });
