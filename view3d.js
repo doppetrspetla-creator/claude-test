@@ -381,7 +381,7 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
   const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), mat); m.position.set(x, y, z); m.rotation.set(rx || 0, 0, rz || 0); m.castShadow = m.receiveShadow = true; g.add(m); return m;
 }
 // adresa souboru aplikace: na e-shopu se servíruje přes PHP (?svhvl_app=…), jinak relativně
-function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', encodeURIComponent(p)) : p; }
+function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', V.assetPath ? encodeURI(p) : encodeURIComponent(p)) : p; } // assetPath: adresa /viewfinder-app/<soubor> (lomítka nekódovat)
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
 const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };

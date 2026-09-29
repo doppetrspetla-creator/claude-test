@@ -663,12 +663,36 @@ $('bPdf').onclick=exportPdf;
 
 // ---------- napojení na WordPress (plugin Viewfinder Light) ----------
 var VF = window.SVH_VIEWFINDER || null, cloudTimer=null, cloudBusy=false;
+// nový REST nonce (aplikace otevřená z cache nebo dlouho: starý nonce WordPress odmítne s 403)
+function refreshNonce(){ return fetch(VF.ajax||'/wp-admin/admin-ajax.php?action=rest-nonce',{credentials:'same-origin'}).then(function(r){ return r.ok?r.text():null; }).then(function(t){ if(t&&/^[a-f0-9]{6,}$/i.test(t.trim())) VF.nonce=t.trim(); }).catch(function(){}); }
+function cloudPost(j){ return fetch(VF.rest,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':VF.nonce},body:JSON.stringify({scene:j,ts:Date.now()})}); }
 function cloudSave(j){ if(!VF||!VF.rest) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(function(){ if(cloudBusy) return; cloudBusy=true;
-  fetch(VF.rest,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':VF.nonce},body:JSON.stringify({scene:j,ts:Date.now()})}).catch(function(){}).then(function(){ cloudBusy=false; }); },1500); }
+  cloudPost(j).then(function(r){ if(r.status===403) return refreshNonce().then(function(){ return cloudPost(j); }); }).catch(function(){}).then(function(){ cloudBusy=false; }); },1500); }
 function cloudLoad(cb){ if(!VF||!VF.rest){ cb(null); return; } fetch(VF.rest,{credentials:'same-origin',headers:{'X-WP-Nonce':VF.nonce}}).then(function(r){ return r.ok?r.json():null; }).then(function(d){ cb(d&&d.scene?d:null); }).catch(function(){ cb(null); }); }
 if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.className='btn sm'; a.href=VF.back; a.textContent='← Můj účet'; bar.appendChild(a); }
   var fs=document.createElement('button'); fs.className='btn sm'; fs.textContent='Celá obrazovka'; fs.title='Přepnout celou obrazovku (F11 / Esc)'; fs.onclick=function(){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen().catch(function(){}); } }; bar.appendChild(fs);
+  // instalovatelná aplikace (PWA): service worker = offline cache + pravidelné ověření nákupu v e-shopu
+  if(VF.pwa && 'serviceWorker' in navigator && window.isSecureContext){ navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(function(){}); }
   document.addEventListener('fullscreenchange',function(){ fs.textContent= document.fullscreenElement?'Ukončit celou obrazovku':'Celá obrazovka'; setTimeout(function(){ fit(); if(view3dReady) window.View3D.resize(); },100); }); }
+
+// ---------- tlačítko „Nainstalovat“ (Chrome/Edge: nabídka prohlížeče; Safari/iPad: návod) ----------
+(function(){ var V=window.SVH_VIEWFINDER, btn=$('bInstall'), ev=null;
+  var standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  if(!V||!V.pwa||standalone||!('serviceWorker' in navigator)) return;
+  var ua=navigator.userAgent, ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1), safari=/^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
+  window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); ev=e; btn.classList.remove('hide'); });
+  window.addEventListener('appinstalled',function(){ btn.classList.add('hide'); });
+  if(ios||safari) btn.classList.remove('hide'); // Safari událost nemá – ukážeme návod
+  function help(){ var h;
+    if(ios) h='<p>Na iPadu / iPhonu v Safari klepněte na <b>Sdílet</b> <span style="font-size:17px">⎋</span> a zvolte <b>Přidat na plochu</b>. Aplikace pak bude mít vlastní ikonu a poběží v celé obrazovce i bez internetu.</p>';
+    else if(safari) h='<p>V Safari na Macu zvolte v menu <b>Soubor → Přidat do Docku</b>. Aplikace pak poběží ve vlastním okně s ikonou v Docku, i bez internetu.</p>';
+    else h='<p>V Chrome nebo Edge klikněte na ikonu instalace vpravo v adresním řádku (monitor se šipkou), případně v menu ⋮ zvolte <b>Nainstalovat Viewfinder Light</b>.</p>';
+    h+='<p class="mut">Po instalaci se aplikace jednou za čas ověří přes váš účet v e-shopu (stačí být občas online). Rozpracovaná scéna se dál ukládá do účtu.</p>';
+    $('installBody').innerHTML=h; $('installModal').classList.remove('hide'); }
+  btn.onclick=function(){ if(ev){ ev.prompt(); ev.userChoice.then(function(){ ev=null; }); } else help(); };
+  $('bInstClose').onclick=function(){ $('installModal').classList.add('hide'); };
+  $('installModal').addEventListener('click',function(e){ if(e.target===this) this.classList.add('hide'); });
+})();
 
 // start
 var saved=null; try{ saved=localStorage.getItem('viewfinder-scene')||localStorage.getItem('lightlab-scene'); }catch(e){}

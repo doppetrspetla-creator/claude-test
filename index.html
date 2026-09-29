@@ -5,11 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Viewfinder Light – simulátor nasvícení</title>
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f0f11">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Viewfinder Light">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">Viewfinder Light</span><span class="pill">v2</span><button class="btn sm" id="bAbout" title="O aplikaci, licence a autoři modelů">ⓘ</button></div><div id="wpBar" class="wpbar"></div>
+    <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">Viewfinder Light</span><span class="pill">v2</span><button class="btn sm" id="bAbout" title="O aplikaci, licence a autoři modelů">ⓘ</button></div><div id="wpBar" class="wpbar"></div><button class="btn sm gold hide" id="bInstall" title="Nainstalovat aplikaci do počítače / tabletu – vlastní okno a ikona, funguje i bez internetu">⤓ Nainstalovat</button>
     <div class="tabs" id="viewTabs">
       <button class="tab active" data-view="split" title="Půdorys + kamera (klávesa 1)">Půdorys + kamera</button>
       <button class="tab" data-view="plan" title="Jen půdorys (2)">Půdorys</button>
@@ -152,6 +160,8 @@
       <div id="shots" class="shots"></div>
     </div>
   </main>
+  <div id="installModal" class="modal hide"><div class="modalBox nmBox"><div class="modalHead"><b>Nainstalovat aplikaci</b><span class="sp"></span><button class="btn sm" id="bInstClose">Zavřít</button></div>
+    <div class="nmBody" id="installBody"></div></div></div>
   <div id="newModal" class="modal hide"><div class="modalBox nmBox"><div class="modalHead"><b id="nmTitle">Nová místnost</b><span class="sp"></span><button class="btn sm" id="bNmClose">Zrušit</button></div>
     <div class="nmBody">
       <div class="row"><div><label>Délka (m)</label><input type="number" id="nmW" step="0.5"></div><div><label>Šířka (m)</label><input type="number" id="nmH" step="0.5"></div><div id="nmZBox"><label>Výška stropu (m)</label><input type="number" id="nmZ" step="0.1"></div></div>

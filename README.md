@@ -35,6 +35,9 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Cesta** – nástroj **Cesta** (jen v exteriéru: režim „Jen exteriér“ nebo zahrada kolem domu):
   táhni a vznikne asfaltová cesta. Nastavitelná šířka, přerušovaná středová čára, bílé krajní čáry;
   konce se přichytí ke konci jiné cesty (zatáčka, křižovatka). Do domu cesta nevede.
+- **Instalovatelná aplikace (PWA)** – ve verzi z e‑shopu (plugin 1.2.0+) jde aplikaci nainstalovat do
+  počítače nebo iPadu (tlačítko ⤓ Nainstalovat), běží ve vlastním okně i bez internetu a nákup si
+  pravidelně ověřuje přes účet v e‑shopu. Build se sestavuje `node build.mjs` (vygeneruje `sw.js`).
 - **Různá zařízení** – boční lišty mají pevnou šířku, přizpůsobuje se jen obraz uprostřed.
   Na menších obrazovkách jdou méně častá tlačítka (kvalita, varianty, otevřít/uložit, PNG) do nabídky ⋯.
   Tablet (iPad na výšku, do 1180 px): pravá lišta se vysouvá tlačítkem ⚙ Vlastnosti.

@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:  Špetla Film – Viewfinder Light
- * Description:  Webová aplikace Viewfinder Light (simulátor nasvícení) pro zákazníky, kteří koupili vybrané produkty. Objeví se v „Můj účet“ a otevírá se na celou obrazovku. Build aplikace se nahrává v administraci jako ZIP, soubory se servírují přes PHP až po ověření nákupu (dokončená objednávka), rozpracovaná scéna se ukládá do účtu. Do e-mailů k objednávce, na děkovací stránku a do detailu objednávky vkládá blok „Vstup do aplikace“.
- * Version:      1.1.0
+ * Description:  Webová aplikace Viewfinder Light (simulátor nasvícení) pro zákazníky, kteří koupili vybrané produkty. Objeví se v „Můj účet“ a otevírá se na celou obrazovku. Build aplikace se nahrává v administraci jako ZIP, soubory se servírují přes PHP až po ověření nákupu (dokončená objednávka), rozpracovaná scéna se ukládá do účtu. Do e-mailů k objednávce, na děkovací stránku a do detailu objednávky vkládá blok „Vstup do aplikace“. Aplikaci jde nainstalovat do počítače / tabletu (PWA) a používat i offline s pravidelným ověřením nákupu.
+ * Version:      1.2.0
  * Author:       Špetla Film
  * Requires Plugins: woocommerce
  */
@@ -18,6 +18,9 @@ define( 'SVHVL_OPT_VERSION', 'svhvl_version' );   // aktivní verze buildu
 define( 'SVHVL_OPT_INTRO', 'svhvl_intro' );       // text v kartě v Můj účet
 define( 'SVHVL_META_SCENE', '_svhvl_scene' );     // rozpracovaná scéna uživatele
 define( 'SVHVL_DIR', plugin_dir_path( __FILE__ ) );
+define( 'SVHVL_PATH', 'viewfinder-app' );          // adresa aplikace /viewfinder-app/ (instalovatelná aplikace potřebuje skutečnou cestu)
+define( 'SVHVL_OPT_OFFLINE', 'svhvl_offline_days' ); // kolik dní smí nainstalovaná aplikace běžet bez ověření
+define( 'SVHVL_RW', '2' );                         // verze přepisovacích pravidel – při změně se jednou obnoví
 
 /* =============================================
    Umístění buildu + přístup
@@ -99,8 +102,22 @@ function svhvl_buy_url() {
 	return '';
 }
 
+/** Běží web s „hezkými“ trvalými odkazy? Jen pak má aplikace vlastní adresu /viewfinder-app/ a jde nainstalovat. */
+function svhvl_pretty() {
+	return (bool) get_option( 'permalink_structure' );
+}
+
+/** Počet dní, po které smí nainstalovaná aplikace běžet offline bez ověření nákupu. */
+function svhvl_offline_days() {
+	$d = absint( get_option( SVHVL_OPT_OFFLINE, 30 ) );
+	return $d ? min( 365, $d ) : 30;
+}
+
 /** Adresa, na které se aplikace otevírá (celá stránka bez šablony webu). */
 function svhvl_app_url() {
+	if ( svhvl_pretty() ) {
+		return home_url( '/' . SVHVL_PATH . '/' );
+	}
 	return add_query_arg( SVHVL_QUERY, 'index.html', home_url( '/' ) );
 }
 
@@ -123,13 +140,28 @@ function svhvl_protect_dir() {
 }
 add_action( 'admin_init', 'svhvl_protect_dir' );
 
-add_action( 'init', function () {
+function svhvl_rewrites() {
 	add_rewrite_endpoint( SVHVL_ENDPOINT, EP_ROOT | EP_PAGES );
+	// /viewfinder-app/ → index.html, /viewfinder-app/<soubor> → soubor buildu
+	add_rewrite_rule( '^' . SVHVL_PATH . '/?$', 'index.php?' . SVHVL_QUERY . '=index.html', 'top' );
+	add_rewrite_rule( '^' . SVHVL_PATH . '/(.+)$', 'index.php?' . SVHVL_QUERY . '=$matches[1]', 'top' );
+}
+add_action( 'init', function () {
+	svhvl_rewrites();
+	if ( get_option( 'svhvl_rw' ) !== SVHVL_RW ) { // po aktualizaci pluginu jednou obnovit pravidla
+		flush_rewrite_rules( false );
+		update_option( 'svhvl_rw', SVHVL_RW );
+	}
+} );
+add_filter( 'query_vars', function ( $vars ) {
+	$vars[] = SVHVL_QUERY;
+	return $vars;
 } );
 register_activation_hook( __FILE__, function () {
 	svhvl_protect_dir();
-	add_rewrite_endpoint( SVHVL_ENDPOINT, EP_ROOT | EP_PAGES );
+	svhvl_rewrites();
 	flush_rewrite_rules();
+	update_option( 'svhvl_rw', SVHVL_RW );
 } );
 register_deactivation_hook( __FILE__, 'flush_rewrite_rules' );
 
@@ -269,6 +301,7 @@ function svhvl_settings_page() {
 		update_option( SVHVL_OPT_PRODUCTS, array_values( array_unique( $ids ) ) );
 		update_option( SVHVL_OPT_VERSION, sanitize_file_name( wp_unslash( $_POST['svhvl_version'] ?? '' ) ) );
 		update_option( SVHVL_OPT_INTRO, sanitize_textarea_field( wp_unslash( $_POST['svhvl_intro'] ?? '' ) ) );
+		update_option( SVHVL_OPT_OFFLINE, max( 1, min( 365, absint( $_POST['svhvl_offline'] ?? 30 ) ) ) );
 		echo '<div class="notice notice-success"><p>Uloženo.</p></div>';
 	}
 
@@ -314,6 +347,16 @@ function svhvl_settings_page() {
 								<option value="<?php echo esc_attr( $v ); ?>" <?php selected( $v, $cur ); ?>><?php echo esc_html( $v ); ?><?php echo file_exists( $root . '/' . $v . '/index.html' ) ? '' : ' (chybí index.html)'; ?></option>
 							<?php endforeach; ?>
 						</select>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="svhvl_offline">Offline bez ověření</label></th>
+					<td>
+						<input type="number" id="svhvl_offline" name="svhvl_offline" min="1" max="365" value="<?php echo (int) svhvl_offline_days(); ?>" class="small-text"> dní
+						<p class="description">Nainstalovaná aplikace běží i bez internetu. Po této době bez připojení si vyžádá ověření nákupu (přihlášení do e-shopu). Při každém spuštění online se ověřuje vždy.</p>
+						<?php if ( ! svhvl_pretty() ) : ?>
+							<p style="color:#c00">Web nemá zapnuté „hezké“ trvalé odkazy (Nastavení → Trvalé odkazy), proto aplikaci nejde nainstalovat. Běží jen v prohlížeči.</p>
+						<?php endif; ?>
 					</td>
 				</tr>
 				<tr>
@@ -444,7 +487,10 @@ function svhvl_render() {
 	if ( $ts ) {
 		echo '<p style="color:#8f8a80;font-size:.82rem;margin:12px 0 0">Rozpracovaná scéna uložená v účtu: ' . esc_html( wp_date( 'j. n. Y H:i', (int) ( $ts / 1000 ) ) ) . '. Aplikace ji při otevření sama načte.</p>';
 	}
-	echo '<p style="color:#8f8a80;font-size:.82rem;margin:6px 0 0">Nejlépe funguje na počítači nebo iPadu, na telefonu má zjednodušené ovládání. Aplikace běží přímo v prohlížeči, nic se neinstaluje.</p>';
+	if ( svhvl_pretty() ) {
+		echo '<p style="color:#bbb;font-size:.9rem;margin:14px 0 0"><strong style="color:#fff">Aplikaci si můžete nainstalovat do počítače nebo iPadu.</strong> Otevřete ji a klikněte vlevo nahoře na „⤓ Nainstalovat“. Pak bude mít vlastní ikonu a okno a poběží i bez internetu – nákup si jen jednou za ' . (int) svhvl_offline_days() . ' dní ověří, až budete online.</p>';
+	}
+	echo '<p style="color:#8f8a80;font-size:.82rem;margin:6px 0 0">Nejlépe funguje na počítači nebo iPadu, na telefonu má zjednodušené ovládání. Nic se nestahuje ručně, aktualizace přicházejí samy.</p>';
 	echo '</div>';
 }
 
@@ -561,11 +607,21 @@ add_shortcode( 'viewfinder_light_button', function ( $atts ) {
 /* =============================================
    Servírování buildu přes PHP
    ============================================= */
+// priorita 0: dřív než redirect_canonical, který by k souborům přidával lomítko
 add_action( 'template_redirect', function () {
-	if ( isset( $_GET[ SVHVL_QUERY ] ) ) {
-		svhvl_serve_file( wp_unslash( $_GET[ SVHVL_QUERY ] ) );
+	$f = get_query_var( SVHVL_QUERY );
+	if ( ! $f && isset( $_GET[ SVHVL_QUERY ] ) ) {
+		$f = wp_unslash( $_GET[ SVHVL_QUERY ] );
+		// starý odkaz /?svhvl_app=index.html → vlastní adresa aplikace (kvůli instalaci)
+		if ( 'index.html' === $f && svhvl_pretty() ) {
+			wp_safe_redirect( svhvl_app_url() );
+			exit;
+		}
 	}
-} );
+	if ( $f ) {
+		svhvl_serve_file( (string) $f );
+	}
+}, 0 );
 
 function svhvl_serve_file( $rel ) {
 	$rel = ltrim( str_replace( '\\', '/', (string) $rel ), '/' );
@@ -609,12 +665,21 @@ function svhvl_serve_file( $rel ) {
 		status_header( 403 );
 		exit;
 	}
+	status_header( 200 ); // WordPress mohl u vlastní adresy /viewfinder-app/… mezitím nastavit 404
 	header( 'Content-Type: ' . $types[ $ext ] );
 	header( 'X-Content-Type-Options: nosniff' );
 	header( 'X-Robots-Tag: noindex, nofollow' );
 
+	if ( 'sw.js' === basename( $rel ) ) {
+		// service worker: prohlížeč musí vždy vidět aktuální verzi (nová verze buildu = nová cache)
+		nocache_headers();
+		header( 'Content-Length: ' . filesize( $path ) );
+		readfile( $path );
+		exit;
+	}
 	if ( 'html' === $ext ) {
 		nocache_headers();
+		header( 'X-SVHVL-Offline-Days: ' . svhvl_offline_days() );
 		$html = svhvl_rewrite_html( file_get_contents( $path ) );
 		header( 'Content-Length: ' . strlen( $html ) );
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -629,9 +694,13 @@ function svhvl_serve_file( $rel ) {
 
 /** Přepíše relativní odkazy na proxy URL a vloží konfiguraci, lištu zpět a vodoznak. */
 function svhvl_rewrite_html( $html ) {
-	$ver   = (string) get_option( SVHVL_OPT_VERSION, '' );
-	$proxy = function ( $file ) use ( $ver ) {
+	$ver    = (string) get_option( SVHVL_OPT_VERSION, '' );
+	$pretty = svhvl_pretty();
+	$proxy  = function ( $file ) use ( $ver, $pretty ) {
 		// verze v adrese: po nahrání nového buildu se cache prohlížeče nepoplete
+		if ( $pretty ) { // /viewfinder-app/<soubor>?v=… – relativní cesta zůstává
+			return esc_attr( $file ) . '?v=' . rawurlencode( $ver );
+		}
 		return esc_url( add_query_arg( array( SVHVL_QUERY => $file, 'v' => $ver ), home_url( '/' ) ) );
 	};
 	// src="app.js", href="style.css", src="vendor/three-bundle.js" … (jen relativní cesty bez schématu)
@@ -648,7 +717,10 @@ function svhvl_rewrite_html( $html ) {
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'version' => $ver,
 			// dynamicky načítané soubory (modely postav a auta) – JS nahradí __FILE__ cestou
-			'asset'   => esc_url_raw( add_query_arg( array( SVHVL_QUERY => '__FILE__', 'v' => $ver ), home_url( '/' ) ) ),
+			'asset'     => $pretty ? home_url( '/' . SVHVL_PATH . '/__FILE__' ) . '?v=' . rawurlencode( $ver ) : esc_url_raw( add_query_arg( array( SVHVL_QUERY => '__FILE__', 'v' => $ver ), home_url( '/' ) ) ),
+			'assetPath' => $pretty,
+			'pwa'       => $pretty, // instalovatelná aplikace + offline režim
+			'ajax'      => esc_url_raw( admin_url( 'admin-ajax.php?action=rest-nonce' ) ),
 			'email'   => $user->user_email,
 		) ) . ';</script>';
 	$wm = '<div style="position:fixed;right:10px;bottom:6px;z-index:60;font:11px -apple-system,sans-serif;color:rgba(160,160,160,.55);pointer-events:none">'

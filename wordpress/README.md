@@ -30,19 +30,30 @@ build v `uploads/` chráněný před přímým přístupem, servírování přes
   k přihlášení či založení účtu se stejným e‑mailem. V e‑mailech pro správce se blok nezobrazuje.
 - **Přístup** do aplikace dává jen **dokončená** objednávka některého z nastavených produktů
   (objednávky účtu i objednávky bez účtu se stejným e‑mailem). Správci WooCommerce mají přístup vždy.
+- **Instalace do počítače / tabletu (PWA, od verze 1.2.0):** aplikace má vlastní adresu
+  `/viewfinder-app/` a v hlavičce tlačítko **⤓ Nainstalovat** (Chrome/Edge nabídnou instalaci,
+  Safari na Macu „Soubor → Přidat do Docku“, iPad „Sdílet → Přidat na plochu“). Nainstalovaná
+  aplikace má vlastní ikonu a okno a běží i **bez internetu**. Při každém spuštění online si e‑shop
+  ověří přihlášení a nákup (nepřihlášeného pošle na přihlášení, bez nákupu do „Můj účet“). Bez
+  internetu běží z cache jen po nastavený počet dní od posledního ověření (výchozí 30, nastavení
+  „Offline bez ověření“), pak ukáže výzvu „Je potřeba ověřit přístup“. Nová verze buildu se do
+  nainstalovaných aplikací dostane sama při dalším spuštění online.
+  Vyžaduje HTTPS a „hezké“ trvalé odkazy (Nastavení → Trvalé odkazy); bez nich aplikace běží
+  jen v prohlížeči jako dosud. Staré odkazy `/?svhvl_app=index.html` se přesměrují.
 - Bez přihlášení vede adresa aplikace na přihlášení, bez nákupu zpět na „Můj účet“.
   Soubory buildu nejde stáhnout přímo (`.htaccess` + `index.php` v kořeni buildů).
 
 ## Adresy
 
-- Aplikace: `/?svhvl_app=index.html` (ostatní soubory `/?svhvl_app=app.js&v=<verze>`).
+- Aplikace: `/viewfinder-app/` (soubory `/viewfinder-app/app.js?v=<verze>`, service worker
+  `/viewfinder-app/sw.js`). Bez hezkých trvalých odkazů `/?svhvl_app=index.html`.
 - Záložka: `/muj-ucet/viewfinder-light/` (endpoint se registruje při aktivaci, při potížích uložte
   Nastavení → Trvalé odkazy).
 
 ## Sestavení build ZIPu
 
-Ve složce projektu:
+Ve složce projektu (vygeneruje `sw.js` se seznamem souborů a verzí podle obsahu a zabalí ZIP):
 
 ```
-zip -r viewfinder-light-build.zip index.html style.css sim.js view3d.js app.js vendor models/*.glb.js
+node build.mjs viewfinder-light-build.zip
 ```
