@@ -89,6 +89,12 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   načítají se až při použití. Výška obličeje pro měření odpovídá modelu.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
+- **Interiéry a exteriéry z 3D modelů** – šablony Byt, Byt 2, Školní třída, Industriál (betonová remíza)
+  a Glamping (chata v lese). Materiály modelů reagují na světla (zapečené nasvícení je převedené na běžné
+  materiály). Zdi modelu jsou v půdorysu vykreslené (řez ve výšce ~1,5 m) a stíní světlo i ve výpočtu;
+  pod půdorysem je pohled na model shora (nábytek, podlahy), násobený nasvícením. Okna v modelu propouštějí
+  denní světlo (třída, remíza). U prvního bytu (model „půdorys“) jsou zdi dotažené do 2,6 m a doplněný strop;
+  v remíze je podlaha rampy v nule a montážní jámy jsou v půdorysu vyznačené.
 - **Šablona Letní kemp** – 3D model kempu s šesti obytnými přívěsy (73×66 m), noc s měsícem.
   Svítí dvě pouliční lampy u cesty, světla u dveří všech přívěsů a dvě lampy uvnitř přívěsu 2;
   jejich tělesa v modelu se rozsvítí podle zapnutí, výkonu a barvy světla. Stropní bodovky
@@ -167,6 +173,10 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Stropní svítidla „Light Pack“: **OPREXT**, sketchfab.com, CC BY 4.0 (zářivkové těleso, kruhové LED svítidlo, holá žárovka)
 - Závěsná zářivka „Low Poly hanging Light“: **Avadhoot**, sketchfab.com, CC BY 4.0 (vlastní lanka nahrazena závěsem podle výšky stropu)
 - Letní kemp „Trailer Park“: **Elbolillo**, sketchfab.com, CC BY 4.0 (oříznuto na areál kempu, zjednodušeno, textury WebP)
+- Byty „Apartment floor plan“ a „Appartement“: **SrMonteiro**, sketchfab.com, CC BY 4.0 (materiály převedené ze „zapečených“ na osvětlované; u prvního bytu zdi dotažené do 2,6 m a doplněný strop)
+- Školní třída „Classroom“: **Zeps3D**, sketchfab.com, CC BY 4.0 (odstraněny efekty paprsků a prachu a zapečené sluneční skvrny)
+- Industriál „Decayed concrete train shed with graffiti“: **orphanrtg**, sketchfab.com, CC BY 4.0
+- Glamping chata (FBX): autor bude doplněn
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené

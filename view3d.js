@@ -443,7 +443,7 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', V.assetPath ? encodeURI(p) : encodeURIComponent(p)) : p; } // assetPath: adresa /viewfinder-app/<soubor> (lomítka nekódovat)
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, camp: { file: 'models/camp.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, camp: { file: 'models/camp.glb' }, apt1: { file: 'models/apt1.glb' }, apt2: { file: 'models/apt2.glb' }, classroom: { file: 'models/classroom.glb' }, shed: { file: 'models/shed.glb' }, glamping: { file: 'models/glamping.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
 const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 } };
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
@@ -687,6 +687,7 @@ function addBounce(b, res) {
 
 function addWindow(sc, w) {
   if (typeof w.wall !== 'string' || sc.outdoor) return;
+  const envW = !!(w.envWin && sc.env); // okno je v 3D modelu prostředí → jen světlo zvenku, bez rámu a skla
   const sk = S.SKY[sc.sky] || S.SKY.overcast, k = kel(sk.cct), len = w.to - w.from, mid = (w.from + w.to) / 2, W = sc.room.w, H = sc.room.h;
   let pos, look;
   if (w.wall === 'left') { pos = [0.005, 1.5, mid]; look = [1, 1.5, mid]; } else if (w.wall === 'right') { pos = [W - 0.005, 1.5, mid]; look = [W - 1, 1.5, mid]; }
@@ -695,20 +696,24 @@ function addWindow(sc, w) {
   if (openH > 0.01) {
     const rl = new THREE.RectAreaLight(k.color, E1 / (len * openH), len, openH); rl.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); rl.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(rl);
     const exOn = sc.exterior && sc.exterior.on;
-    if (!winModel()) { const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, openH), exOn ? new THREE.MeshBasicMaterial({ color: k.color.clone().multiplyScalar(sk.E / Math.PI * 0.15), transparent: true, opacity: 0.35, depthWrite: false }) : lum(k.color, sk.E * len / 1.2 * k.gain / (len * 1.2)));
+    if (!envW && !winModel()) { const glass = new THREE.Mesh(new THREE.PlaneGeometry(len, openH), exOn ? new THREE.MeshBasicMaterial({ color: k.color.clone().multiplyScalar(sk.E / Math.PI * 0.15), transparent: true, opacity: 0.35, depthWrite: false }) : lum(k.color, sk.E * len / 1.2 * k.gain / (len * 1.2)));
     glass.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); glass.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(glass); }
   }
-  if (bl > 0) { // roleta: světlý panel shora, propouští trochu světla
+  if (bl > 0 && !envW) { // roleta: světlý panel shora, propouští trochu světla
     const bh = 1.2 * bl, bm = new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 1, emissive: k.color, emissiveIntensity: sk.E * 0.02 });
     const bg = new THREE.Group(); bg.position.set(pos[0], 0, pos[2]); bg.rotation.y = wallFrame(sc, w.wall).ry; group.add(bg);
     box(bg, bm, len, bh, 0.02, 0, S.WIN_Z1 - bh / 2, 0.04);
     for (let y = S.WIN_Z1 - 0.06; y > S.WIN_Z1 - bh; y -= 0.08) box(bg, MAT.hair, len, 0.006, 0.03, 0, y, 0.04);
   }
+  if (envW) { addWinShadow(); return; }
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), fg = new THREE.Group(); fg.position.set(pos[0], 0, pos[2]); fg.rotation.y = wallFrame(sc, w.wall).ry; group.add(fg);
   if (winModel()) windowModels(fg, len);
   else { [-1, 1].forEach(sd => box(fg, frameMat, 0.06, 1.3, 0.12, sd * (len / 2 + 0.03), 1.5, 0)); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 0.87, 0); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 2.13, 0); }
+  addWinShadow();
+  function addWinShadow() {
   // měkký stín okna
   if (lastOpts.shadows && openH > 0.01) { const sp = new THREE.SpotLight(k.color, E1 * 0.3, 14, 0.9, 1, 2); const jx = hq.active ? jit() * len : 0, jy = hq.active ? jit() * openH : 0, fr2 = wallFrame(sc, w.wall); sp.position.set(pos[0] + (look[0] - pos[0]) * -0.3 + (fr2.inward[1]) * jx, S.WIN_Z0 + openH / 2 + jy, pos[2] + (look[2] - pos[2]) * -0.3 + (fr2.inward[0]) * jx); sp.target.position.set(look[0], 1.2, look[2]); sp.castShadow = true; sp.shadow.mapSize.set(Q().winMap, Q().winMap); sp.shadow.radius = 10; sp.shadow.bias = -0.002; group.add(sp); group.add(sp.target); }
+  }
 }
 
 // plastové okno (3D model): dvoukřídlé okno 1,28 × 1,44 m, vnitřní strana (kliky, parapet) na +z; delší okna = víc oken vedle sebe
@@ -763,7 +768,13 @@ function addExterior(sc) {
     const dome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); dome.position.set(W / 2, -1, H / 2); dome.renderOrder = -1; dome.userData.noShadow = true; group.add(dome); }
   // materiál venku: obloha „zapečená“ do emissive (aby nesvítila dovnitř), slunce navíc přes DirectionalLight
   const ext = (color, kind, rep) => { const m = texMat(kind || 'cloth', color, { roughness: 1, bumpScale: 0.2 }); const c = new THREE.Color(color); m.emissive = c.clone().multiply(k.color); m.emissiveIntensity = Lsky * (open ? 0.45 : 0.2); if (rep) { m.map = m.map.clone(); m.map.repeat.set(rep, rep); m.map.needsUpdate = true; } return m; };
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * DR + 8, 2 * DR + 8), ext(0x4e6b34, 'fabric', Math.round((2 * DR + 8) / 2))); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, sc.env ? -0.06 : -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
+  const GS = 2 * DR + 8, EG = sc.env && S.ENVS[sc.env];
+  let gGeo = new THREE.PlaneGeometry(GS, GS);
+  if (EG && EG.groundHole) { // prostředí má vlastní podlahu níž než terén (montážní jámy) → v trávě otvor pod modelem
+    const sh = new THREE.Shape(); sh.moveTo(-GS / 2, -GS / 2); sh.lineTo(GS / 2, -GS / 2); sh.lineTo(GS / 2, GS / 2); sh.lineTo(-GS / 2, GS / 2); sh.lineTo(-GS / 2, -GS / 2);
+    const ho = new THREE.Path(), hw = W / 2 - 0.2, hh = H / 2 - 0.2; ho.moveTo(-hw, -hh); ho.lineTo(-hw, hh); ho.lineTo(hw, hh); ho.lineTo(hw, -hh); ho.lineTo(-hw, -hh); sh.holes.push(ho);
+    gGeo = new THREE.ShapeGeometry(sh); const pa = gGeo.attributes.position, uv = gGeo.attributes.uv; for (let i = 0; i < pa.count; i++) uv.setXY(i, pa.getX(i) / GS + 0.5, pa.getY(i) / GS + 0.5); }
+  const ground = new THREE.Mesh(gGeo, ext(0x4e6b34, 'fabric', Math.round(GS / 2))); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, sc.env ? -0.06 : -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
   // bez zahrady: za okny aspoň pár stromů (jinak by byla vidět jen plochá zelená)
   // obrubník / základová deska domu
   if (!sc.outdoor && open) { const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.12, H + 0.6), ext(0x8c8880, 'concrete', 4)); slab.position.set(W / 2, -0.06, H / 2); group.add(slab); }
@@ -830,7 +841,24 @@ function addEnv(sc) {
   const E = sc.env && S.ENVS[sc.env]; if (!E) return false; const gl = modelFor(E.model); if (!gl) return false;
   const inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); envInst = inst;
   inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = true; if (o.material && o.material.emissive && o.material.emissiveIntensity > 0 && !o.material.emissiveMap) o.material = o.material.clone(), o.material.emissiveIntensity = 0; } });
-  group.add(inst); return true;
+  group.add(inst);
+  // model bez stropu (řez bytu): strop v zadané výšce; vidět jen zespodu, stíní i slunce shora
+  if (E.ceil) { const cm = surfMat('ceiling', 0xe4e0d8, sc.room.w / 2.5, sc.room.h / 2.5, { roughness: 1, bumpScale: 0.2 }); cm.shadowSide = THREE.DoubleSide;
+    const c = new THREE.Mesh(new THREE.PlaneGeometry(sc.room.w, sc.room.h), cm); c.rotation.x = Math.PI / 2; c.position.set(sc.room.w / 2, E.ceil, sc.room.h / 2); group.add(c); }
+  return true;
+}
+// půdorysný obrázek prostředí: model shora ve vlastním malém rendereru, řez ve výšce 1,8 m (bez stropů), výřez = místnost; uloží se jako obrázek
+const planCache = {};
+function envPlan(id) {
+  const c = planCache[id]; if (c) return c; const E = S.ENVS[id]; const gl = E && modelFor(E.model); if (!gl) return null;
+  const W = E.room.w, H = E.room.h, px = Math.min(48, 2048 / Math.max(W, H)), cw = Math.round(W * px), ch = Math.round(H * px);
+  let r; try { r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); } catch (e) { return (planCache[id] = null); }
+  r.setPixelRatio(1); r.setSize(cw, ch, false); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x000000, 0);
+  r.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.8)];
+  const sc = new THREE.Scene(), inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); sc.add(inst); sc.add(new THREE.AmbientLight(0xffffff, 2.6));
+  const cam = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 0.1, 200); cam.position.set(W / 2, 100, H / 2); cam.up.set(0, 0, -1); cam.lookAt(W / 2, 0, H / 2);
+  r.render(sc, cam); const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(r.domElement, 0, 0);
+  r.dispose(); r.forceContextLoss(); return (planCache[id] = cv);
 }
 function addRoom(sc) {
   const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7;
@@ -1190,6 +1218,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { setMoveCallback, setKey: (k, on) => { if (on) keys[k] = true; else delete keys[k]; }, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { envPlan, setMoveCallback, setKey: (k, on) => { if (on) keys[k] = true; else delete keys[k]; }, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

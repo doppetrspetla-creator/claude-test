@@ -33,6 +33,11 @@
       <option value="cyclo">Hala s cykloramou – postava na bílém horizontu</option>
       <option value="house">Dům s garáží – kuchyně, obývák, ložnice, zahrada</option>
       <option value="camp">Letní kemp – noc, obytné přívěsy a lampy</option>
+      <option value="apt1">Byt – večer, obývák s jídelnou</option>
+      <option value="apt2">Byt 2 – večer, jídelna a obývák</option>
+      <option value="classroom">Školní třída – den, slunce okny a zářivky</option>
+      <option value="shed">Industriál – betonová remíza, filmové svícení</option>
+      <option value="glamping">Glamping – večer u chaty v lese</option>
       <option value="empty">Prázdná místnost</option>
     </select>
     <button class="btn" id="bUndo" title="Zpět (Ctrl+Z)">↶</button>
@@ -95,7 +100,7 @@
 
     <h3>Místnost</h3>
     <div class="row"><div><label>Šířka (m)</label><input type="number" id="rw" step="0.5" min="3" max="50"></div><div><label>Hloubka (m)</label><input type="number" id="rh" step="0.5" min="3" max="50"></div><div><label>Výška (m)</label><input type="number" id="rz" step="0.1" min="2.2" max="6"></div></div>
-    <label>Prostředí</label><select id="env"><option value="">vlastní místnost (kreslené stěny)</option><option value="photostudio">Fotoateliér – papírové pozadí (3D model)</option><option value="cyclorama">Hala s cykloramou – sken ateliéru (3D model)</option><option value="camp">Letní kemp – obytné přívěsy (3D model, exteriér)</option></select>
+    <label>Prostředí</label><select id="env"><option value="">vlastní místnost (kreslené stěny)</option><option value="photostudio">Fotoateliér – papírové pozadí (3D model)</option><option value="cyclorama">Hala s cykloramou – sken ateliéru (3D model)</option><option value="camp">Letní kemp – obytné přívěsy (3D model, exteriér)</option><option value="apt1">Byt – obývák s kuchyní a 3 ložnice (3D model)</option><option value="apt2">Byt – obývák s kuchyní, ložnice (3D model)</option><option value="classroom">Školní třída (3D model)</option><option value="shed">Industriál – betonová remíza s graffiti (3D model)</option><option value="glamping">Glamping – chata v lese (3D model, exteriér)</option></select>
     <label class="chk"><input type="checkbox" id="outdoor"> Jen exteriér (bez místnosti – dvůr, ulice, louka)</label>
     <div class="row"><div><label>Stěny</label><select id="walls"><option value="dark">tmavé</option><option value="normal" selected>běžné</option><option value="white">bílé</option></select></div>
     <div><label>Podlaha</label><select id="floor"><option value="wood">dřevo</option><option value="grey">šedá</option><option value="dark">tmavá</option><option value="asphalt">asfalt</option><option value="grass">tráva (exteriér)</option></select></div></div>
@@ -193,6 +198,10 @@
       • Stropní svítidla „Light Pack“ (zářivkové těleso, kruhové LED, žárovka): autor <b>OPREXT</b>, sketchfab.com, CC BY 4.0<br>
       • Závěsná zářivka „Low Poly hanging Light“: autor <b>Avadhoot</b>, sketchfab.com, CC BY 4.0<br>
       • Letní kemp „Trailer Park“: autor <b>Elbolillo</b>, sketchfab.com, CC BY 4.0<br>
+      • Byty „Apartment floor plan“ a „Appartement“: autor <b>SrMonteiro</b>, sketchfab.com, CC BY 4.0 (první byt: zdi dotažené do výšky stropu)<br>
+      • Školní třída „Classroom“: autor <b>Zeps3D</b>, sketchfab.com, CC BY 4.0<br>
+      • Industriál „Decayed concrete train shed with graffiti“: autor <b>orphanrtg</b>, sketchfab.com, CC BY 4.0<br>
+      • Glamping chata (FBX): autor bude doplněn<br>
       • Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera a COB s reflektorem (Studio Light): autor bude doplněn</p>
       <p><b>Knihovny:</b> Three.js (MIT). Textury a nábytek jsou generované procedurálně.</p>
       <p class="mut">Hodnoty luxů jsou přibližné; principy (vzdálenost, velikost zdroje, směr, stíny, poměry) odpovídají realitě.</p>
