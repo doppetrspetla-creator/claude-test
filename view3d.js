@@ -295,7 +295,8 @@ function addSunBeams(sc) {
   });
 }
 function addLight(L, res) {
-  const P = S.lightParams(L); if (L.on === false) return;
+  const P = S.lightParams(L);
+  if (L.on === false) { if (P.fx.ceil) { const g0 = new THREE.Group(); group.add(g0); ceilLight(L, P, null, 0, null, g0); } return; } // vypnuté stropní svítidlo zůstane vidět
   const lumL = (c, v) => lum(c, P.rgb ? Math.min(v, 0.7 * (lastOpts.ref || 300) * Math.pow(2, -(lastOpts.ev || 0))) : v); // barevná tělesa nepřepálit do bíla (strop ≈ jasná, ale sytá barva)
   const k = kelL(P), dir = new THREE.Vector3(Math.cos(L.rot), 0, Math.sin(L.rot));
   const pos = new THREE.Vector3(L.x, P.h, L.y);
@@ -304,6 +305,7 @@ function addLight(L, res) {
   if (L.tiltDeg != null) { const t = L.tiltDeg * Math.PI / 180; tgt.copy(pos).add(dir.clone().multiplyScalar(2.2 * Math.cos(t))); tgt.y = pos.y + 2.2 * Math.sin(t); } // ruční náklon
   const g = new THREE.Group(); group.add(g);
   const E1 = P.E1 * k.gain;
+  if (P.fx.ceil) { ceilLight(L, P, k, E1, lumL, g); return; }
   if (P.omni) {
     const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos); if (hq.active) pl.position.add(new THREE.Vector3(jit(), jit(), jit()).multiplyScalar(P.size)); pl.castShadow = !!lastOpts.shadows && Q().soft > 0; pl.shadow.mapSize.set(Q().softMap, Q().softMap); pl.shadow.bias = -0.002; g.add(pl);
     if (L.mod === 'tube') {
@@ -363,6 +365,55 @@ function addLight(L, res) {
   stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : sbG ? Math.max(0.3, P.h - 0.08) : cobG ? Math.max(0.3, P.h - 0.17) : P.h, g);
 }
 
+// ---------- stropní a závěsná praktická světla (Light Pack: zářivkové těleso, kruhové LED, žárovka; závěsná zářivka) ----------
+// s = měřítko modelu → metry, flip = model stojí (svítící stranou nahoru) → otočit dolů, hide = vlastní lanka modelu (kreslíme podle výšky stropu),
+// cable = body závěsu (x v m podél tělesa), nits = svítící plocha (m²) pro jas tělesa
+const CEIL3D = {
+  'rode_0': { s: 0.36, flip: true, area: 0.15 },
+  'light-circle_8': { s: 0.36, flip: true, area: 0.09 },
+  'bulb_12': { s: 0.36, flip: true, area: 0.004, cable: [0] },
+  hangfluo: { s: 0.107, flip: false, area: 0.3, hide: ['Cylinder001', 'Cylinder002'], cable: [-0.53, 0.53], solid: true }
+};
+function ceilLight(L, P, k, E1, lumL, g) {
+  const sc = lastScene, fx = P.fx, cfg = CEIL3D[fx.part || fx.model] || { s: 1, area: 0.1 };
+  const Z = sc.outdoor ? P.h + 1.2 : (sc.room.z || 2.7), pos = new THREE.Vector3(L.x, P.h, L.y);
+  if (k) { // světlo míří dolů (holá žárovka a trubice svítí do všech stran)
+    const shadows = !!lastOpts.shadows && Q().soft > 0;
+    if (P.omni) {
+      const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos).add(new THREE.Vector3(0, -0.05, 0)); if (hq.active) pl.position.add(new THREE.Vector3(jit(), 0, jit()).multiplyScalar(P.size * 0.5));
+      pl.castShadow = shadows; pl.shadow.mapSize.set(Q().softMap, Q().softMap); pl.shadow.bias = -0.003; g.add(pl);
+    } else {
+      const sp = new THREE.SpotLight(k.color, E1, 16, Math.min(1.5, P.beam / 2 * Math.PI / 180), 1, 2); sp.position.copy(pos).add(new THREE.Vector3(0, -0.05, 0));
+      if (hq.active) sp.position.add(new THREE.Vector3(jit(), 0, jit()).multiplyScalar(P.size * 0.5));
+      sp.target.position.set(L.x, 0, L.y); sp.castShadow = shadows; sp.shadow.mapSize.set(Q().softMap, Q().softMap); sp.shadow.bias = -0.003; g.add(sp); g.add(sp.target);
+    }
+  }
+  // těleso z modelu, vycentrované na polohu světla, otočené podle L.rot (u trubic = směr trubice)
+  const gl = modelFor(fx.model), holder = new THREE.Group(); holder.position.copy(pos); holder.rotation.y = -L.rot; g.add(holder);
+  let top = 0.04;
+  if (gl) {
+    gl.scene.updateMatrixWorld(true);
+    const src = fx.part ? gl.scene.getObjectByName(fx.part) : gl.scene;
+    if (src) {
+      const body = src.clone(true); if (fx.part) src.matrixWorld.decompose(body.position, body.quaternion, body.scale);
+      (cfg.hide || []).forEach(n => { const o = body.getObjectByName(n); if (o) o.visible = false; });
+      const inner = new THREE.Group(); inner.add(body); if (cfg.flip) inner.rotation.x = Math.PI; inner.scale.setScalar(cfg.s); inner.updateMatrixWorld(true);
+      const bb = new THREE.Box3(); body.traverse(o => { if (o.isMesh && o.visible) bb.expandByObject(o); });
+      const c = bb.getCenter(new THREE.Vector3()); inner.position.set(-c.x, -c.y, -c.z); top = bb.max.y - c.y; holder.add(inner);
+      body.traverse(o => { if (!o.isMesh) return; o.castShadow = false; o.userData.noCast = true; o.receiveShadow = true; const m = o.material = o.material.clone();
+        if (cfg.solid && m.transparent) { m.transparent = false; m.depthWrite = true; m.alphaTest = 0.5; }
+        const glows = m.emissiveMap || (m.emissive && m.emissive.getHex() !== 0);
+        if (glows && m.emissive) { if (k) { m.emissive = k.color.clone(); m.emissiveIntensity = E1 / cfg.area; } else { m.emissive.setHex(0x222222); m.emissiveIntensity = 1; } } });
+    }
+  } else { // model ještě není načtený → jednoduché těleso
+    const w = fx.defMod === 'ceilpanel' ? 0.36 : P.size, d = fx.defMod === 'ceilpanel' ? 0.36 : 0.08;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), k ? lumL(k.color, E1 / cfg.area) : MAT.metal); holder.add(m);
+  }
+  // závěs: kabel(y) od tělesa ke stropu
+  (cfg.cable || []).forEach(x => { const len = Z - (P.h + top); if (len <= 0.02) return;
+    const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, len, 6), MAT.metal); cab.position.set(x, top + len / 2, 0); holder.add(cab); });
+}
+
 // filmová kamera na dřevěném stativu: objektiv ve výšce ch (stativ se natáhne / zkrátí)
 const FILMCAM_LENS = 1.22, FILMCAM_TOP = 1.085;
 function filmCamera(parent, gltf, ch) {
@@ -384,7 +435,7 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', V.assetPath ? encodeURI(p) : encodeURIComponent(p)) : p; } // assetPath: adresa /viewfinder-app/<soubor> (lomítka nekódovat)
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
 const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 } };
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
@@ -908,7 +959,7 @@ function sync(sc, res, meas, opts) {
   }
   group.updateMatrixWorld(true); pendingLift.forEach(a => liftHands(a[0], a[1], a[2])); pendingLift = [];
   // všechny plné objekty přijímají i vrhají stíny (jinak by je slunce prosvítilo skrz strop)
-  group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = true; } });
+  group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = !o.userData.noCast; } }); // noCast: těleso svítidla nesmí stínit vlastní světlo
   // rozptýlené světlo od stěn (z půdorysného výpočtu)
   let amb = res ? res.ambCol : [5, 5, 5];
   { const rf = { dark: 0.03, normal: 0.08, white: 0.15 }[sc.walls || 'normal'] || 0.08, kb = Math.max(rf, 0.12) / rf; amb = amb.map(v => v * kb); } // světlý strop a podlaha odráží i v tmavé místnosti

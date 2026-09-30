@@ -18,7 +18,11 @@
     frame:     { name: 'Difuzní rám 1,2 m (Full)', beam: 140, size: 1.20, mult: 0.30, soft: true },
     tube:      { name: 'Tuba 1,2 m (světlo)', beam: 340, size: 1.20, mult: 1.0, soft: true },
     practical: { name: 'Praktikál (lampa)', beam: 340, size: 0.12, mult: 1.0, soft: true },
-    panel:     { name: 'Plocha LED panelu (bez modifikátoru)', beam: 60, size: 0.30, mult: 1.0, soft: true, panel: true }
+    panel:     { name: 'Plocha LED panelu (bez modifikátoru)', beam: 60, size: 0.30, mult: 1.0, soft: true, panel: true },
+    // stropní svítidla (svítí dolů, náklon −90°)
+    ceilpanel: { name: 'Stropní svítidlo – difuzor', beam: 150, size: 0.36, mult: 1.0, soft: true, ceil: true },
+    ceiltube:  { name: 'Zářivková trubice (holá)', beam: 340, size: 1.20, mult: 1.0, soft: true, ceil: true },
+    ceilfluo:  { name: 'Zářivky s reflektorem', beam: 120, size: 1.25, mult: 1.0, soft: true, ceil: true }
   };
   var FIXTURES = {
     cob100: { name: 'COB 100 W', lux1m: 4200, cct: 5600, defMod: 'reflector' },
@@ -31,8 +35,15 @@
     kinoflo: { name: 'Kino Flo 4Bank (zářivky)', lux1m: 2800, cct: 5600, defMod: 'panel', pw: 0.50, ph: 0.60, beam: 95, model: 'kinoflo', headOff: -0.05 },
     arri650: { name: 'ARRI 650 Plus (Fresnel, halogen)', lux1m: 7500, cct: 3200, defMod: 'fresnel', model: 'arri650', faceOff: 0.105, faceR: 0.08 },
     tube:   { name: 'LED tuba', lux1m: 380, cct: 3200, defMod: 'tube' },
-    lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' }
+    lamp:   { name: 'Praktikál 40 W', lux1m: 90, cct: 2700, defMod: 'practical' },
+    // stropní / závěsná praktická světla: ceil = 'flush' (přisazené ke stropu) | 'hang' (na kabelu, drop = délka závěsu)
+    ceilround: { name: 'Stropní LED svítidlo kruhové (přisazené)', lux1m: 600, cct: 4000, defMod: 'ceilpanel', ceil: 'flush', model: 'lightpack', part: 'light-circle_8' },
+    batten:    { name: 'Zářivkové těleso 1,2 m (stropní)', lux1m: 650, cct: 4000, defMod: 'ceiltube', ceil: 'flush', model: 'lightpack', part: 'rode_0' },
+    bulb:      { name: 'Holá žárovka 60 W (na kabelu)', lux1m: 65, cct: 2700, defMod: 'practical', ceil: 'hang', drop: 0.6, model: 'lightpack', part: 'bulb_12' },
+    hangfluo:  { name: 'Závěsné zářivkové svítidlo (industriální)', lux1m: 1300, cct: 4000, defMod: 'ceilfluo', ceil: 'hang', drop: 0.7, model: 'hangfluo' }
   };
+  // výchozí výška stropního svítidla v místnosti se stropem z (m)
+  function ceilHeight(fx, z) { z = z || 2.7; return fx.ceil === 'hang' ? Math.max(2.0, z - (fx.drop || 0.6)) : z - 0.06; }
   var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 }, night: { E: 0.6, cct: 9000 } };
   // noc: místo slunce svítí měsíc – „filmový“ měsíční svit (reálný úplněk ≈ 0,25 lx, na place se svítí silněji), studený
   // světlo za otevřenými dveřmi (vedlejší místnost / chodba): lux na 1 m od otvoru šířky 0,9 m
@@ -90,6 +101,8 @@
     if (outside && scene.fence !== false) out.push('3D model „Fence (Wood)“: trentspi (sketchfab.com), licence CC BY 4.0');
     if (outside || (scene.windows || []).length) out.push('3D model „FREE - SkyBox Basic Sky“: Paul (sketchfab.com), licence CC BY 4.0');
     if (items.some(function (i) { return i.kind === 'light'; })) out.push('3D model „Simple Studio Light“: AleixoAlonso (sketchfab.com), licence CC BY 4.0');
+    if (items.some(function (i) { return i.kind === 'light' && FIXTURES[i.fixture] && FIXTURES[i.fixture].model === 'lightpack'; })) out.push('3D model „Light Pack“: OPREXT (sketchfab.com), licence CC BY 4.0');
+    if (items.some(function (i) { return i.kind === 'light' && i.fixture === 'hangfluo'; })) out.push('3D model „Low Poly hanging Light“: Avadhoot (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push('3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0');
     Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
@@ -474,6 +487,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { ceilHeight: ceilHeight, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

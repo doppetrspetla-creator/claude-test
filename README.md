@@ -32,6 +32,9 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Okna** – nástroj **Okno** (klávesa O): táhni podél vnější nebo nakreslené zdi, označený úsek
   se stane oknem (parapet 0,9 m, nadpraží 2,1 m). Oken může být libovolný počet, seznam je v panelu
   „Okna a obloha“. Okna ve vnějších stěnách svítí oblohou, okna v příčkách jsou průhledný otvor.
+- **Stropní a závěsná světla** – tlačítko **Stropní světlo**: kruhové LED svítidlo, zářivkové těleso 1,2 m,
+  holá žárovka na kabelu a industriální závěsná zářivka. Svítí dolů (žárovka a holá trubice do všech
+  stran), počítají se ve fotometrii, výška se drží pod stropem, závěs vede ke stropu.
 - **Cesta** – nástroj **Cesta** (jen v exteriéru: režim „Jen exteriér“ nebo zahrada kolem domu):
   táhni a vznikne asfaltová cesta. Nastavitelná šířka, přerušovaná středová čára, bílé krajní čáry;
   konce se přichytí ke konci jiné cesty (zatáčka, křižovatka). Do domu cesta nevede.
@@ -157,6 +160,8 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Postavy: Muž 2 „Fully Rigged Man“ – **Eyasu Biyaylgn**; Muž 3 „Man In Coat“ – **Saitam**; Muž 4 „Rigged T-Pose Human Male“ – **Mike Alger**; Muž 5 „Security Guard“ – **Q.SARDOR**; Žena 3 „Linda“ – **Veterock** (vše sketchfab.com, CC BY 4.0; převedeny na společnou kostru, pózy z Mixama)
 - Gauč „Sofa_3230“: **vasycrukov**, sketchfab.com, CC BY 4.0 (zjednodušeno, bez ozdobných polštářů)
 - Softbox „Simple Studio Light“: **AleixoAlonso**, sketchfab.com, CC BY 4.0 (hlava softboxu + stativ pro všechna světla)
+- Stropní svítidla „Light Pack“: **OPREXT**, sketchfab.com, CC BY 4.0 (zářivkové těleso, kruhové LED svítidlo, holá žárovka)
+- Závěsná zářivka „Low Poly hanging Light“: **Avadhoot**, sketchfab.com, CC BY 4.0 (vlastní lanka nahrazena závěsem podle výšky stropu)
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené

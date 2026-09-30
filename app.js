@@ -177,6 +177,13 @@ function drawItem(it){
   var p=toPx(it.x,it.y), s=scale, isSel=(sel===it), isHov=(hover===it);
   ctx.save(); ctx.translate(p[0],p[1]); ctx.rotate(it.rot);
   if(it.kind==='light'){ var m=S.MODS[it.mod], P=S.lightParams(it), wpx=Math.max(10,P.size*s), c=P.rgb?[parseInt(it.color.slice(1,3),16)/255,parseInt(it.color.slice(3,5),16)/255,parseInt(it.color.slice(5,7),16)/255]:S.kelvinRGB(P.cct), colS='rgb('+Math.round(c[0]*255)+','+Math.round(c[1]*255)+','+Math.round(c[2]*255)+')';
+    if(P.fx.ceil){ var cz=it.fixture; ctx.fillStyle=it.on===false?'#3a3a3a':colS; ctx.strokeStyle='#111'; ctx.lineWidth=1;
+      if(cz==='batten'||cz==='hangfluo'){ var tl=P.size*s, tw=Math.max(6,(cz==='hangfluo'?0.22:0.1)*s); ctx.fillRect(-tl/2,-tw/2,tl,tw); ctx.strokeRect(-tl/2,-tw/2,tl,tw); ctx.setLineDash([3,3]); ctx.strokeStyle='rgba(236,232,224,.5)'; ctx.strokeRect(-tl/2-3,-tw/2-3,tl+6,tw+6); ctx.setLineDash([]); }
+      else { var rr=Math.max(cz==='bulb'?5:8,(cz==='bulb'?0.06:0.18)*s); ctx.beginPath(); ctx.arc(0,0,rr,0,7); ctx.fill(); ctx.stroke(); ctx.strokeStyle='#111'; ctx.beginPath(); ctx.moveTo(-rr*0.7,-rr*0.7); ctx.lineTo(rr*0.7,rr*0.7); ctx.moveTo(rr*0.7,-rr*0.7); ctx.lineTo(-rr*0.7,rr*0.7); ctx.stroke(); }
+      if(it.on===false){ ctx.strokeStyle='#d0534a'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-10,-10); ctx.lineTo(10,10); ctx.moveTo(10,-10); ctx.lineTo(-10,10); ctx.stroke(); }
+      ctx.restore(); if(isSel||isHov){ ctx.strokeStyle= isSel?'#d4b071':'rgba(212,176,113,.4)'; ctx.setLineDash([3,3]); ctx.lineWidth=1; ctx.beginPath(); ctx.arc(p[0],p[1],22,0,7); ctx.stroke(); ctx.setLineDash([]); }
+      if(isSel){ var hh=toPx.apply(null,rotHandle(it)); ctx.strokeStyle='rgba(212,176,113,.6)'; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(hh[0],hh[1]); ctx.stroke(); ctx.fillStyle='#d4b071'; ctx.beginPath(); ctx.arc(hh[0],hh[1],6,0,7); ctx.fill(); }
+      var nm2=it.label||P.fx.name.split(' (')[0]; ctx.fillStyle= it.label?'#ece8e0':'rgba(236,232,224,.55)'; ctx.font=(it.label?'bold ':'')+'11px Inter,Lato,sans-serif'; ctx.fillText(nm2,p[0]+14,p[1]-14); return; }
     if($('beams').checked && !P.omni && it.on!==false){ var half=P.beam/2*Math.PI/180, R=3.2*s; ctx.fillStyle='rgba(212,176,113,.08)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,-half,half); ctx.closePath(); ctx.fill(); ctx.strokeStyle='rgba(212,176,113,.45)'; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(half)*R,Math.sin(half)*R); ctx.moveTo(0,0); ctx.lineTo(Math.cos(-half)*R,Math.sin(-half)*R); ctx.stroke(); ctx.setLineDash([]); }
     if(P.omni){ ctx.fillStyle=colS; ctx.beginPath(); if(it.mod==='tube'){ ctx.roundRect(-4,-wpx/2,8,wpx,3); } else ctx.arc(0,0,Math.max(6,P.size*s/2),0,7); ctx.fill(); ctx.strokeStyle='#111'; ctx.lineWidth=1; ctx.stroke(); }
     else if(m.soft){ ctx.fillStyle='#3a3a3a'; ctx.strokeStyle='#111'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(4,-wpx/2); ctx.lineTo(4,wpx/2); ctx.lineTo(-12,wpx*0.22); ctx.lineTo(-12,-wpx*0.22); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.strokeStyle=colS; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(4,-wpx/2); ctx.lineTo(4,wpx/2); ctx.stroke(); if(it.grid){ ctx.strokeStyle='#111'; ctx.lineWidth=1; for(var g=-wpx/2+3; g<wpx/2; g+=4){ ctx.beginPath(); ctx.moveTo(4,g); ctx.lineTo(8,g); ctx.stroke(); } } }
@@ -270,15 +277,17 @@ function props(){
   else h+='<div class="row"><div><label>X (m)</label><input type="number" data-k="x" step="0.05" value="'+it.x.toFixed(2)+'"></div><div><label>Y (m)</label><input type="number" data-k="y" step="0.05" value="'+it.y.toFixed(2)+'"></div><div><label>Otočení (°)</label><input type="number" data-k="rotDeg" step="5" value="'+Math.round(it.rot*180/Math.PI)+'"></div></div>';
   if(it.kind==='light'){
     h+='<label>Popisek</label><input type="text" data-k="label" value="'+(it.label||'')+'" placeholder="např. KEY, FILL, BACK">';
-    var fx={}; Object.keys(S.FIXTURES).forEach(function(k){fx[k]=S.FIXTURES[k].name;}); selc('fixture','Světlo',fx);
-    var md={}; Object.keys(S.MODS).forEach(function(k){md[k]=S.MODS[k].name;}); selc('mod','Modifikátor',md);
+    var isC=!!S.FIXTURES[it.fixture].ceil; // stropní / závěsná svítidla: jen typ, výkon, barva a výška (svítí dolů)
+    var fx={}; Object.keys(S.FIXTURES).forEach(function(k){ if(!!S.FIXTURES[k].ceil===isC) fx[k]=S.FIXTURES[k].name;}); selc('fixture',isC?'Stropní svítidlo':'Světlo',fx);
+    if(!isC){ var md={}; Object.keys(S.MODS).forEach(function(k){ if(!S.MODS[k].ceil) md[k]=S.MODS[k].name;}); selc('mod','Modifikátor',md); }
     rng('power','Výkon',1,100,1,'%'); chk('rgb','Barevné světlo (RGB)');
     if(it.rgb){ h+='<label>Barva</label><div class="row" style="align-items:center"><input type="color" data-k="color" value="'+(it.color||'#3a6bff')+'" style="flex:0 0 52px"><div class="swatches">'+['#ff2a2a','#ff8a00','#ffd400','#2adf4a','#00d4ff','#2a5bff','#8a2aff','#ff2ad4'].map(function(c){return '<button type="button" class="sw" data-sw="'+c+'" style="background:'+c+'" title="'+c+'"></button>';}).join('')+'</div></div><p class="mut">Saturované barvy mají menší jas (lux) – jako RGB světla v HSI režimu.</p>'; }
-    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°');
-    if(S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
-    h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>';
+    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); if(isC){ rng('h','Výška svítidla (strop '+fmt(scene.room.z||2.7,2)+' m)',1.2,Math.max(1.3,(scene.room.z||2.7)-0.03),0.05,'m'); h+='<p class="mut">'+(S.FIXTURES[it.fixture].ceil==='hang'?'Závěsné svítidlo – kabel vede ke stropu, výškou měníte délku závěsu.':'Přisazené ke stropu.')+(S.MODS[it.mod].beam>=300?' Svítí do všech stran.':' Svítí dolů.')+' U trubic určuje otočení směr tělesa.</p>'; }
+    else { rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°'); }
+    if(!isC && S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
+    if(!isC){ h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>'; }
     if(!it.rgb) selc('gel','Gel',{none:'bez gelu',cto:'CTO (oteplit)',ctb:'CTB (ochladit)'});
-    if(!S.MODS[it.mod].soft){ var gb={}; Object.keys(S.GOBOS).forEach(function(k){gb[k]=S.GOBOS[k].name;}); selc('gobo','Gobo (promítaný tvar)',gb); }
+    if(!isC && !S.MODS[it.mod].soft){ var gb={}; Object.keys(S.GOBOS).forEach(function(k){gb[k]=S.GOBOS[k].name;}); selc('gobo','Gobo (promítaný tvar)',gb); }
     chk('on','Zapnuto'); chk('hide','Skrýt těleso v 3D (svítí, ale není vidět – např. světlo monitoru)');
     var P=S.lightParams(it); h+='<p class="mut">V ose: ≈ '+Math.round(P.E1)+' lx @ 1 m, '+Math.round(P.E1/4)+' lx @ 2 m · úhel '+P.beam+'°</p>';
   } else if(it.kind==='camera'){ rng('focal','Ohnisko (full frame)',14,135,1,'mm'); rng('h','Výška kamery',0.3,2.4,0.05,'m'); chk('aim','Automaticky sledovat obličej postavy'); if(!it.aim) rng('tilt','Náklon nahoru/dolů',-0.6,0.6,0.02,''); }
@@ -302,7 +311,7 @@ if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="co
     if(inp.type==='checkbox') v=inp.checked; else if(inp.type==='range'||inp.type==='number') v=parseFloat(inp.value); else v=inp.value;
     if(k==='rotDeg'){ if(isNaN(v)) return; it.rot=v*Math.PI/180; schedule(); return; }
     if((k==='x'||k==='y'||k==='x1'||k==='y1'||k==='x2'||k==='y2') && isNaN(v)) return;
-    it[k]=v; if(isSeg(it)){ clampSeg(it); } if(k==='fixture'){ var f=S.FIXTURES[v]; it.mod=f.defMod; it.cct=f.cct; props(); }
+    it[k]=v; if(isSeg(it)){ clampSeg(it); } if(k==='fixture'){ var f=S.FIXTURES[v]; it.mod=f.defMod; it.cct=f.cct; if(f.ceil) ceilSetup(it); props(); }
     if(k==='tiltAuto'){ if(v) delete it.tiltDeg; else it.tiltDeg=Math.round(S.autoTilt(it)); delete it.tiltAuto; props(); }
     if(k==='rgb'){ if(v&&!it.color) it.color='#3a6bff'; props(); }
     if(k==='aim'&&!v) aimOnce(scene,it);
@@ -449,8 +458,10 @@ window.addEventListener('keydown',function(e){ var tag=document.activeElement.ta
   else if(e.key.startsWith('Arrow')){ e.preventDefault(); var st=e.shiftKey?0.25:0.05; var mx=(e.key==='ArrowLeft'?-st:e.key==='ArrowRight'?st:0), my=(e.key==='ArrowUp'?-st:e.key==='ArrowDown'?st:0); if(isSeg(sel)) moveWall(sel,mx,my); else { sel.x=Math.max(0.05,Math.min(scene.room.w-0.05,sel.x+mx)); sel.y=Math.max(0.05,Math.min(scene.room.h-0.05,sel.y+my)); } props(); schedule(); }
 });
 
+// stropní svítidlo: výška pod stropem, svítí dolů (náklon −90°), bez gelu a klapek
+function ceilSetup(o){ var f=S.FIXTURES[o.fixture]; o.h=Math.round(S.ceilHeight(f,scene.room.z)*100)/100; o.mod=f.defMod; if(S.MODS[f.defMod].beam<300) o.tiltDeg=-90; else delete o.tiltDeg; o.grid=o.diff=o.barn=false; o.gel='none'; o.gobo='none'; }
 document.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ var k=b.dataset.add, cx=scene.room.w/2, cy=scene.room.h/2, o;
-  if(k==='softbox') o=light('cob300',cx-1,cy-1,0.8,{mod:'softbox90'}); else if(S.FIXTURES[k]) o=light(k,cx-1,cy-1,0.8); else if(S.FURNITURE[k]) o=furn(k,cx+0.5,cy+0.5,0); else o=item(k,cx+0.5,cy+0.5,k==='camera'?Math.PI:0);
+  if(k==='softbox') o=light('cob300',cx-1,cy-1,0.8,{mod:'softbox90'}); else if(S.FIXTURES[k]&&S.FIXTURES[k].ceil){ o=light(k,cx,cy,0); ceilSetup(o); } else if(S.FIXTURES[k]) o=light(k,cx-1,cy-1,0.8); else if(S.FURNITURE[k]) o=furn(k,cx+0.5,cy+0.5,0); else o=item(k,cx+0.5,cy+0.5,k==='camera'?Math.PI:0);
   if(k==='camera' && scene.items.some(function(i){return i.kind==='camera';})){ o.x=cx+1.2; }
   if(k==='camera') aimOnce(scene,o);
   scene.items.push(o); select(o); schedule(); }; });
@@ -502,7 +513,7 @@ $('fmt').addEventListener('input',function(){ scene.format=$('fmt').value; if(vi
 $('sunOn').addEventListener('input',function(){ scene.sun.on=$('sunOn').checked; skyUI(); fit(); schedule(); });
 $('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('sunElev').value); $('sunElevV').textContent=scene.sun.elev+'°'; skyUI(); schedule(); });
 $('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); schedule(); });
-['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ var mx=scene.outdoor?NEW_LIM.ext.max:NEW_LIM.room.max; scene.room.w=Math.min(mx,Math.max(3,parseFloat($('rw').value)||7)); scene.room.h=Math.min(mx,Math.max(3,parseFloat($('rh').value)||5)); $('rw').value=scene.room.w; $('rh').value=scene.room.h; scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); fit(); schedule(); }); });
+['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ var mx=scene.outdoor?NEW_LIM.ext.max:NEW_LIM.room.max; scene.room.w=Math.min(mx,Math.max(3,parseFloat($('rw').value)||7)); scene.room.h=Math.min(mx,Math.max(3,parseFloat($('rh').value)||5)); $('rw').value=scene.room.w; $('rh').value=scene.room.h; scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); var cf=i.kind==='light'&&S.FIXTURES[i.fixture]&&S.FIXTURES[i.fixture].ceil; if(cf) i.h= cf==='flush' ? scene.room.z-0.06 : Math.min(i.h,scene.room.z-0.1); }); /* stropní svítidla s výškou stropu */ fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
 $('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=false; scene.exterior={on:false,trees:6}; scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
 $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; schedule(); });
