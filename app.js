@@ -11,7 +11,7 @@ var KINDNAME = { light:'Světlo', person:'Postava', camera:'Kamera', flag:'Vlajk
 function blank(){ return { room:{w:7,h:5,z:2.7}, walls:'normal', floor:'wood', sky:'overcast', windows:[{id:uid++,wall:'left',from:1.6,to:3.4}], doors:[], sun:{on:false,az:Math.PI*1.25,elev:35}, exterior:{on:false,trees:6}, format:'free', items:[] }; }
 function win(wall, from, to){ return {id:uid++,wall:wall,from:from,to:to}; }
 function envScene(id){ var s=blank(), E=S.ENVS[id]; s.env=id; s.room={w:E.room.w,h:E.room.h,z:E.room.z}; s.walls=E.walls; s.floor=E.floor; s.outdoor=!!E.outdoor; s.windows=envWins(E); s.doors=[]; s.exterior=E.exterior?{on:E.exterior.on,trees:E.exterior.trees}:{on:false,trees:6}; s.fence=false; return s; }
-function envWins(E){ return (E.wins||[]).map(function(w){ var o=win(w[0],w[1],w[2]); o.envWin=true; return o; }); } // okna prostředí: jen světlo zvenku (okno je v 3D modelu)
+function envWins(E){ return (E.wins||[]).map(function(w){ var o=win(w[0],w[1],w[2]); o.envWin=true; if(w[3]) o.inset=w[3]; if(w[4]!=null) o.sill=w[4]; if(w[5]) o.frame=w[5]; if(w[6]) o.t=w[6]; return o; }); } // [stěna, od, do, odsazení zdi od okraje, parapet, doplnit okno (1 = s nadpražím, 2 = do vyříznutého otvoru), tloušťka zdi] // okna prostředí: jen světlo zvenku (okno je v 3D modelu)
 function wallItem(x1,y1,x2,y2){ var o={kind:'wall',id:uid++,x1:x1,y1:y1,x2:x2,y2:y2}; wallSyncXY(o); return o; }
 // cesta (asfalt) – úsečka se šířkou jako zeď, jen v exteriéru (režim Jen exteriér nebo zahrada kolem domu)
 function roadItem(x1,y1,x2,y2){ var o={kind:'road',id:uid++,x1:x1,y1:y1,x2:x2,y2:y2,wd:3.5,line:true}; wallSyncXY(o); return o; }
@@ -78,15 +78,15 @@ var TEMPL = {
       item('person',34.2,14.0,1.55,{model:'zena1',pose:'stand'}), item('camera',29,24,-0.98,{focal:50,h:1.5,aim:false,tilt:0.08})];
     return s; },
   // prostředí z 3D modelu: rozměry, okna a exteriér podle prostředí
-  apt1: function(){ var s=envScene('apt1'); s.sky='night'; s.sun={on:false,az:0,elev:30}; s.format='169';
-    s.items=[light('bulb',6.58,8.7,0,{h:2.0,power:100,label:'Nad stolem'}), light('ceilround',2.9,8.7,0,{h:2.54,power:55,cct:3000,tiltDeg:-90,label:'Obývák strop'}),
-      light('lamp',1.8,9.93,0,{h:1.6,power:55,cct:2700,hide:true,envGlow:'luz_parede_4',glowK:2,label:'Nástěnné světlo'}), light('tube',4.7,7.5,Math.PI/2,{h:0.6,power:30,cct:2700,hide:true,envGlow:'luz_ripado_3',glowK:2,label:'LED za lamelami'}),
+  apt1: function(){ var s=envScene('apt1'); s.sky='overcast'; s.sun={on:false,az:1.25,elev:30}; s.format='169';
+    s.items=[light('bulb',6.58,8.7,0,{h:2.0,power:60,label:'Nad stolem'}), light('ceilround',2.9,8.7,0,{h:2.54,power:55,cct:3000,tiltDeg:-90,on:false,label:'Obývák strop'}),
+      light('lamp',1.8,9.93,0,{h:1.6,power:40,cct:2700,hide:true,envGlow:'luz_parede_4',glowK:2,label:'Nástěnné světlo'}), light('tube',4.7,7.5,Math.PI/2,{h:0.6,power:30,cct:2700,hide:true,envGlow:'luz_ripado_3',glowK:2,label:'LED za lamelami'}),
       item('person',4.6,9.0,0.32,{model:'zena1',pose:'stand'}), item('camera',7.9,10.1,-2.72,{focal:28,h:1.5,aim:false})];
     return s; },
-  apt2: function(){ var s=envScene('apt2'); s.sky='night'; s.sun={on:false,az:0,elev:30}; s.format='169';
-    s.items=[light('bulb',4.1,8.35,0,{h:1.8,power:90,label:'Nad stolem 1'}), light('bulb',5.0,8.35,0,{h:1.8,power:90,label:'Nad stolem 2'}), light('lamp',1.3,9.6,0,{h:1.0,power:60,cct:2700,label:'Lampa u televize'}),
+  apt2: function(){ var s=envScene('apt2'); s.sky='overcast'; s.sun={on:false,az:1.45,elev:28}; s.format='169';
+    s.items=[light('bulb',4.1,8.35,0,{h:1.8,power:50,label:'Nad stolem 1'}), light('bulb',5.0,8.35,0,{h:1.8,power:50,label:'Nad stolem 2'}), light('lamp',1.3,9.6,0,{h:1.0,power:40,cct:2700,label:'Lampa u televize'}),
       (function(){ var o=light('ceilround',4.66,4.5,0,{h:2.34,power:45,cct:3000,tiltDeg:-90,on:false,label:'Ložnice strop'}); return o; })(),
-      item('person',3.6,7.3,1.04,{model:'zena1',pose:'stand'}), item('camera',5.3,10.0,-2.17,{focal:28,h:1.5,aim:false})];
+      item('person',3.6,7.3,0.67,{model:'zena1',pose:'stand'}), item('camera',6.0,9.2,-2.47,{focal:28,h:1.5,aim:false})];
     return s; },
   classroom: function(){ var s=envScene('classroom'); s.sky='sunny'; s.sun={on:true,az:Math.PI*0.92,elev:32}; s.format='169';
     var row=function(y,g){ return light('hangfluo',4.85,y,0,{h:4.84,power:85,cct:4000,tiltDeg:-90,hide:true,envGlow:g,glowK:1.2,label:'Zářivky řada'}); };
@@ -98,7 +98,7 @@ var TEMPL = {
       item('person',10.6,5.4,0.45,{model:'zena1',pose:'stand'}), item('camera',15.4,7.6,-2.71,{focal:35,h:1.5,aim:false})];
     return s; },
   glamping: function(){ var s=envScene('glamping'); s.sky='night'; s.sun={on:true,az:1.9,elev:30}; s.format='169';
-    s.items=[light('lamp',10.2,15.6,0,{h:1.2,power:80,cct:2700,label:'Lampa v chatě'}), light('lamp',14.2,12.5,0,{h:1.2,power:70,cct:2700,label:'Lampa v chatě 2'}), light('porch',13.4,17.2,0,{h:2.6,power:90,label:'Světlo u dveří'}), light('lamp',11.5,22.6,0,{h:0.35,power:55,cct:2200,label:'Lucerna'}),
+    s.items=[light('lamp',10.2,15.6,0,{h:1.2,power:80,cct:2700,label:'Lampa v chatě'}), light('lamp',14.2,12.5,0,{h:1.2,power:70,cct:2700,label:'Lampa v chatě 2'}), light('porch',13.4,17.2,0,{h:2.6,power:90,label:'Světlo u dveří'}),
       item('person',12.3,21.4,Math.PI/2+0.1,{model:'zena1',pose:'stand'}), item('camera',12.9,26.2,-Math.PI/2-0.1,{focal:35,h:1.5,aim:false,tilt:0.1})];
     return s; },
   empty: function(){ var s=blank(); s.windows=[]; return s; }

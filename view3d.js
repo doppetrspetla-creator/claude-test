@@ -692,6 +692,7 @@ function addWindow(sc, w) {
   let pos, look;
   if (w.wall === 'left') { pos = [0.005, 1.5, mid]; look = [1, 1.5, mid]; } else if (w.wall === 'right') { pos = [W - 0.005, 1.5, mid]; look = [W - 1, 1.5, mid]; }
   else if (w.wall === 'top') { pos = [mid, 1.5, 0.005]; look = [mid, 1.5, 1]; } else { pos = [mid, 1.5, H - 0.005]; look = [mid, 1.5, H - 1]; }
+  if (w.inset) { const iw = wallFrame(sc, w.wall).inward; pos[0] += iw[0] * w.inset; pos[2] += iw[1] * w.inset; look[0] += iw[0] * w.inset; look[2] += iw[1] * w.inset; } // okno ve zdi modelu uvnitř obrysu
   const bl = S.blindOf(w), openH = 1.2 * (1 - bl), E1 = sk.E * len / 1.2 * k.gain * (1 - bl * 0.97);
   if (openH > 0.01) {
     const rl = new THREE.RectAreaLight(k.color, E1 / (len * openH), len, openH); rl.position.set(pos[0], S.WIN_Z0 + openH / 2, pos[2]); rl.lookAt(look[0], S.WIN_Z0 + openH / 2, look[2]); group.add(rl);
@@ -705,7 +706,18 @@ function addWindow(sc, w) {
     box(bg, bm, len, bh, 0.02, 0, S.WIN_Z1 - bh / 2, 0.04);
     for (let y = S.WIN_Z1 - 0.06; y > S.WIN_Z1 - bh; y -= 0.08) box(bg, MAT.hair, len, 0.006, 0.03, 0, y, 0.04);
   }
-  if (envW) { addWinShadow(); return; }
+  if (envW) { if (w.frame) envWinFrame(); addWinShadow(); return; }
+  // otvor ve zdi modelu bez okna (řez bytu): plastové okno, nadpraží do stropu a parapet dorovnaný do výšky okna
+  function envWinFrame() {
+    const fr = wallFrame(sc, w.wall), g = new THREE.Group(), t = w.t || 0.24, Z = sc.room.z || 2.6, wm = new THREE.MeshStandardMaterial({ color: 0xe9e6e0, roughness: 0.95 });
+    g.position.set(pos[0], 0, pos[2]); g.rotation.y = fr.ry; group.add(g);
+    if (winModel()) windowModels(g, len);
+    if (w.frame === 2) { // otvor vyříznutý do zdi modelu: dorovnat ostění (špalety), nadpraží a parapet
+      const h = S.WIN_Z1 - S.WIN_Z0, e = 0.02; [-1, 1].forEach(sd => box(g, wm, e, h, t, sd * (len / 2 + e / 2), S.WIN_Z0 + h / 2, 0));
+      box(g, wm, len + 2 * e, e, t, 0, S.WIN_Z1 + e / 2, 0); box(g, wm, len + 2 * e, e, t, 0, S.WIN_Z0 - e / 2, 0); return; }
+    if (Z - S.WIN_Z1 > 0.02) box(g, wm, len, Z - S.WIN_Z1, t, 0, (Z + S.WIN_Z1) / 2, 0);
+    if (w.sill != null && S.WIN_Z0 - w.sill > 0.03) box(g, wm, len, S.WIN_Z0 - w.sill, t, 0, (S.WIN_Z0 + w.sill) / 2, 0);
+  }
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 }), fg = new THREE.Group(); fg.position.set(pos[0], 0, pos[2]); fg.rotation.y = wallFrame(sc, w.wall).ry; group.add(fg);
   if (winModel()) windowModels(fg, len);
   else { [-1, 1].forEach(sd => box(fg, frameMat, 0.06, 1.3, 0.12, sd * (len / 2 + 0.03), 1.5, 0)); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 0.87, 0); box(fg, frameMat, len + 0.12, 0.06, 0.12, 0, 2.13, 0); }
