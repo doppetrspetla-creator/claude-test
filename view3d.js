@@ -98,7 +98,7 @@ function init(cv) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.localClippingEnabled = true;
   scene3 = new THREE.Scene(); scene3.background = new THREE.Color(0x000000);
-  camera = new THREE.PerspectiveCamera(40, 1, 0.05, 250); // daleko: kupole oblohy velkého exteriéru
+  camera = new THREE.PerspectiveCamera(40, 1, 0.05, 400); // daleko: kupole oblohy velkého exteriéru
   orbitCam = new THREE.PerspectiveCamera(50, 1, 0.05, 250);
   controls = new OrbitControls(orbitCam, cv); controls.enabled = false; controls.enableDamping = true;
   controls.addEventListener('change', () => { dirty = true; });
@@ -305,6 +305,7 @@ function addLight(L, res) {
   if (L.tiltDeg != null) { const t = L.tiltDeg * Math.PI / 180; tgt.copy(pos).add(dir.clone().multiplyScalar(2.2 * Math.cos(t))); tgt.y = pos.y + 2.2 * Math.sin(t); } // ruční náklon
   const g = new THREE.Group(); group.add(g);
   const E1 = P.E1 * k.gain;
+  envGlow(L, k, E1);
   if (P.fx.ceil) { ceilLight(L, P, k, E1, lumL, g); return; }
   if (P.omni) {
     const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos); if (hq.active) pl.position.add(new THREE.Vector3(jit(), jit(), jit()).multiplyScalar(P.size)); pl.castShadow = !!lastOpts.shadows && Q().soft > 0; pl.shadow.mapSize.set(Q().softMap, Q().softMap); pl.shadow.bias = -0.002; g.add(pl);
@@ -405,6 +406,13 @@ function ceilLight(L, P, k, E1, lumL, g) {
         const glows = m.emissiveMap || (m.emissive && m.emissive.getHex() !== 0);
         if (glows && m.emissive) { if (k) { m.emissive = k.color.clone(); m.emissiveIntensity = E1 / cfg.area; } else { m.emissive.setHex(0x222222); m.emissiveIntensity = 1; } } });
     }
+  } else if (fx.ceil === 'pole') { // pouliční lampa: svítící sklo pod stínidlem; sloup s ramenem jen mimo model prostředí (tam je vlastní)
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.17, 24), k ? lumL(k.color, E1 / 0.09) : MAT.metal); glass.rotation.x = Math.PI / 2; glass.position.y = -0.02; holder.add(glass);
+    if (!L.envBody) {
+      const shade = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.28, 20, 1, true), MAT.metal); shade.material = shade.material.clone(); shade.material.side = THREE.DoubleSide; shade.position.y = 0.12; holder.add(shade); shade.userData.noCast = true; glass.userData.noCast = true;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, P.h + 0.45, 10), MAT.metal); pole.position.set(-0.9, (0.45 - P.h) / 2, 0); holder.add(pole); // sloup od země do výšky ramene
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, 0.05), MAT.metal); arm.position.set(-0.45, 0.4, 0); holder.add(arm);
+    }
   } else { // model ještě není načtený → jednoduché těleso
     const w = fx.defMod === 'ceilpanel' ? 0.36 : P.size, d = fx.defMod === 'ceilpanel' ? 0.36 : 0.08;
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), k ? lumL(k.color, E1 / cfg.area) : MAT.metal); holder.add(m);
@@ -435,7 +443,7 @@ function limb(mat, r, len, g, x, y, z, rx, rz) {
 function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? V.asset.replace('__FILE__', V.assetPath ? encodeURI(p) : encodeURIComponent(p)) : p; } // assetPath: adresa /viewfinder-app/<soubor> (lomítka nekódovat)
 // ---------- 3D modely postav (glTF, kostra Renderpeople, klipy idle/sit) ----------
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
-const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
+const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, camp: { file: 'models/camp.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
 const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 } };
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
@@ -755,7 +763,7 @@ function addExterior(sc) {
     const dome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); dome.position.set(W / 2, -1, H / 2); dome.renderOrder = -1; dome.userData.noShadow = true; group.add(dome); }
   // materiál venku: obloha „zapečená“ do emissive (aby nesvítila dovnitř), slunce navíc přes DirectionalLight
   const ext = (color, kind, rep) => { const m = texMat(kind || 'cloth', color, { roughness: 1, bumpScale: 0.2 }); const c = new THREE.Color(color); m.emissive = c.clone().multiply(k.color); m.emissiveIntensity = Lsky * (open ? 0.45 : 0.2); if (rep) { m.map = m.map.clone(); m.map.repeat.set(rep, rep); m.map.needsUpdate = true; } return m; };
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * DR + 8, 2 * DR + 8), ext(0x4e6b34, 'fabric', Math.round((2 * DR + 8) / 2))); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * DR + 8, 2 * DR + 8), ext(0x4e6b34, 'fabric', Math.round((2 * DR + 8) / 2))); ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, sc.env ? -0.06 : -0.01, H / 2); ground.receiveShadow = true; group.add(ground);
   // bez zahrady: za okny aspoň pár stromů (jinak by byla vidět jen plochá zelená)
   // obrubník / základová deska domu
   if (!sc.outdoor && open) { const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.12, H + 0.6), ext(0x8c8880, 'concrete', 4)); slab.position.set(W / 2, -0.06, H / 2); group.add(slab); }
@@ -812,9 +820,15 @@ function addFence(sc, skyCol, Lsky) {
   let cur = x0; gaps.sort((a, b) => a[0] - b[0]).forEach(g => { run(cur, y1, Math.max(cur, g[0]), y1); cur = Math.max(cur, g[1]); }); run(cur, y1, x1, y1);
 }
 // prostředí jako 3D model (fotoateliér, hala s cykloramou) místo procedurálních stěn
+let envInst = null; // model prostředí (ateliér, kemp) v aktuální scéně – kvůli rozsvícení svítidel v něm
+// rozsvítit těleso svítidla v modelu prostředí (lampa, světlo u dveří…), když je na jeho místě zapnuté světlo (L.envGlow = jméno dílu)
+function envGlow(L, k, E1) {
+  if (!L.envGlow || !envInst || !k) return; const o = envInst.getObjectByName(L.envGlow); if (!o) return;
+  o.traverse(m => { if (!m.isMesh) return; m.material = m.material.clone(); m.material.emissive = k.color.clone(); m.material.emissiveIntensity = E1 * (L.glowK || 1.5); m.userData.noCast = true; });
+}
 function addEnv(sc) {
   const E = sc.env && S.ENVS[sc.env]; if (!E) return false; const gl = modelFor(E.model); if (!gl) return false;
-  const inst = gl.scene.clone(true); inst.position.set(E.off[0], 0, E.off[1]);
+  const inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); envInst = inst;
   inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = true; if (o.material && o.material.emissive && o.material.emissiveIntensity > 0 && !o.material.emissiveMap) o.material = o.material.clone(), o.material.emissiveIntensity = 0; } });
   group.add(inst); return true;
 }
@@ -944,7 +958,7 @@ function sync(sc, res, meas, opts) {
   if (!hq.building) stopHQ();
   applyQualityRatio();
   clear(group); pendingLift = [];
-  scene3.background = new THREE.Color(0x000000); addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); else if (it.kind === 'road') addRoad(sc, it); });
+  scene3.background = new THREE.Color(0x000000); envInst = null; addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); else if (it.kind === 'road') addRoad(sc, it); });
   sc.items.forEach(it => { const nTag = group.children.length; addItem3D(sc, it, res); if (it.kind !== 'camera' && it.kind !== 'wall' && it.kind !== 'road') for (let i = nTag; i < group.children.length; i++) group.children[i].userData.itemId = it.id; });
   function addItem3D(sc, it, res) {
     if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res);

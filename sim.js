@@ -40,10 +40,12 @@
     ceilround: { name: 'Stropní LED svítidlo kruhové (přisazené)', lux1m: 600, cct: 4000, defMod: 'ceilpanel', ceil: 'flush', model: 'lightpack', part: 'light-circle_8' },
     batten:    { name: 'Zářivkové těleso 1,2 m (stropní)', lux1m: 650, cct: 4000, defMod: 'ceiltube', ceil: 'flush', model: 'lightpack', part: 'rode_0' },
     bulb:      { name: 'Holá žárovka 60 W (na kabelu)', lux1m: 65, cct: 2700, defMod: 'practical', ceil: 'hang', drop: 0.6, model: 'lightpack', part: 'bulb_12' },
+    streetlamp: { name: 'Pouliční lampa (výbojka)', lux1m: 1200, cct: 2400, defMod: 'ceilpanel', ceil: 'pole', h0: 6.0 },
+    porch:     { name: 'Světlo u dveří (40 W)', lux1m: 120, cct: 2700, defMod: 'practical' },
     hangfluo:  { name: 'Závěsné zářivkové svítidlo (industriální)', lux1m: 1300, cct: 4000, defMod: 'ceilfluo', ceil: 'hang', drop: 0.7, model: 'hangfluo' }
   };
   // výchozí výška stropního svítidla v místnosti se stropem z (m)
-  function ceilHeight(fx, z) { z = z || 2.7; return fx.ceil === 'hang' ? Math.max(2.0, z - (fx.drop || 0.6)) : z - 0.06; }
+  function ceilHeight(fx, z) { z = z || 2.7; if (fx.ceil === 'pole') return fx.h0 || 5; return fx.ceil === 'hang' ? Math.max(2.0, z - (fx.drop || 0.6)) : z - 0.06; }
   var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 }, night: { E: 0.6, cct: 9000 } };
   // noc: místo slunce svítí měsíc – „filmový“ měsíční svit (reálný úplněk ≈ 0,25 lx, na place se svítí silněji), studený
   // světlo za otevřenými dveřmi (vedlejší místnost / chodba): lux na 1 m od otvoru šířky 0,9 m
@@ -73,7 +75,14 @@
       credit: 'Zachey', title: 'Photo Studio' },
     cyclorama: { name: 'Hala s cykloramou (sken ateliéru)', model: 'cyclorama', room: { w: 22.75, h: 12.36, z: 4.7 }, off: [15.3, 6.63], walls: 'normal', floor: 'grey',
       parts: [{ label: 'Cyklorama (bílý horizont)', x0: 11.8, y0: 0.07, x1: 21.0, y1: 9.87, col: 'rgba(245,245,245,.35)' }],
-      credit: 'tojek_vfx', title: 'Studio Scan with Cyclorama for realtime VR' }
+      credit: 'tojek_vfx', title: 'Studio Scan with Cyclorama for realtime VR' },
+    // exteriér: letní kemp s obytnými přívěsy (model posunutý o 0,79 m nahoru, aby tráva byla v nule; podlaha přívěsů je 0,79 m nad zemí)
+    camp: { name: 'Letní kemp – obytné přívěsy (3D model)', model: 'camp', room: { w: 73, h: 66, z: 6 }, off: [16, 14], offY: 0.79, outdoor: true, walls: 'normal', floor: 'grass',
+      parts: [{ label: 'Přívěs 1', x0: 15.88, y0: 8.76, x1: 19.62, y1: 23.87, col: 'rgba(200,205,210,.45)' }, { label: 'Přívěs 2', x0: 37.24, y0: 8.76, x1: 40.99, y1: 23.87, col: 'rgba(200,205,210,.45)' },
+        { label: 'Přívěs 3', x0: 60.05, y0: 8.76, x1: 63.79, y1: 23.87, col: 'rgba(200,205,210,.45)' }, { label: 'Přívěs 4', x0: 15.88, y0: 47.4, x1: 19.62, y1: 62.6, col: 'rgba(200,205,210,.45)' },
+        { label: 'Přívěs 5', x0: 37.24, y0: 47.4, x1: 40.99, y1: 62.6, col: 'rgba(200,205,210,.45)' }, { label: 'Přívěs 6', x0: 60.05, y0: 47.4, x1: 63.79, y1: 62.6, col: 'rgba(200,205,210,.45)' },
+        { label: 'Silnice', x0: 0.1, y0: 32.9, x1: 63.5, y1: 39.4, col: 'rgba(70,70,72,.55)' }, { label: '', x0: 49.2, y0: 0.4, x1: 50.8, y1: 65, col: 'rgba(160,125,85,.35)' }],
+      credit: 'Elbolillo', title: 'Trailer Park' }
   };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
   var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Auto', block: 'Box' };

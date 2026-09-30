@@ -89,6 +89,10 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   načítají se až při použití. Výška obličeje pro měření odpovídá modelu.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
+- **Šablona Letní kemp** – 3D model kempu s šesti obytnými přívěsy (73×66 m), noc s měsícem.
+  Svítí dvě pouliční lampy u cesty, světla u dveří všech přívěsů a dvě lampy uvnitř přívěsu 2;
+  jejich tělesa v modelu se rozsvítí podle zapnutí, výkonu a barvy světla. Stropní bodovky
+  v přívěsu 2 jsou připravené vypnuté. Prostředí „Letní kemp“ jde zvolit i samostatně v Místnosti.
 - **Cvaky (lišta dole)** – tlačítko „📸 Cvaknout“ (klávesa C) uloží záběr kamery, schéma
   půdorysu, hodnoty měřáku, seznam světel a celý stav scény. Cvaky se řadí v liště, jdou přejmenovat,
   opatřit poznámkou, přesouvat, uložit jako JPG nebo z nich obnovit scénu. Ukládají se v prohlížeči
@@ -162,6 +166,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Softbox „Simple Studio Light“: **AleixoAlonso**, sketchfab.com, CC BY 4.0 (hlava softboxu + stativ pro všechna světla)
 - Stropní svítidla „Light Pack“: **OPREXT**, sketchfab.com, CC BY 4.0 (zářivkové těleso, kruhové LED svítidlo, holá žárovka)
 - Závěsná zářivka „Low Poly hanging Light“: **Avadhoot**, sketchfab.com, CC BY 4.0 (vlastní lanka nahrazena závěsem podle výšky stropu)
+- Letní kemp „Trailer Park“: **Elbolillo**, sketchfab.com, CC BY 4.0 (oříznuto na areál kempu, zjednodušeno, textury WebP)
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené

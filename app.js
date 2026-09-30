@@ -105,6 +105,19 @@ var TEMPL = {
   cyclo: function(){ var s=blank(), E=S.ENVS.cyclorama; s.env='cyclorama'; s.room={w:E.room.w,h:E.room.h,z:E.room.z}; s.walls=E.walls; s.floor=E.floor; s.windows=[]; s.format='169';
     s.items=[item('person',16.4,4.2,2.74,{model:'zena1',pose:'stand',t:0.3}), item('camera',11.0,6.5,-0.4,{focal:50,h:1.5}), light('skypanel',13.5,2.5,0.53,{power:90,h:2.0,label:'KEY'}), light('kinoflo',13.0,7.4,-0.755,{power:60,h:1.7,label:'FILL'}), light('arri650',20.0,6.8,-2.51,{zoom:25,power:55,h:2.8,label:'KONTRA'}), light('cob600',15.0,0.8,0.3,{mod:'frame',power:70,h:3.2,label:'HORIZONT'})];
     return s; },
+  // letní kemp: 3D model kempu s přívěsy, noc (měsíc); pouliční lampy, světla u dveří a lampy uvnitř přívěsu 2 svítí (jejich tělesa v modelu se rozsvítí)
+  camp: function(){ var s=blank(), E=S.ENVS.camp; s.env='camp'; s.room={w:E.room.w,h:E.room.h,z:E.room.z}; s.outdoor=true; s.floor='grass'; s.walls='normal'; s.windows=[]; s.doors=[];
+    s.sky='night'; s.sun={on:true,az:-2.6,elev:30}; s.exterior={on:false,trees:0}; s.fence=false; s.format='169';
+    var porch=function(x,y,g){ return light('porch',x,y,0,{h:3.29,power:80,hide:true,envGlow:g,glowK:3}); };
+    var inLamp=function(x,y,g){ return light('lamp',x,y,0,{h:2.05,power:80,hide:true,envGlow:g}); };
+    var spot=function(x,y,g){ var o=light('ceilround',x,y,0,{h:3.28,power:45,cct:3000,hide:true,envGlow:g,on:false,label:'bodovka'}); o.mod='ceilpanel'; o.tiltDeg=-90; return o; };
+    s.items=[light('streetlamp',24.53,31.69,0,{h:6.01,power:100,envBody:true,label:'Lampa u cesty'}), light('streetlamp',48.26,31.69,0,{h:6.01,power:100,envBody:true,label:'Lampa u cesty 2'}),
+      porch(15.65,16.87,'spotlight_spotlight_0'), porch(37.03,16.9,'spotlight030_spotlight_0'), porch(59.83,16.9,'spotlight029_spotlight_0'),
+      porch(15.46,55.66,'spotlight026_spotlight_0'), porch(37.03,55.27,'spotlight027_spotlight_0'), porch(59.83,55.68,'spotlight028_spotlight_0'),
+      inLamp(40.55,14.85,'Lamp_01002_Lamp_01_0'), inLamp(40.55,21.19,'Lamp001_Lamp_0'),
+      spot(39.07,10.12,'spotlight008_spotlight_0'), spot(39.07,13.5,'spotlight007_spotlight_0'), spot(39.07,18.78,'spotlight005_spotlight_0'), spot(39.07,21.85,'spotlight006_spotlight_0'),
+      item('person',34.2,14.0,1.55,{model:'zena1',pose:'stand'}), item('camera',29,24,-0.98,{focal:50,h:1.5,aim:false,tilt:0.08})];
+    return s; },
   empty: function(){ var s=blank(); s.windows=[]; return s; }
 };
 
@@ -131,7 +144,9 @@ function toM(px,py){ return [(px-ox)/scale, (py-oy)/scale]; }
 // ---------- výpočet ----------
 function recompute(cell){ res=S.compute(scene,cell); meas=S.measure(scene,res); renderMap(); updateMeter(); draw(); sync3d(); }
 function fineCell(){ var q=$('quality').value, base=q==='low'?0.06:q==='high'?0.025:0.035; return Math.max(base, Math.sqrt(scene.room.w*scene.room.h/40000)); }
-function schedule(){ recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
+// hrubá mřížka při tažení: u velkých ploch (kemp, velký exteriér) řidší, ať je tažení plynulé
+function coarseCell(){ return Math.max(0.12, Math.sqrt(scene.room.w*scene.room.h/60000)); }
+function schedule(){ recompute(coarseCell()); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
 function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? (S.isNight(scene)? S.sunE(scene)*0.9 : Math.max(8000, sk*2.2)) : sk*2.2*0.9; } return 300; }
 function exposureRef(){ var ev=parseFloat($('ev').value); return baseRef()*Math.pow(2,-ev); }
 function sync3d(){ if(!view3dReady) return; var cam=scene.items.some(function(i){return i.kind==='camera';}); $('camHint').classList.toggle('hide',cam); if(cam){ var c=scene.items.find(function(i){return i.kind==='camera';}); $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; }
@@ -278,11 +293,12 @@ function props(){
   if(it.kind==='light'){
     h+='<label>Popisek</label><input type="text" data-k="label" value="'+(it.label||'')+'" placeholder="např. KEY, FILL, BACK">';
     var isC=!!S.FIXTURES[it.fixture].ceil; // stropní / závěsná svítidla: jen typ, výkon, barva a výška (svítí dolů)
-    var fx={}; Object.keys(S.FIXTURES).forEach(function(k){ if(!!S.FIXTURES[k].ceil===isC) fx[k]=S.FIXTURES[k].name;}); selc('fixture',isC?'Stropní svítidlo':'Světlo',fx);
+    var fx={}; Object.keys(S.FIXTURES).forEach(function(k){ if(!!S.FIXTURES[k].ceil===isC) fx[k]=S.FIXTURES[k].name;}); selc('fixture',isC?'Stropní / pouliční svítidlo':'Světlo',fx);
     if(!isC){ var md={}; Object.keys(S.MODS).forEach(function(k){ if(!S.MODS[k].ceil) md[k]=S.MODS[k].name;}); selc('mod','Modifikátor',md); }
     rng('power','Výkon',1,100,1,'%'); chk('rgb','Barevné světlo (RGB)');
     if(it.rgb){ h+='<label>Barva</label><div class="row" style="align-items:center"><input type="color" data-k="color" value="'+(it.color||'#3a6bff')+'" style="flex:0 0 52px"><div class="swatches">'+['#ff2a2a','#ff8a00','#ffd400','#2adf4a','#00d4ff','#2a5bff','#8a2aff','#ff2ad4'].map(function(c){return '<button type="button" class="sw" data-sw="'+c+'" style="background:'+c+'" title="'+c+'"></button>';}).join('')+'</div></div><p class="mut">Saturované barvy mají menší jas (lux) – jako RGB světla v HSI režimu.</p>'; }
-    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); if(isC){ rng('h','Výška svítidla (strop '+fmt(scene.room.z||2.7,2)+' m)',1.2,Math.max(1.3,(scene.room.z||2.7)-0.03),0.05,'m'); h+='<p class="mut">'+(S.FIXTURES[it.fixture].ceil==='hang'?'Závěsné svítidlo – kabel vede ke stropu, výškou měníte délku závěsu.':'Přisazené ke stropu.')+(S.MODS[it.mod].beam>=300?' Svítí do všech stran.':' Svítí dolů.')+' U trubic určuje otočení směr tělesa.</p>'; }
+    else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); if(isC&&S.FIXTURES[it.fixture].ceil==='pole'){ rng('h','Výška lampy',2.5,12,0.1,'m'); h+='<p class="mut">Pouliční lampa na sloupu – svítí dolů.</p>'; }
+    else if(isC){ rng('h','Výška svítidla (strop '+fmt(scene.room.z||2.7,2)+' m)',1.2,Math.max(1.3,(scene.room.z||2.7)-0.03),0.05,'m'); h+='<p class="mut">'+(S.FIXTURES[it.fixture].ceil==='hang'?'Závěsné svítidlo – kabel vede ke stropu, výškou měníte délku závěsu.':'Přisazené ke stropu.')+(S.MODS[it.mod].beam>=300?' Svítí do všech stran.':' Svítí dolů.')+' U trubic určuje otočení směr tělesa.</p>'; }
     else { rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°'); }
     if(!isC && S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
     if(!isC){ h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>'; }
@@ -402,7 +418,7 @@ cv.addEventListener('pointermove',function(e){ var m=mpos(e), w=toM(m[0],m[1]);
     else if(isSeg(it)){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
     else if(drag.rot){ it.rot=Math.atan2(w[1]-it.y,w[0]-it.x); if(e.shiftKey) it.rot=Math.round(it.rot/(Math.PI/12))*(Math.PI/12); }
     else { var mg=it.kind==='camera'?15:-0.05; it.x=Math.max(-mg,Math.min(scene.room.w+mg,snapv(w[0]+drag.dx))); it.y=Math.max(-mg,Math.min(scene.room.h+mg,snapv(w[1]+drag.dy))); } }
-  recompute(0.12); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); });
+  recompute(coarseCell()); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); });
 function projectOnWall(wall,x,y){ if(typeof wall==='string') return (wall==='left'||wall==='right')?y:x; var it=byId(wall); if(!it) return 0; var r=distSeg(x,y,it.x1,it.y1,it.x2,it.y2); return r.t*S.wallLen(it); }
 cv.addEventListener('pointerup',function(){
   if(draft){ var d=draft; draft=null;
@@ -513,9 +529,9 @@ $('fmt').addEventListener('input',function(){ scene.format=$('fmt').value; if(vi
 $('sunOn').addEventListener('input',function(){ scene.sun.on=$('sunOn').checked; skyUI(); fit(); schedule(); });
 $('sunElev').addEventListener('input',function(){ scene.sun.elev=parseFloat($('sunElev').value); $('sunElevV').textContent=scene.sun.elev+'°'; skyUI(); schedule(); });
 $('sunAz').addEventListener('input',function(){ scene.sun.az=parseFloat($('sunAz').value)*Math.PI/180; $('sunAzV').textContent=$('sunAz').value+'°'; skyUI(); schedule(); });
-['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ var mx=scene.outdoor?NEW_LIM.ext.max:NEW_LIM.room.max; scene.room.w=Math.min(mx,Math.max(3,parseFloat($('rw').value)||7)); scene.room.h=Math.min(mx,Math.max(3,parseFloat($('rh').value)||5)); $('rw').value=scene.room.w; $('rh').value=scene.room.h; scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); var cf=i.kind==='light'&&S.FIXTURES[i.fixture]&&S.FIXTURES[i.fixture].ceil; if(cf) i.h= cf==='flush' ? scene.room.z-0.06 : Math.min(i.h,scene.room.z-0.1); }); /* stropní svítidla s výškou stropu */ fit(); schedule(); }); });
+['rw','rh','rz'].forEach(function(id){ $(id).addEventListener('change',function(){ var mx=scene.outdoor?NEW_LIM.ext.max:NEW_LIM.room.max; scene.room.w=Math.min(mx,Math.max(3,parseFloat($('rw').value)||7)); scene.room.h=Math.min(mx,Math.max(3,parseFloat($('rh').value)||5)); $('rw').value=scene.room.w; $('rh').value=scene.room.h; scene.room.z=Math.max(2.2,parseFloat($('rz').value)||2.7); scene.items.forEach(function(i){ if(i.kind==='wall'){ clampWall(i); return; } i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); var cf=i.kind==='light'&&S.FIXTURES[i.fixture]&&S.FIXTURES[i.fixture].ceil; if(cf==='flush') i.h=scene.room.z-0.06; else if(cf==='hang') i.h=Math.min(i.h,scene.room.z-0.1); }); /* stropní svítidla s výškou stropu */ fit(); schedule(); }); });
 $('walls').addEventListener('input',function(){ scene.walls=$('walls').value; schedule(); });
-$('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=false; scene.exterior={on:false,trees:6}; scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
+$('env').addEventListener('input',function(){ var v=$('env').value, E=S.ENVS[v]; if(!E){ delete scene.env; syncRoom(); fit(); schedule(); return; } scene.env=v; scene.room={w:E.room.w,h:E.room.h,z:E.room.z}; scene.walls=E.walls; scene.floor=E.floor; scene.windows=[]; scene.doors=[]; scene.outdoor=!!E.outdoor; scene.exterior={on:false,trees:6}; if(E.outdoor){ scene.fence=false; if(!S.sunOn(scene)&&scene.sky!=='night') scene.sky=scene.sky||'sunny'; } scene.items.forEach(function(i){ if(i.kind==='wall') return; i.x=Math.min(i.x,scene.room.w-0.1); i.y=Math.min(i.y,scene.room.h-0.1); }); syncRoom(); fit(); schedule(); });
 $('floor').addEventListener('input',function(){ scene.floor=$('floor').value; schedule(); });
 $('quality').addEventListener('input',function(){ try{ localStorage.setItem('viewfinder-quality',$('quality').value);}catch(e){} schedule(); });
 ['ev','autoEv','zebra','shadows','haze','grain'].forEach(function(id){ $(id).addEventListener('input',function(){ if(id==='autoEv'){ try{ localStorage.setItem('viewfinder-autoev',$('autoEv').checked?'1':'0');}catch(e){} } $('evv').textContent=(parseFloat($('ev').value)>0?'+':'')+$('ev').value+' EV'; $('hazeV').textContent=$('haze').value+' %'; $('grainV').textContent=$('grain').value+' %'; if(res){ renderMap(); draw(); sync3d(); } }); });
