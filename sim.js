@@ -67,7 +67,43 @@
     pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer', grp: 'pc' },
     pcdesk:   { name: 'Pracovní stůl s PC a doplňky', w: 0.75, d: 2.31, h: 1.32, tall: false, top: 0.75, credit: 'Ren Viro Store', title: 'PC Desk', grp: 'table' },
     kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter', grp: 'kitchen' },
-    tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly', grp: 'tree' }
+    tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly', grp: 'tree' },
+    // Furniture Pack (FBX, textury 512 px): glb = models/<id>.glb, rot = otočení modelu, aby přední strana mířila na +x; seat = dá se na tom sedět
+    fp_bt_bath: { name: 'Vana volně stojící', w: 0.686, d: 1.6, h: 0.665, tall: false, grp: 'bath', glb: true, rot: Math.PI / 2, title: 'Furniture Pack' },
+    fp_bt_mirror: { name: 'Zrcadlo nástěnné', w: 0.016, d: 0.479, h: 0.675, tall: false, grp: 'bath', glb: true, rot: 0, elev: 1.1, title: 'Furniture Pack' },
+    fp_bt_shower: { name: 'Sprchový kout', w: 1.11, d: 1.08, h: 1.95, tall: true, grp: 'bath', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_bt_bathroomsink: { name: 'Umyvadlo na noze', w: 0.379, d: 0.542, h: 0.844, tall: false, grp: 'bath', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_bt_toilet: { name: 'WC', w: 0.588, d: 0.342, h: 0.739, tall: false, grp: 'bath', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinet90degrees: { name: 'Kuchyň – rohová skříňka (zkosená)', w: 1.09, d: 1.09, h: 0.861, tall: false, grp: 'kitchen', glb: true, rot: Math.PI / 2, title: 'Furniture Pack' },
+    fp_kt_kcabinetrounded: { name: 'Kuchyň – rohová linka do L', w: 1.89, d: 1.89, h: 0.861, tall: false, grp: 'kitchen', glb: true, rot: Math.PI, title: 'Furniture Pack' },
+    fp_kt_kcabinetroundedwithsink: { name: 'Kuchyň – rohová linka do L s dřezem', w: 1.89, d: 1.89, h: 1.16, tall: false, grp: 'kitchen', glb: true, rot: Math.PI, title: 'Furniture Pack' },
+    fp_kt_kcabinetwithoven: { name: 'Kuchyň – skříňka s troubou', w: 0.704, d: 0.8, h: 0.861, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinetwithsink: { name: 'Kuchyň – skříňka s dřezem', w: 0.692, d: 0.8, h: 1.1, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinetwithcookstove: { name: 'Kuchyň – skříňka s varnou deskou', w: 0.692, d: 0.8, h: 0.873, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinetwithstoveandoven: { name: 'Kuchyň – sporák (deska a trouba)', w: 0.704, d: 0.8, h: 0.873, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinet1: { name: 'Kuchyň – spodní skříňka', w: 0.692, d: 0.8, h: 0.861, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcabinet2: { name: 'Kuchyň – spodní skříňka 2', w: 0.692, d: 0.8, h: 0.861, tall: false, grp: 'kitchen', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_kt_kcupboard: { name: 'Kuchyň – horní skříňka', w: 0.435, d: 0.8, h: 0.8, tall: false, grp: 'kitchen', glb: true, rot: 0, elev: 1.45, title: 'Furniture Pack' },
+    fp_kt_kcupboardrounded: { name: 'Kuchyň – horní rohové skříňky do L', w: 1.89, d: 1.89, h: 0.8, tall: false, grp: 'kitchen', glb: true, rot: 0, elev: 1.45, title: 'Furniture Pack' },
+    fp_bd_bed1: { name: 'Postel jednolůžko (dřevěná)', w: 1.88, d: 0.847, h: 0.762, tall: false, grp: 'bed', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_bd_bed2: { name: 'Postel dvojlůžko (dřevěná)', w: 2.05, d: 1.66, h: 0.992, tall: false, grp: 'bed', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_ch_chair1: { name: 'Židle kov a dřevo', w: 0.465, d: 0.41, h: 0.79, tall: false, grp: 'seat', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_ch_chair2: { name: 'Židle dřevěná s příčkami', w: 0.503, d: 0.403, h: 0.963, tall: false, grp: 'seat', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_ch_chair3: { name: 'Židle s čalouněným sedákem', w: 0.466, d: 0.387, h: 0.946, tall: false, grp: 'seat', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_ch_chair4: { name: 'Křeslo dřevěné s polštáři', w: 0.912, d: 0.799, h: 0.832, tall: false, grp: 'seat', glb: true, rot: 0, seat: true, title: 'Furniture Pack' },
+    fp_dr_bedsidetable1: { name: 'Noční stolek', w: 0.239, d: 0.386, h: 0.411, tall: false, grp: 'storage', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_dr_bedsidetable2: { name: 'Noční stolek 2', w: 0.389, d: 0.446, h: 0.448, tall: false, grp: 'storage', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_dr_dresser: { name: 'Komoda', w: 0.598, d: 1.36, h: 0.919, tall: false, grp: 'storage', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_sf_armchair: { name: 'Křeslo čalouněné', w: 0.801, d: 0.95, h: 0.812, tall: false, grp: 'seat', glb: true, rot: Math.PI / 2, seat: true, title: 'Furniture Pack' },
+    fp_sf_sofa: { name: 'Pohovka trojsedák', w: 0.686, d: 2.05, h: 0.716, tall: false, grp: 'seat', glb: true, rot: Math.PI / 2, seat: true, title: 'Furniture Pack' },
+    fp_tb_table1: { name: 'Psací stůl', w: 0.866, d: 1.73, h: 0.766, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_tb_table2: { name: 'Jídelní stůl velký', w: 1.04, d: 2.68, h: 0.767, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_tb_table3: { name: 'Konferenční stolek', w: 0.524, d: 1.8, h: 0.614, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_tb_table4: { name: 'Kulatý stůl', w: 1.01, d: 1.01, h: 0.692, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_tb_table5: { name: 'Kulatý jídelní stůl', w: 1.56, d: 1.56, h: 0.755, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_tb_table6: { name: 'Úzký stůl', w: 0.772, d: 2.02, h: 0.797, tall: false, grp: 'table', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_wr_wardrobe1: { name: 'Šatní skříň', w: 0.673, d: 1.02, h: 1.99, tall: true, grp: 'storage', glb: true, rot: 0, title: 'Furniture Pack' },
+    fp_wr_wardrobe2: { name: 'Skříň s rákosovými dvířky', w: 0.52, d: 1.17, h: 1.97, tall: true, grp: 'storage', glb: true, rot: 0, title: 'Furniture Pack' }
   };
   // prostředí = celá místnost jako 3D model (sken / hotový ateliér); off = posun modelu do půdorysu, parts = pevné prvky kreslené v půdorysu
   var ENVS = {
@@ -112,7 +148,7 @@
       segs: '8.53,7.5,8.88,7.5;15.12,7.5,15.47,7.5;8.88,7.7,15.12,7.7;8.88,7.9,11.97,7.9;12.12,7.9,15.12,7.9;11.97,8.1,12.12,8.1;11.97,8.95,12.12,8.95;8.88,9.1,11.97,9.1;8.88,9.2,12.12,9.2;11.97,10.2,12.12,10.2;8.88,10.5,11.97,10.5;12.12,10.5,13.57,10.5;8.88,10.6,13.57,10.6;8.53,17.5,8.88,17.5;15.12,17.5,15.47,17.5;8.53,7.5,8.53,17.5;8.88,7.5,8.88,7.7;8.88,7.9,8.88,9.1;8.88,9.2,8.88,10.5;8.88,10.6,8.88,17.5;11.97,7.9,11.97,8.1;11.97,8.95,11.97,9.1;11.97,10.2,11.97,10.5;12.12,7.9,12.12,8.1;12.12,8.95,12.12,9.2;12.12,10.2,12.12,10.5;15.12,7.5,15.12,7.7;15.12,7.9,15.12,17.5;15.47,7.5,15.47,17.5', parts: [{ label: 'Chata', x0: 7.88, y0: 7.5, x1: 16.12, y1: 17.0, col: 'rgba(160,110,70,.25)' }, { label: 'Terasa', x0: 7.88, y0: 17.0, x1: 16.12, y1: 19.6, col: 'rgba(200,160,100,.3)' }], credit: null, title: 'Glamping chata' }
   };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
-  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box' };
+  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', bath: 'Koupelna', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box' };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
     proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
@@ -143,7 +179,7 @@
     if (items.some(function (i) { return i.kind === 'light' && FIXTURES[i.fixture] && FIXTURES[i.fixture].model === 'lightpack'; })) out.push('3D model „Light Pack“: OPREXT (sketchfab.com), licence CC BY 4.0');
     if (items.some(function (i) { return i.kind === 'light' && i.fixture === 'hangfluo'; })) out.push('3D model „Low Poly hanging Light“: Avadhoot (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push(env.credit ? '3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + env.title + '“ (autor bude doplněn)');
-    Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push(f.credit ? '3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + f.title + '“ (autor bude doplněn)'); });
+    Object.keys(types).forEach(function (t) { var f = FURNITURE[t], line = f.credit ? '3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + f.title + '“ (autor bude doplněn)'; if (out.indexOf(line) < 0) out.push(line); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
     return out;
   }
@@ -257,7 +293,7 @@
     if (!person || !(POSES[person.pose] || POSES.stand).sit) return null;
     var found = null;
     scene.items.forEach(function (it) {
-      if (found || it.kind !== 'furniture' || ['sofa', 'armchair', 'chair', 'bed', 'car'].indexOf(it.type) < 0) return;
+      if (found || it.kind !== 'furniture' || (['sofa', 'armchair', 'chair', 'bed', 'car'].indexOf(it.type) < 0 && !(FURNITURE[it.type] && FURNITURE[it.type].seat))) return;
       var r = it.rot || 0, c = Math.cos(r), sn = Math.sin(r), dx = person.x - it.x, dy = person.y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
       if (Math.abs(u) <= it.w / 2 + 0.05 && Math.abs(v) <= it.d / 2 + 0.05) found = it;
     });

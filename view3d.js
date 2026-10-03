@@ -458,8 +458,10 @@ function treeProto(gltf, v) {
   }
   const P = gltf.userData.protos; return P[(v || 0) % P.length];
 }
+// usazení: pevná tabulka nebo nábytek z balíčku (rot v katalogu)
+function fitCfg(t) { return MODEL_FIT[t] || (S.FURNITURE[t] && S.FURNITURE[t].glb ? { rot: S.FURNITURE[t].rot || 0 } : null); }
 function fitModelInto(g, gltf, key, w, d, h, elev, it) {
-  const cfg = MODEL_FIT[key], src = key === 'tree' ? treeProto(gltf, it && it.variant) : gltf.scene;
+  const cfg = fitCfg(key), src = key === 'tree' ? treeProto(gltf, it && it.variant) : gltf.scene;
   const n = cfg.tile ? Math.max(1, Math.round(d / cfg.tile)) : 1, segD = d / n;
   for (let i = 0; i < n; i++) {
     const inst = src.clone(true); inst.traverse(o => { if (o.isMesh && o.material && o.material.transparent) o.material.depthWrite = false; });
@@ -469,7 +471,7 @@ function fitModelInto(g, gltf, key, w, d, h, elev, it) {
   }
 }
 function modelFor(id) {
-  const m = S.MODELS[id] || EXTRA_MODELS[id]; if (!m || !m.file) return null;
+  const m = S.MODELS[id] || EXTRA_MODELS[id] || (S.FURNITURE[id] && S.FURNITURE[id].glb ? { file: 'models/' + id + '.glb' } : null); if (!m || !m.file) return null;
   const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
   modelCache[id] = { loading: true };
   const solid = !!(S.MODELS[id] && S.MODELS[id].solid);
@@ -621,7 +623,7 @@ function cushion(g, mat, w, h, d, x, y, z) { const r = Math.min(w, h) / 2; const
 function addFurniture(it) {
   const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -(it.rot || 0); g.userData.furn = true; group.add(g);
   const f = S.FURNITURE[it.type] || S.FURNITURE.block, w = it.w || f.w, d = it.d || f.d, t = it.type;
-  if (MODEL_FIT[t]) { const gl = modelFor(t); if (gl) { fitModelInto(g, gl, t, w, d, it.h != null ? it.h : f.h, it.elev != null ? it.elev : (f.elev || 0), it); return; } }
+  if (fitCfg(t)) { const gl = modelFor(t); if (gl) { fitModelInto(g, gl, t, w, d, it.h != null ? it.h : f.h, it.elev != null ? it.elev : (f.elev || 0), it); return; } }
   const fabric = texMat('fabric', 0x4e5a70, { roughness: 1, bumpScale: 0.3 }), fabric2 = texMat('fabric', 0x5b6780, { roughness: 1, bumpScale: 0.3 }), bedding = texMat('cloth', 0xe4dfd3, { roughness: 1, bumpScale: 0.2 }), blanket = texMat('fabric', 0x7a6a5a, { roughness: 1, bumpScale: 0.3 });
   if (t === 'sofa' || t === 'armchair') {
     box(g, fabric, w, 0.22, d, 0, 0.16, 0);                                   // rám

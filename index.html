@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 </head>
 <body>
+<div id="furnPop" class="furnpop hide" role="dialog" aria-label="Výběr nábytku"><div class="fhead"><b id="furnPopT"></b><button class="btn sm" id="furnPopX" title="Zavřít (Esc)">✕</button></div><div class="fgrid" id="furnPopG"></div></div>
 <div id="app">
   <header>
     <div class="brand"><span class="logo">Svět v hledáčku</span><span class="t">Viewfinder Light</span><span class="pill">v2</span><button class="btn sm" id="bAbout" title="O aplikaci, licence a autoři modelů">ⓘ</button></div><div id="wpBar" class="wpbar"></div><button class="btn sm gold hide" id="bInstall" title="Nainstalovat aplikaci do počítače / tabletu – vlastní okno a ikona, funguje i bez internetu">⤓ Nainstalovat</button>
@@ -84,16 +85,15 @@
       <button class="btn" data-add="diffuser" title="Difuzní rám (scrim) – postav mezi světlo a postavu"><i>◻️</i>Difuzní rám</button>
     </div>
     <h3>Nábytek</h3>
-    <div class="add">
-      <button class="btn" data-add="chair" title="Židle, křeslo, gauč – model zvolíš vpravo"><i>🪑</i>Sezení</button>
-      <button class="btn" data-add="table" title="Jednoduchý stůl, konferenční stolek, rohový stůl L, stůl s PC – model zvolíš vpravo"><i>🟫</i>Stůl</button>
-      <button class="btn" data-add="bed"><i>🛏️</i>Postel</button>
-      <button class="btn" data-add="wardrobe" title="Skříň nebo regál – zvolíš vpravo"><i>🚪</i>Skříň / regál</button>
-      <button class="btn" data-add="kitchen"><i>🚰</i>Kuchyň</button>
-      <button class="btn" data-add="pc"><i>🖥️</i>Počítač</button>
-      <button class="btn" data-add="tree"><i>🌳</i>Strom</button>
-      <button class="btn" data-add="car"><i>🚗</i>Auto</button>
-      <button class="btn" data-add="plane"><i>✈️</i>Letadlo</button>
+    <div class="add" id="furnCats">
+      <button class="btn" data-cat="seat" title="Židle, křesla, pohovky – vyberete z náhledů"><i class="fic" data-ic="fp_ch_chair2"></i>Sezení</button>
+      <button class="btn" data-cat="table" title="Stoly, konferenční stolky, rohový stůl, stůl s PC"><i class="fic" data-ic="fp_tb_table4"></i>Stůl</button>
+      <button class="btn" data-cat="bed" title="Postele"><i class="fic" data-ic="fp_bd_bed2"></i>Postel</button>
+      <button class="btn" data-cat="storage" title="Skříně, regál, komoda, noční stolky"><i class="fic" data-ic="fp_wr_wardrobe1"></i>Skříně a komody</button>
+      <button class="btn" data-cat="kitchen" title="Kuchyňské skříňky, sporák, dřez, rohové linky"><i class="fic" data-ic="fp_kt_kcabinetwithstoveandoven"></i>Kuchyň</button>
+      <button class="btn" data-cat="bath" title="Vana, sprcha, umyvadlo, WC, zrcadlo"><i class="fic" data-ic="fp_bt_bath"></i>Koupelna</button>
+      <button class="btn" data-cat="pc" title="Počítač na stůl"><i class="fic" data-ic="pc"></i>Počítač</button>
+      <button class="btn" data-cat="out" title="Strom, auto, letadlo"><i class="fic" data-ic="tree"></i>Venku a vozidla</button>
       <button class="btn" data-add="block" title="Obecný box s libovolnou šířkou, hloubkou a výškou (lednice, pult, auto…)"><i>📦</i>Box (Š×H×V)</button>
     </div>
 
@@ -205,6 +205,7 @@
       • Industriál „Decayed concrete train shed with graffiti“: autor <b>orphanrtg</b>, sketchfab.com, CC BY 4.0<br>
       • Čerpací stanice „Gas station“: autor <b>Elbolillo</b>, sketchfab.com, CC BY 4.0<br>
       • Glamping chata (FBX): autor bude doplněn<br>
+      • Nábytek „Furniture Pack“ (35 kusů: koupelna, kuchyň, postele, židle, komody, sofa, stoly, skříně; FBX, textury 512 px): autor bude doplněn<br>
       • Postavy „Muž 6 – košile a džíny“ a „Muž 7 – pracovník v montérkách“ (MakeHuman): autor bude doplněn<br>
       • Letadlo Piper PA-18 Super Cub (FBX): autor bude doplněn<br>
       • Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera a COB s reflektorem (Studio Light): autor bude doplněn</p>

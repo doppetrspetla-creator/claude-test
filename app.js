@@ -471,11 +471,32 @@ window.addEventListener('keydown',function(e){ var tag=document.activeElement.ta
 
 // stropní svítidlo: výška pod stropem, svítí dolů (náklon −90°), bez gelu a klapek
 function ceilSetup(o){ var f=S.FIXTURES[o.fixture]; o.h=Math.round(S.ceilHeight(f,scene.room.z)*100)/100; o.mod=f.defMod; if(S.MODS[f.defMod].beam<300) o.tiltDeg=-90; else delete o.tiltDeg; o.grid=o.diff=o.barn=false; o.gel='none'; o.gobo='none'; }
-document.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ var k=b.dataset.add, cx=scene.room.w/2, cy=scene.room.h/2, o;
+function addKey(k){ var cx=scene.room.w/2, cy=scene.room.h/2, o;
   if(k==='softbox') o=light('cob300',cx-1,cy-1,0.8,{mod:'softbox90'}); else if(S.FIXTURES[k]&&S.FIXTURES[k].ceil){ o=light(k,cx,cy,0); ceilSetup(o); } else if(S.FIXTURES[k]) o=light(k,cx-1,cy-1,0.8); else if(S.FURNITURE[k]) o=furn(k,cx+0.5,cy+0.5,0); else o=item(k,cx+0.5,cy+0.5,k==='camera'?Math.PI:0);
   if(k==='camera' && scene.items.some(function(i){return i.kind==='camera';})){ o.x=cx+1.2; }
   if(k==='camera') aimOnce(scene,o);
-  scene.items.push(o); select(o); schedule(); }; });
+  scene.items.push(o); select(o); schedule(); }
+document.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ addKey(b.dataset.add); }; });
+
+// ---------- nábytek po kategoriích: nabídka s náhledy (sprite icons/furniture.webp, 8 sloupců) ----------
+var FURN_ICONS=["fp_bt_bath", "fp_bt_mirror", "fp_bt_shower", "fp_bt_bathroomsink", "fp_bt_toilet", "fp_kt_kcabinet90degrees", "fp_kt_kcabinetrounded", "fp_kt_kcabinetroundedwithsink", "fp_kt_kcabinetwithoven", "fp_kt_kcabinetwithsink", "fp_kt_kcabinetwithcookstove", "fp_kt_kcabinetwithstoveandoven", "fp_kt_kcabinet1", "fp_kt_kcabinet2", "fp_kt_kcupboard", "fp_kt_kcupboardrounded", "fp_bd_bed1", "fp_bd_bed2", "fp_ch_chair1", "fp_ch_chair2", "fp_ch_chair3", "fp_ch_chair4", "fp_dr_bedsidetable1", "fp_dr_bedsidetable2", "fp_dr_dresser", "fp_sf_armchair", "fp_sf_sofa", "fp_tb_table1", "fp_tb_table2", "fp_tb_table3", "fp_tb_table4", "fp_tb_table5", "fp_tb_table6", "fp_wr_wardrobe1", "fp_wr_wardrobe2", "sofa", "bed", "ldesk", "pc", "pcdesk", "kitchen", "tree", "car", "plane"];
+var FURN_CATS={ seat:{label:'Sezení',grps:['seat']}, table:{label:'Stoly',grps:['table']}, bed:{label:'Postele',grps:['bed']}, storage:{label:'Skříně a komody',grps:['storage']}, kitchen:{label:'Kuchyň',grps:['kitchen']}, bath:{label:'Koupelna',grps:['bath']}, pc:{label:'Počítač',grps:['pc']}, out:{label:'Venku a vozidla',grps:['tree','car']} };
+var FURN_EMOJI={ chair:'🪑', armchair:'🛋️', table:'🟫', coffee:'🟫', wardrobe:'🚪', shelf:'🗄️', block:'📦' };
+function iconPos(id, px){ var i=FURN_ICONS.indexOf(id); if(i<0) return null; return (-(i%8)*px)+'px '+(-Math.floor(i/8)*px)+'px'; }
+document.querySelectorAll('.fic[data-ic]').forEach(function(e){ var p=iconPos(e.dataset.ic,22); if(p) e.style.backgroundPosition=p; });
+var furnPop=$('furnPop'), furnCat=null;
+function closeFurnPop(){ furnPop.classList.add('hide'); furnCat=null; }
+function openFurnPop(cat, btn){
+  if(furnCat===cat){ closeFurnPop(); return; } furnCat=cat; var C=FURN_CATS[cat]; $('furnPopT').textContent=C.label; var g=$('furnPopG'); g.innerHTML='';
+  Object.keys(S.FURNITURE).filter(function(k){ return C.grps.indexOf(S.FURNITURE[k].grp)>=0; }).forEach(function(k){ var f=S.FURNITURE[k], b=document.createElement('button'); b.className='ftile'; b.title=f.name+' – '+f.w.toFixed(2)+' × '+f.d.toFixed(2)+' × '+f.h.toFixed(2)+' m';
+    var p=iconPos(k,84); b.innerHTML=(p?'<span class="fimg" style="background-position:'+p+'"></span>':'<span class="femo">'+(FURN_EMOJI[k]||'📦')+'</span>')+'<span></span>'; var nm=f.name.replace(/^Kuchyň – /,''); b.lastChild.textContent=nm.charAt(0).toUpperCase()+nm.slice(1);
+    b.onclick=function(){ addKey(k); closeFurnPop(); }; g.appendChild(b); });
+  furnPop.classList.remove('hide'); var r=btn.getBoundingClientRect(), h=furnPop.offsetHeight; furnPop.style.left=Math.round(r.right+8)+'px'; furnPop.style.top=Math.round(Math.max(58,Math.min(r.top-10,innerHeight-h-10)))+'px';
+  var first=g.querySelector('.ftile'); if(first) first.focus(); }
+document.querySelectorAll('[data-cat]').forEach(function(b){ b.onclick=function(e){ e.stopPropagation(); openFurnPop(b.dataset.cat,b); }; });
+$('furnPopX').onclick=closeFurnPop;
+document.addEventListener('pointerdown',function(e){ if(furnCat&&!furnPop.contains(e.target)&&!e.target.closest('[data-cat]')) closeFurnPop(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&furnCat) closeFurnPop(); });
 
 function wallName(w){ return {left:'vlevo',top:'nahoře',right:'vpravo',bottom:'dole'}[w]; }
 function renderDoors(){ var el=$('doors'), h=''; (scene.doors||[]).forEach(function(d,i){
