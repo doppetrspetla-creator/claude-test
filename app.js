@@ -101,6 +101,14 @@ var TEMPL = {
     s.items=[light('lamp',10.2,15.6,0,{h:1.2,power:80,cct:2700,label:'Lampa v chatě'}), light('lamp',14.2,12.5,0,{h:1.2,power:70,cct:2700,label:'Lampa v chatě 2'}), light('porch',13.4,17.2,0,{h:2.6,power:90,label:'Světlo u dveří'}),
       item('person',12.3,21.4,Math.PI/2+0.1,{model:'zena1',pose:'stand'}), item('camera',12.9,26.2,-Math.PI/2-0.1,{focal:35,h:1.5,aim:false,tilt:0.1})];
     return s; },
+  // čerpací stanice v noci: LED svítidla pod přístřeškem, rozsvícený obchod, auto u stojanu
+  gas: function(){ var s=envScene('gas'); s.sky='night'; s.sun={on:true,az:-0.9,elev:35}; s.format='169';
+    var can=function(x,y){ return light('ceilround',x,y,0,{h:6.45,power:100,cct:5000,tiltDeg:-90,label:'Přístřešek'}); };
+    var shop=function(x,y,g){ return light('ceilround',x,y,0,{h:3.95,power:70,cct:4000,tiltDeg:-90,hide:true,envGlow:g,glowK:1.2,label:'Obchod'}); };
+    s.items=[can(29.5,44.5), can(36,44.5), can(42.5,44.5), can(29.5,53), can(36,53), can(42.5,53), shop(31.5,23.5,'shoplamp*'), shop(37.5,23.5),
+      light('streetlamp',20,62.6,0,{h:7,power:100,label:'Lampa u silnice'}),
+      furn('car',35.6,49.5,Math.PI/2,{color:'#7a1f1f'}), item('person',34.3,53.4,2.43,{model:'muz6',pose:'phone'}), item('camera',25.5,60.5,-0.68,{focal:35,h:1.6,aim:false,tilt:0.04})];
+    return s; },
   empty: function(){ var s=blank(); s.windows=[]; return s; }
 };
 

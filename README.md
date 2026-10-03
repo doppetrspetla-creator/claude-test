@@ -176,6 +176,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Byty „Apartment floor plan“ a „Appartement“: **SrMonteiro**, sketchfab.com, CC BY 4.0 (materiály převedené ze „zapečených“ na osvětlované; u prvního bytu zdi dotažené do 2,6 m a doplněný strop)
 - Školní třída „Classroom“: **Zeps3D**, sketchfab.com, CC BY 4.0 (odstraněny efekty paprsků a prachu a zapečené sluneční skvrny)
 - Industriál „Decayed concrete train shed with graffiti“: **orphanrtg**, sketchfab.com, CC BY 4.0
+- Čerpací stanice „Gas station“: **Elbolillo**, sketchfab.com, CC BY 4.0 (oříznutý vzdálený konec silnice, zjednodušeno, textury WebP)
 - Glamping chata (FBX): autor bude doplněn
 - Postavy „Muž 6 – košile a džíny“ a „Muž 7 – pracovník v montérkách“ (MakeHuman, FBX): autor bude doplněn (kostra přejmenovaná na společnou, pózy přenesené z Mixama)
 - Letadlo Piper PA-18 Super Cub (FBX): autor bude doplněn (zjednodušeno, barvy materiálů doplněny – žlutá Cub)
