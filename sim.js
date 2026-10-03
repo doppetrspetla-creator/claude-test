@@ -324,6 +324,18 @@
     var ps = P(-w / 2 + aw + 0.42, -d / 2 + ad + 0.42), pc = P(-w / 2 + aw * 0.5, -d / 2 + ad * 0.5), top = (desk.h || 1.475) * 0.798 / 1.57; // deska modelu je v 50,8 % jeho výšky
     return { person: { x: ps.x, y: ps.y, rot: r - 3 * Math.PI / 4 }, pc: { x: pc.x, y: pc.y, rot: r + Math.PI / 4, elev: top } };
   }
+  // plocha nábytku pod bodem (stůl, linka, komoda, noční stolek, box) → výška desky; „magnet“ pro světla
+  var SURF_GRPS = ['table', 'kitchen', 'storage', 'block'];
+  function surfaceAt(scene, x, y, exceptId) {
+    var best = null;
+    (scene.items || []).forEach(function (it) {
+      if (it.id === exceptId || it.kind !== 'furniture') return; var f = FURNITURE[it.type]; if (!f || SURF_GRPS.indexOf(f.grp) < 0 || it.elev || f.elev || isTall(it)) return;
+      var r = it.rot || 0, c = Math.cos(r), sn = Math.sin(r), dx = x - it.x, dy = y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
+      if (Math.abs(u) > (it.w || f.w) / 2 || Math.abs(v) > (it.d || f.d) / 2) return;
+      var top = f.top != null ? f.top : (it.h != null ? it.h : f.h); if (!best || top > best.top) best = { top: top, it: it };
+    });
+    return best;
+  }
   function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
   // zorné úhly kamery (rad) pro ohnisko (mm, full frame 36×24) a poměr stran záběru
   var FORMATS = { free: { name: 'volný (podle okna)', a: 0 }, '43': { name: '4:3', a: 4 / 3 }, '169': { name: '16:9', a: 16 / 9 }, '916': { name: '9:16 (na výšku)', a: 9 / 16 }, scope: { name: '2.39:1 cinemascope', a: 2.39 } };
@@ -565,6 +577,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { ceilHeight: ceilHeight, envSegs: envSegs, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { ceilHeight: ceilHeight, envSegs: envSegs, surfaceAt: surfaceAt, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

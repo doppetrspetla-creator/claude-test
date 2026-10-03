@@ -87,6 +87,9 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   Sketchfabu, klipy stání a sezení z Mixama přemapované na jejich kostru) plus stylizovaná figura
   s volbou účesu, barvy vlasů, pleti a oblečení. Modely jsou ve složce `models/` (asi 2 MB každý),
   načítají se až při použití. Výška obličeje pro měření odpovídá modelu.
+- **Magnet na nábytek** – světlo posunuté nad stůl, kuchyňskou linku, komodu nebo box se na desku postaví
+  (stativ / podstavec začíná na desce) a při posouvání po ní jezdí. Světlo, které už je nad deskou, zůstane
+  ve stejné výšce; nižší se zvedne na desku. Vypíná se zaškrtávátkem „Magnet“ ve vlastnostech světla.
 - **Nábytek po kategoriích** – v levém panelu tlačítka Sezení, Stůl, Postel, Skříně a komody, Kuchyň, Koupelna,
   Počítač, Venku a vozidla; každé otevře nabídku s náhledy modelů (klik = vložit do scény). Náhledy jsou
   v jednom obrázku `icons/furniture.webp`.

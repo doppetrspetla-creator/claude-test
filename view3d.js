@@ -234,7 +234,8 @@ function standModel() {
   const legs = gl.scene.getObjectByName('legs'), pole = gl.scene.getObjectByName('pole'); if (!legs || !pole) return null;
   const pb = new THREE.Box3().setFromObject(pole); standProto = { legs, pole, y0: pb.min.y, len: pb.max.y - pb.min.y }; return standProto;
 }
-function stand(x, z, h, g) {
+function stand(x, z, h, g, base) {
+  if (base > 0.01) { const bg = new THREE.Group(); bg.position.y = base; g.add(bg); stand(x, z, Math.max(0.15, h - base), bg); return; } // světlo na desce stolu (magnet): stativ od desky
   const P = standModel();
   if (P) { const sg = new THREE.Group(); sg.position.set(x, 0, z); g.add(sg); const top = P.y0 + P.len;
     if (h < top * 0.7) { const k = h / top; const a = P.legs.clone(true), b = P.pole.clone(true); a.scale.setScalar(k); b.scale.setScalar(k); sg.add(a, b); return; }
@@ -311,14 +312,15 @@ function addLight(L, res) {
     const pl = new THREE.PointLight(k.color, E1, 12, 2); pl.position.copy(pos); if (hq.active) pl.position.add(new THREE.Vector3(jit(), jit(), jit()).multiplyScalar(P.size)); pl.castShadow = !!lastOpts.shadows && Q().soft > 0; pl.shadow.mapSize.set(Q().softMap, Q().softMap); pl.shadow.bias = -0.002; g.add(pl);
     if (L.mod === 'tube') {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 12), lumL(k.color, E1 / 0.15));
-      m.position.copy(pos); m.rotation.z = Math.PI / 2; m.rotation.y = -(L.rot + Math.PI / 2); g.add(m); stand(L.x, L.y, P.h, g);
+      m.position.copy(pos); m.rotation.z = Math.PI / 2; m.rotation.y = -(L.rot + Math.PI / 2); g.add(m); stand(L.x, L.y, P.h, g, L.base);
     } else if (L.mod === 'practical') {
       const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.2, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0xe8dcc0, emissive: k.color, emissiveIntensity: E1 * 1.5, side: THREE.DoubleSide, roughness: 1 }));
       shade.position.copy(pos); g.add(shade);
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), lumL(k.color, E1 * 40)); bulb.position.copy(pos); g.add(bulb);
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, P.h - 0.1, 6), MAT.metal); pole.position.set(L.x, (P.h - 0.1) / 2, L.y); g.add(pole);
+      const b0 = L.base || 0, ph = Math.max(0.05, P.h - 0.1 - b0); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, ph, 6), MAT.metal); pole.position.set(L.x, b0 + ph / 2, L.y); g.add(pole);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.02, 16), MAT.metal); foot.position.set(L.x, b0 + 0.01, L.y); g.add(foot); // podstavec lampy
     } else {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(P.size / 2, 16, 12), lumL(k.color, E1 / (Math.PI * P.size * P.size / 4))); m.position.copy(pos); g.add(m); stand(L.x, L.y, P.h, g);
+      const m = new THREE.Mesh(new THREE.SphereGeometry(P.size / 2, 16, 12), lumL(k.color, E1 / (Math.PI * P.size * P.size / 4))); m.position.copy(pos); g.add(m); stand(L.x, L.y, P.h, g, L.base);
     }
     return;
   }
@@ -363,7 +365,7 @@ function addLight(L, res) {
   }
   // u plochých hlav (SkyPanel, Kino Flo) končí stojan pod spodní hranou, aby tyč nešla přes svítící plochu
   const hb = headG && P.soft ? headBox(headG) : null;
-  stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : sbG ? Math.max(0.3, P.h - 0.08) : cobG ? Math.max(0.3, P.h - 0.17) : P.h, g);
+  stand(L.x, L.y, hb ? Math.max(0.3, P.h - hb.y * 0.9) : sbG ? Math.max(0.3, P.h - 0.08) : cobG ? Math.max(0.3, P.h - 0.17) : P.h, g, L.base);
 }
 
 // ---------- stropní a závěsná praktická světla (Light Pack: zářivkové těleso, kruhové LED, žárovka; závěsná zářivka) ----------

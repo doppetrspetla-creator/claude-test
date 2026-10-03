@@ -137,7 +137,7 @@ function recompute(cell){ res=S.compute(scene,cell); meas=S.measure(scene,res); 
 function fineCell(){ var q=$('quality').value, base=q==='low'?0.06:q==='high'?0.025:0.035; return Math.max(base, Math.sqrt(scene.room.w*scene.room.h/40000)); }
 // hrubá mřížka při tažení: u velkých ploch (kemp, velký exteriér) řidší, ať je tažení plynulé
 function coarseCell(){ return Math.max(0.12, Math.sqrt(scene.room.w*scene.room.h/60000)); }
-function schedule(){ recompute(coarseCell()); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
+function schedule(){ if(scene&&scene.items) scene.items.forEach(magnet); /* posunutý / smazaný stůl pod světlem */ recompute(coarseCell()); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); objList(); snapshotSoon(); }
 function baseRef(){ if($('autoEv').checked && meas && meas.lux>0.5) return meas.lux; if(scene.outdoor){ var sk=(S.SKY[scene.sky]||S.SKY.overcast).E; return S.sunOn(scene)? (S.isNight(scene)? S.sunE(scene)*0.9 : Math.max(8000, sk*2.2)) : sk*2.2*0.9; } return 300; }
 function exposureRef(){ var ev=parseFloat($('ev').value); return baseRef()*Math.pow(2,-ev); }
 function sync3d(){ if(!view3dReady) return; var cam=scene.items.some(function(i){return i.kind==='camera';}); $('camHint').classList.toggle('hide',cam); if(cam){ var c=scene.items.find(function(i){return i.kind==='camera';}); $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; }
@@ -294,7 +294,8 @@ function props(){
     if(it.rgb){ h+='<label>Barva</label><div class="row" style="align-items:center"><input type="color" data-k="color" value="'+(it.color||'#3a6bff')+'" style="flex:0 0 52px"><div class="swatches">'+['#ff2a2a','#ff8a00','#ffd400','#2adf4a','#00d4ff','#2a5bff','#8a2aff','#ff2ad4'].map(function(c){return '<button type="button" class="sw" data-sw="'+c+'" style="background:'+c+'" title="'+c+'"></button>';}).join('')+'</div></div><p class="mut">Saturované barvy mají menší jas (lux) – jako RGB světla v HSI režimu.</p>'; }
     else rng('cct','Teplota chromatičnosti',2700,6500,100,'K'); if(isC&&S.FIXTURES[it.fixture].ceil==='pole'){ rng('h','Výška lampy',2.5,12,0.1,'m'); h+='<p class="mut">Pouliční lampa na sloupu – svítí dolů.</p>'; }
     else if(isC){ rng('h','Výška svítidla (strop '+fmt(scene.room.z||2.7,2)+' m)',1.2,Math.max(1.3,(scene.room.z||2.7)-0.03),0.05,'m'); h+='<p class="mut">'+(S.FIXTURES[it.fixture].ceil==='hang'?'Závěsné svítidlo – kabel vede ke stropu, výškou měníte délku závěsu.':'Přisazené ke stropu.')+(S.MODS[it.mod].beam>=300?' Svítí do všech stran.':' Svítí dolů.')+' U trubic určuje otočení směr tělesa.</p>'; }
-    else { rng('h','Výška zdroje',0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°'); }
+    else { h+='<label class="chk"><input type="checkbox" id="magnetOn"'+(scene.magnet!==false?' checked':'')+'> 🧲 Magnet – postavit světlo na stůl, linku nebo komodu pod ním</label>'+(it.base?'<p class="mut">Stojí na nábytku: deska ve '+fmt(it.base,2)+' m, zdroj '+fmt(it.h-it.base,2)+' m nad deskou.</p>':'');
+      rng('h','Výška zdroje',it.base?Math.round((it.base+0.1)*100)/100:0.3,Math.max(0.5,(scene.room.z||2.7)-0.1),0.05,'m'); it.tiltAuto=it.tiltDeg==null; chk('tiltAuto','Náklon automaticky na výšku obličeje'); if(!it.tiltAuto) rng('tiltDeg','Náklon nahoru / dolů',-90,60,1,'°'); }
     if(!isC && S.MODS[it.mod].zoom) rng('zoom','Fresnel – spot ↔ flood (posun čočky)',12,60,1,'°');
     if(!isC){ h+='<div class="row">'; chk('grid','Voština'); chk('diff','Difuze'); chk('barn','Klapky'); h+='</div>'; }
     if(!it.rgb) selc('gel','Gel',{none:'bez gelu',cto:'CTO (oteplit)',ctb:'CTB (ochladit)'});
@@ -333,6 +334,7 @@ if(it.type==='car'){ h+='<label>Barva laku</label><input type="color" data-k="co
     schedule(); }); });
   el.querySelectorAll('[data-sw]').forEach(function(b){ b.onclick=function(){ it.color=b.dataset.sw; props(); schedule(); }; });
   if($('bEnterCar')){ var car2=it; [['bEnterCar','enter',false],['bEnterDrv','enterDriver',true]].forEach(function(q){ $(q[0]).onclick=function(){ var st=S.carSeat(car2,q[1]); var o=item('person',st.x,st.y,st.rot,{pose:'carin',model:'zena1',t:0.35,mirror:q[2]}); scene.items.push(o); select(o); schedule(); }; }); }
+  if($('magnetOn')) $('magnetOn').onchange=function(){ scene.magnet=this.checked; scene.items.forEach(function(i){ if(scene.magnet) magnet(i); else delete i.base; }); props(); schedule(); };
   if($('bDriver')){ var car=it; ['bDriver','bPassenger'].forEach(function(bid){ $(bid).onclick=function(){ var st=S.carSeat(car, bid==='bDriver'?'driver':'passenger'); var o=item('person',st.x,st.y,st.rot,{pose:'sit',model:'zena1',t:0.8}); scene.items.push(o); select(o); schedule(); }; }); }
   if($('bSofaPerson')){ var sf=it; $('bSofaPerson').onclick=function(){ var seats=S.sofaSeats(sf), taken=scene.items.filter(function(i){return i.kind==='person';}), sp=seats.find(function(q){ return !taken.some(function(pp){ return Math.hypot(pp.x-q.x,pp.y-q.y)<0.35; }); })||seats[0]; var o=item('person',sp.x,sp.y,sp.rot,{pose:'sit',model:'zena1',t:0.8}); scene.items.push(o); select(o); schedule(); }; }
   if($('bDeskPerson')){ var dk=it; $('bDeskPerson').onclick=function(){ var sp=S.deskSpots(dk).person; var o=item('person',sp.x,sp.y,sp.rot,{pose:'type',model:'zena1',t:0.3}); scene.items.push(o); select(o); schedule(); };
@@ -412,7 +414,7 @@ cv.addEventListener('pointermove',function(e){ var m=mpos(e), w=toM(m[0],m[1]);
     if(drag.end){ var o= drag.end===1?[it.x2,it.y2]:[it.x1,it.y1]; var p2=it.kind==='road'?roadPt(w[0],w[1],it):snapPt(w[0],w[1]); var q2=(e.altKey||it.kind==='road'&&!e.shiftKey)?p2:axisSnap(o[0],o[1],p2[0],p2[1],e.shiftKey); if(drag.end===1){ it.x1=q2[0]; it.y1=q2[1]; } else { it.x2=q2[0]; it.y2=q2[1]; } clampSeg(it); }
     else if(isSeg(it)){ var nx=snapv(w[0]+drag.dx), ny=snapv(w[1]+drag.dy); moveWall(it,nx-it.x,ny-it.y); }
     else if(drag.rot){ it.rot=Math.atan2(w[1]-it.y,w[0]-it.x); if(e.shiftKey) it.rot=Math.round(it.rot/(Math.PI/12))*(Math.PI/12); }
-    else { var mg=it.kind==='camera'?15:-0.05; it.x=Math.max(-mg,Math.min(scene.room.w+mg,snapv(w[0]+drag.dx))); it.y=Math.max(-mg,Math.min(scene.room.h+mg,snapv(w[1]+drag.dy))); } }
+    else { var mg=it.kind==='camera'?15:-0.05; it.x=Math.max(-mg,Math.min(scene.room.w+mg,snapv(w[0]+drag.dx))); it.y=Math.max(-mg,Math.min(scene.room.h+mg,snapv(w[1]+drag.dy))); magnet(it); } }
   recompute(coarseCell()); clearTimeout(fineTimer); fineTimer=setTimeout(function(){ recompute(fineCell()); },180); });
 function projectOnWall(wall,x,y){ if(typeof wall==='string') return (wall==='left'||wall==='right')?y:x; var it=byId(wall); if(!it) return 0; var r=distSeg(x,y,it.x1,it.y1,it.x2,it.y2); return r.t*S.wallLen(it); }
 cv.addEventListener('pointerup',function(){
@@ -471,11 +473,16 @@ window.addEventListener('keydown',function(e){ var tag=document.activeElement.ta
 
 // stropní svítidlo: výška pod stropem, svítí dolů (náklon −90°), bez gelu a klapek
 function ceilSetup(o){ var f=S.FIXTURES[o.fixture]; o.h=Math.round(S.ceilHeight(f,scene.room.z)*100)/100; o.mod=f.defMod; if(S.MODS[f.defMod].beam<300) o.tiltDeg=-90; else delete o.tiltDeg; o.grid=o.diff=o.barn=false; o.gel='none'; o.gobo='none'; }
+// magnet: světlo nad stolem / linkou / komodou se postaví na desku a jezdí po ní; výška zdroje se drží nad deskou (it.base = výška desky)
+function magnet(it){ if(!it||it.kind!=='light'||scene.magnet===false) return false; var fx=S.FIXTURES[it.fixture]; if(!fx||fx.ceil||it.hide) return false;
+  var s=S.surfaceAt(scene,it.x,it.y,it.id), nb=s?Math.round(s.top*100)/100:0, ob=it.base||0; if(Math.abs(nb-ob)<0.005) return false;
+  var h0=it.h==null?1.7:it.h; if(ob&&nb) h0=h0-ob+nb; else if(nb&&h0<nb+0.12) h0=nb+Math.min(Math.max(h0,0.15),0.45); // z desky na desku: stejně vysoko nad ní; pod deskou: zvednout na ni; jinak výška zdroje beze změny (jen stativ začne na desce)
+  it.h=Math.round(h0*100)/100; if(nb) it.base=nb; else delete it.base; return true; }
 function addKey(k){ var cx=scene.room.w/2, cy=scene.room.h/2, o;
   if(k==='softbox') o=light('cob300',cx-1,cy-1,0.8,{mod:'softbox90'}); else if(S.FIXTURES[k]&&S.FIXTURES[k].ceil){ o=light(k,cx,cy,0); ceilSetup(o); } else if(S.FIXTURES[k]) o=light(k,cx-1,cy-1,0.8); else if(S.FURNITURE[k]) o=furn(k,cx+0.5,cy+0.5,0); else o=item(k,cx+0.5,cy+0.5,k==='camera'?Math.PI:0);
   if(k==='camera' && scene.items.some(function(i){return i.kind==='camera';})){ o.x=cx+1.2; }
   if(k==='camera') aimOnce(scene,o);
-  scene.items.push(o); select(o); schedule(); }
+  magnet(o); scene.items.push(o); select(o); schedule(); }
 document.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ addKey(b.dataset.add); }; });
 
 // ---------- nábytek po kategoriích: nabídka s náhledy (sprite icons/furniture.webp, 8 sloupců) ----------
@@ -605,7 +612,7 @@ window.addEventListener('view3d-model',function(){ if(res) sync3d(); draw(); });
 window.addEventListener('view3d-ready',function(){ window.View3D.init($('view3d')); view3dReady=true; window.View3D.resize();
   window.View3D.setPoseCallback(function(id,bone,q,final){ var it=byId(id); if(!it) return; if(!it.bones) it.bones={}; it.bones[bone]=q; if(final){ poseButtons(); snapshotSoon(); } });
   // objekt chycený myší v 3D pohledu: výběr, průběžné překreslení půdorysu, na konci přepočet světla
-  window.View3D.setMoveCallback(function(id,x,y,phase){ var it=byId(id); if(!it) return; if(phase==='start'){ if(sel!==it) select(it); return; } it.x=Math.max(0.05,Math.min(scene.room.w-0.05,it.x)); it.y=Math.max(0.05,Math.min(scene.room.h-0.05,it.y)); draw(); if(phase==='end'){ props(); schedule(); } });
+  window.View3D.setMoveCallback(function(id,x,y,phase){ var it=byId(id); if(!it) return; if(phase==='start'){ if(sel!==it) select(it); return; } it.x=Math.max(0.05,Math.min(scene.room.w-0.05,it.x)); it.y=Math.max(0.05,Math.min(scene.room.h-0.05,it.y)); draw(); if(phase==='end'){ magnet(it); props(); schedule(); } });
   window.View3D.setCameraCallback(function(cam,final){ draw(); var c=scene.items.find(function(i){return i.kind==='camera';}); if(c) $('camInfo').textContent=c.focal+' mm · výška '+c.h.toFixed(2).replace('.',',')+' m'; camUI(); clearTimeout(camTimer); camTimer=setTimeout(function(){ if(sel&&sel.kind==='camera') props(); schedule(); }, final?50:350); });
   if(res) sync3d(); });
 if(window.View3D){ window.dispatchEvent(new Event('view3d-ready')); }
