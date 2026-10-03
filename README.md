@@ -93,6 +93,11 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
 - **Nábytek po kategoriích** – v levém panelu tlačítka Sezení, Stůl, Postel, Skříně a komody, Kuchyň, Koupelna,
   Počítač, Venku a vozidla; každé otevře nabídku s náhledy modelů (klik = vložit do scény). Náhledy jsou
   v jednom obrázku `icons/furniture.webp`.
+- **Svítidla (Light Pack)** – 43 lamp jako 3D modely ve čtyřech nabídkách s náhledy: Stolní, Stojací,
+  Nástěnná, Stropní a závěsná. Lampa opravdu svítí: žárovka, stínidlo nebo difuzor září barvou a výkonem
+  světla a do scény svítí podle typu (do všech stran, dolů, do stropu, spot s náklonem). Stolní lampa se
+  magnetem postaví podstavou na stůl, stropní má vršek u stropu (závěsnou lze snížit – přibude kabel).
+  Modely jsou v jednom souboru `models/lamps.glb.js`, náhledy v `icons/lamps.webp`.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
 - **Interiéry a exteriéry z 3D modelů** – šablony Byt, Byt 2, Školní třída, Industriál (betonová remíza)
@@ -185,6 +190,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Čerpací stanice „Gas station“: **Elbolillo**, sketchfab.com, CC BY 4.0 (oříznutý vzdálený konec silnice, zjednodušeno, textury WebP)
 - Glamping chata (FBX): autor bude doplněn
 - Nábytek „Furniture Pack“ (35 kusů, FBX, textury 512 px): autor bude doplněn (textury zmenšené na 256 px WebP, sofa a křeslo převedené na skutečnou velikost)
+- Svítidla „Light Pack“ (43 lamp, FBX): autor bude doplněn (sítě zjednodušené na ~750–2 400 trojúhelníků, kvantizované, svítící části označené emisí)
 - Postavy „Muž 6 – košile a džíny“ a „Muž 7 – pracovník v montérkách“ (MakeHuman, FBX): autor bude doplněn (kostra přejmenovaná na společnou, pózy přenesené z Mixama)
 - Letadlo Piper PA-18 Super Cub (FBX): autor bude doplněn (zjednodušeno, barvy materiálů doplněny – žlutá Cub)
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn

@@ -22,8 +22,18 @@
     // stropní svítidla (svítí dolů, náklon −90°)
     ceilpanel: { name: 'Stropní svítidlo – difuzor', beam: 150, size: 0.36, mult: 1.0, soft: true, ceil: true },
     ceiltube:  { name: 'Zářivková trubice (holá)', beam: 340, size: 1.20, mult: 1.0, soft: true, ceil: true },
-    ceilfluo:  { name: 'Zářivky s reflektorem', beam: 120, size: 1.25, mult: 1.0, soft: true, ceil: true }
+    ceilfluo:  { name: 'Zářivky s reflektorem', beam: 120, size: 1.25, mult: 1.0, soft: true, ceil: true },
+    // svítidla z Light Packu (lamp = jen pro ně, v nabídce modifikátorů nejsou)
+    lp_omni:  { name: 'Svítidlo – do všech stran', beam: 340, size: 0.15, mult: 1.0, soft: true, lamp: true },
+    lp_shade: { name: 'Svítidlo se stínidlem', beam: 340, size: 0.3, mult: 1.0, soft: true, lamp: true },
+    lp_task:  { name: 'Pracovní lampa (dolů)', beam: 70, size: 0.1, mult: 1.0, soft: false, lamp: true },
+    lp_down:  { name: 'Svítidlo dolů', beam: 110, size: 0.15, mult: 1.0, soft: true, lamp: true },
+    lp_diff:  { name: 'Svítidlo s difuzorem (dolů)', beam: 150, size: 0.35, mult: 1.0, soft: true, lamp: true },
+    lp_front: { name: 'Svítidlo dopředu (od zdi)', beam: 160, size: 0.5, mult: 1.0, soft: true, lamp: true },
+    lp_up:    { name: 'Svítidlo do stropu (odraz)', beam: 340, size: 0.4, mult: 0.35, soft: true, lamp: true },
+    lp_spot:  { name: 'Spot', beam: 36, size: 0.08, mult: 1.0, soft: false, lamp: true }
   };
+  var LAMP_KINDS = { table: 'Stolní lampy', floor: 'Stojací lampy', wall: 'Nástěnná svítidla', ceil: 'Stropní a závěsná' };
   var FIXTURES = {
     cob100: { name: 'COB 100 W', lux1m: 4200, cct: 5600, defMod: 'reflector' },
     cob300: { name: 'COB 300 W', lux1m: 12000, cct: 5600, defMod: 'reflector' },
@@ -42,10 +52,57 @@
     bulb:      { name: 'Holá žárovka 60 W (na kabelu)', lux1m: 65, cct: 2700, defMod: 'practical', ceil: 'hang', drop: 0.6, model: 'lightpack', part: 'bulb_12' },
     streetlamp: { name: 'Pouliční lampa (výbojka)', lux1m: 1200, cct: 2400, defMod: 'ceilpanel', ceil: 'pole', h0: 6.0 },
     porch:     { name: 'Světlo u dveří (40 W)', lux1m: 120, cct: 2700, defMod: 'practical' },
-    hangfluo:  { name: 'Závěsné zářivkové svítidlo (industriální)', lux1m: 1300, cct: 4000, defMod: 'ceilfluo', ceil: 'hang', drop: 0.7, model: 'hangfluo' }
+    hangfluo:  { name: 'Závěsné zářivkové svítidlo (industriální)', lux1m: 1300, cct: 4000, defMod: 'ceilfluo', ceil: 'hang', drop: 0.7, model: 'hangfluo' },
+    // Light Pack – praktická svítidla jako 3D modely (models/lamps: uzel = id, zdroj světla v počátku, přední strana +x)
+    // lamp.k = stolní / stojací / nástěnné / stropní, drop = zdroj nad spodkem modelu, top = vršek modelu nad zdrojem, foot = střed podstavy vůči zdroji (m, v osách modelu), ga = svítící plocha (m²), h = výchozí výška nástěnného
+    lp_tizio: { name: 'Tizio – rameno s halogenem', lux1m: 450, cct: 3000, defMod: 'lp_task', model: 'lamps', lamp: { k: 'table', drop: 0.602, top: 0.085, foot: [-0.841, -0.001], ga: 0.004 } },
+    lp_architect: { name: 'Architektonická lampa', lux1m: 400, cct: 3000, defMod: 'lp_task', model: 'lamps', lamp: { k: 'table', drop: 0.89, top: 0.096, foot: [-0.189, 0], ga: 0.004 } },
+    lp_mush_or: { name: 'Houba oranžová', lux1m: 70, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'table', drop: 0.466, top: 0.161, foot: [0, -0.001], ga: 0.356 } },
+    lp_ceramic: { name: 'Keramická se stínidlem', lux1m: 80, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'table', drop: 0.744, top: 0.241, foot: [0.001, 0], ga: 0.518 } },
+    lp_redtall: { name: 'Červená vysoká', lux1m: 80, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'table', drop: 0.913, top: 0.299, foot: [0, 0.001], ga: 0.89 } },
+    lp_black: { name: 'Černá se stínidlem', lux1m: 80, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'table', drop: 0.643, top: 0.205, foot: [0, 0], ga: 0.556 } },
+    lp_column: { name: 'Sloupek se stínidlem', lux1m: 80, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'table', drop: 0.736, top: 0.267, foot: [0, 0], ga: 0.579 } },
+    lp_mush_wh: { name: 'Houba bílá (opál)', lux1m: 50, cct: 2700, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'table', drop: 0.286, top: 0.124, foot: [0, 0], ga: 0.255 } },
+    lp_space: { name: 'Space age', lux1m: 50, cct: 2700, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'table', drop: 0.382, top: 0.101, foot: [0.001, -0.002], ga: 0.025 } },
+    lp_globe_t: { name: 'Opálová koule', lux1m: 45, cct: 2700, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'table', drop: 0.193, top: 0.132, foot: [0, 0.001], ga: 0.123 } },
+    lp_goose: { name: 'Husí krk', lux1m: 350, cct: 3000, defMod: 'lp_task', model: 'lamps', lamp: { k: 'floor', drop: 1.209, top: 0.162, foot: [-0.443, 0], ga: 0.009 } },
+    lp_read: { name: 'Čtecí (LED hlava)', lux1m: 350, cct: 3000, defMod: 'lp_task', model: 'lamps', lamp: { k: 'floor', drop: 1.265, top: 0.104, foot: [-0.347, 0], ga: 0.009 } },
+    lp_floorshade: { name: 'Se stínidlem', lux1m: 120, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'floor', drop: 1.344, top: 0.155, foot: [0, 0], ga: 0.339 } },
+    lp_floortable: { name: 'S odkládacím stolkem', lux1m: 120, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'floor', drop: 1.424, top: 0.227, foot: [0, 0], ga: 0.441 } },
+    lp_halogen: { name: 'S ramenem (halogen)', lux1m: 200, cct: 3000, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'floor', drop: 1.473, top: 0.525, foot: [-0.086, 0.061], ga: 0.013 } },
+    lp_yellow: { name: 'Žlutá houba', lux1m: 200, cct: 2700, defMod: 'lp_down', model: 'lamps', lamp: { k: 'floor', drop: 1.334, top: 0.218, foot: [0, 0], ga: 0.045 } },
+    lp_torch: { name: 'Torchiéra (svítí do stropu)', lux1m: 300, cct: 3000, defMod: 'lp_up', model: 'lamps', lamp: { k: 'floor', drop: 1.734, top: 0.042, foot: [0, 0], ga: 0.026 } },
+    lp_vanity: { name: 'Make-up zrcadlo se žárovkami', lux1m: 250, cct: 3000, defMod: 'lp_front', model: 'lamps', lamp: { k: 'wall', drop: 0.552, top: 0.55, foot: [-0.088, -0.004], ga: 0.037, h: 1.5 } },
+    lp_mirrorbar: { name: 'Zrcadlo se světelnou lištou', lux1m: 150, cct: 4000, defMod: 'lp_front', model: 'lamps', lamp: { k: 'wall', drop: 0.845, top: 0.089, foot: [-0.03, 0], ga: 0.062, h: 1.6 } },
+    lp_wallspot: { name: 'Spot na desce', lux1m: 600, cct: 3000, defMod: 'lp_spot', model: 'lamps', lamp: { k: 'wall', drop: 0.478, top: 0.512, foot: [-0.468, 0], ga: 0.005, h: 2 } },
+    lp_sconce: { name: 'Svícen (3 svíčky)', lux1m: 60, cct: 2400, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'wall', drop: 0.325, top: 0.083, foot: [-0.005, 0.005], ga: 0.005, h: 1.7 } },
+    lp_wallread: { name: 'Čtecí se stínidlem', lux1m: 70, cct: 2700, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'wall', drop: 0.215, top: 0.112, foot: [0.001, 0], ga: 0.183, h: 1.3 } },
+    lp_wallbowl: { name: 'Miska (svítí nahoru)', lux1m: 150, cct: 3000, defMod: 'lp_up', model: 'lamps', lamp: { k: 'wall', drop: 0.162, top: 0.054, foot: [0.005, -0.009], ga: 0.257, h: 1.9 } },
+    lp_wallcyl_b: { name: 'Válec černý (dolů)', lux1m: 150, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'wall', drop: 0.043, top: 0.337, foot: [-0.025, 0.001], ga: 0.008, h: 1.9 } },
+    lp_wallcyl_w: { name: 'Válec bílý (opál)', lux1m: 120, cct: 3000, defMod: 'lp_shade', model: 'lamps', lamp: { k: 'wall', drop: 0.156, top: 0.163, foot: [-0.013, 0], ga: 0.111, h: 1.9 } },
+    lp_chandelier: { name: 'Lustr se svíčkami', lux1m: 300, cct: 2700, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'ceil', drop: 0.6, top: 0.523, foot: [0.001, 0.002], ga: 0.013 }, ceil: 'hang' },
+    lp_pendant4: { name: 'Závěs se 4 válci', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.108, top: 0.689, foot: [0, 0], ga: 0.02 }, ceil: 'hang' },
+    lp_industrial: { name: 'Industriální závěs', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.068, top: 0.955, foot: [0, 0], ga: 0.075 }, ceil: 'hang' },
+    lp_dome: { name: 'Závěs – kopule', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.061, top: 0.967, foot: [0.001, 0], ga: 0.062 }, ceil: 'hang' },
+    lp_globe_c: { name: 'Opálová koule', lux1m: 150, cct: 3000, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'ceil', drop: 0.163, top: 0.175, foot: [0.008, 0.001], ga: 0.169 }, ceil: 'flush' },
+    lp_double: { name: 'Dvě koule', lux1m: 150, cct: 3000, defMod: 'lp_omni', model: 'lamps', lamp: { k: 'ceil', drop: 0.059, top: 0.189, foot: [0.003, 0], ga: 0.058 }, ceil: 'flush' },
+    lp_drum: { name: 'Buben s difuzorem', lux1m: 250, cct: 3500, defMod: 'lp_diff', model: 'lamps', lamp: { k: 'ceil', drop: 0.071, top: 0.111, foot: [0, 0], ga: 0.214 }, ceil: 'flush' },
+    lp_round: { name: 'Kulaté přisazené', lux1m: 300, cct: 4000, defMod: 'lp_diff', model: 'lamps', lamp: { k: 'ceil', drop: 0.009, top: 0.178, foot: [0, 0], ga: 0.045 }, ceil: 'flush' },
+    lp_panel_sq: { name: 'Čtvercový panel', lux1m: 350, cct: 4000, defMod: 'lp_diff', model: 'lamps', lamp: { k: 'ceil', drop: 0.01, top: 0.14, foot: [0, 0], ga: 0.295 }, ceil: 'flush' },
+    lp_panel_fl: { name: 'Plochý panel', lux1m: 300, cct: 4000, defMod: 'lp_diff', model: 'lamps', lamp: { k: 'ceil', drop: 0.01, top: 0.046, foot: [0, 0], ga: 0.104 }, ceil: 'flush' },
+    lp_puck: { name: 'Podhledové bodové', lux1m: 250, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.004, top: 0.046, foot: [0, 0], ga: 0.009 }, ceil: 'flush' },
+    lp_cyl_down: { name: 'Válec – downlight', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.006, top: 0.381, foot: [0, 0], ga: 0.009 }, ceil: 'flush' },
+    lp_cyl_down2: { name: 'Válec – downlight 2', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.007, top: 0.313, foot: [0, 0], ga: 0.008 }, ceil: 'flush' },
+    lp_cyl_stem: { name: 'Válec na tyčce', lux1m: 300, cct: 3000, defMod: 'lp_down', model: 'lamps', lamp: { k: 'ceil', drop: 0.006, top: 0.295, foot: [0, 0], ga: 0.008 }, ceil: 'flush' },
+    lp_spot_a: { name: 'Otočný spot', lux1m: 600, cct: 3000, defMod: 'lp_spot', model: 'lamps', lamp: { k: 'ceil', drop: 0.1, top: 0.22, foot: [-0.004, 0.002], ga: 0.01 }, ceil: 'flush' },
+    lp_spot_b: { name: 'Otočný spot 2', lux1m: 600, cct: 3000, defMod: 'lp_spot', model: 'lamps', lamp: { k: 'ceil', drop: 0.095, top: 0.213, foot: [-0.064, -0.001], ga: 0.01 }, ceil: 'flush' },
+    lp_track3: { name: 'Lišta se 3 spoty', lux1m: 700, cct: 3000, defMod: 'lp_spot', model: 'lamps', lamp: { k: 'ceil', drop: 0.13, top: 0.284, foot: [0.017, 0.351], ga: 0.011 }, ceil: 'flush' },
+    lp_bar6: { name: 'Lišta se 6 spoty', lux1m: 800, cct: 3000, defMod: 'lp_spot', model: 'lamps', lamp: { k: 'ceil', drop: 0.065, top: 0.165, foot: [0, 0.004], ga: 0.03 }, ceil: 'flush' }
   };
   // výchozí výška stropního svítidla v místnosti se stropem z (m)
-  function ceilHeight(fx, z) { z = z || 2.7; if (fx.ceil === 'pole') return fx.h0 || 5; return fx.ceil === 'hang' ? Math.max(2.0, z - (fx.drop || 0.6)) : z - 0.06; }
+  // podstava svítidla v půdorysu (stolní lampa stojí podstavou na desce, i když zdroj je na rameni mimo ni)
+  function lampFoot(L) { var lp = (FIXTURES[L.fixture] || {}).lamp; if (!lp) return [L.x, L.y]; var c = Math.cos(L.rot || 0), s = Math.sin(L.rot || 0), f = lp.foot; return [L.x + f[0] * c - f[1] * s, L.y + f[0] * s + f[1] * c]; }
+  function ceilHeight(fx, z) { z = z || 2.7; if (fx.ceil === 'pole') return fx.h0 || 5; if (fx.lamp) return z - fx.lamp.top; /* svítidlo z Light Packu: vršek modelu u stropu */ return fx.ceil === 'hang' ? Math.max(2.0, z - (fx.drop || 0.6)) : z - 0.06; }
   var SKY = { overcast: { E: 1800, cct: 6500 }, sunny: { E: 5000, cct: 5600 }, dusk: { E: 300, cct: 7500 }, night: { E: 0.6, cct: 9000 } };
   // noc: místo slunce svítí měsíc – „filmový“ měsíční svit (reálný úplněk ≈ 0,25 lx, na place se svítí silněji), studený
   // světlo za otevřenými dveřmi (vedlejší místnost / chodba): lux na 1 m od otvoru šířky 0,9 m
@@ -175,8 +232,9 @@
     if ((scene.doors || []).some(function (d) { return d.w <= 1.4; }) && !scene.outdoor) out.push('3D model „Door with frame“: witnessk (sketchfab.com), licence CC BY 4.0');
     if (outside && scene.fence !== false) out.push('3D model „Fence (Wood)“: trentspi (sketchfab.com), licence CC BY 4.0');
     if (outside || (scene.windows || []).length) out.push('3D model „FREE - SkyBox Basic Sky“: Paul (sketchfab.com), licence CC BY 4.0');
-    if (items.some(function (i) { return i.kind === 'light'; })) out.push('3D model „Simple Studio Light“: AleixoAlonso (sketchfab.com), licence CC BY 4.0');
+    if (items.some(function (i) { return i.kind === 'light' && !(FIXTURES[i.fixture] || {}).lamp; })) out.push('3D model „Simple Studio Light“: AleixoAlonso (sketchfab.com), licence CC BY 4.0');
     if (items.some(function (i) { return i.kind === 'light' && FIXTURES[i.fixture] && FIXTURES[i.fixture].model === 'lightpack'; })) out.push('3D model „Light Pack“: OPREXT (sketchfab.com), licence CC BY 4.0');
+    if (items.some(function (i) { return i.kind === 'light' && FIXTURES[i.fixture] && FIXTURES[i.fixture].lamp; })) out.push('3D modely svítidel „Light Pack“ (autor bude doplněn)');
     if (items.some(function (i) { return i.kind === 'light' && i.fixture === 'hangfluo'; })) out.push('3D model „Low Poly hanging Light“: Avadhoot (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push(env.credit ? '3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + env.title + '“ (autor bude doplněn)');
     Object.keys(types).forEach(function (t) { var f = FURNITURE[t], line = f.credit ? '3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + f.title + '“ (autor bude doplněn)'; if (out.indexOf(line) < 0) out.push(line); });
@@ -390,7 +448,8 @@
       var smx = Math.max(sr[0], sr[1], sr[2], 1e-4), sn = [sr[0] / smx, sr[1] / smx, sr[2] / smx], mean = (sn[0] + sn[1] + sn[2]) / 3;
       col = [sn[0] / Math.max(0.33, mean), sn[1] / Math.max(0.33, mean), sn[2] / Math.max(0.33, mean)];
     }
-    return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, aspect: aspect, E1: E1, col: col, rgb: rgb, Y: Y, soft: m.soft, omni: beam >= 300, h: L.h == null ? 1.7 : L.h };
+    var lp = fx.lamp, h = lp && (lp.k === 'table' || lp.k === 'floor') ? (L.base || 0) + lp.drop : (L.h == null ? 1.7 : L.h); // stolní / stojací lampa: zdroj ve výšce daného modelu nad podlahou / deskou
+    return { fx: fx, mod: m, beam: beam, mult: mult, cct: cct, size: size, aspect: aspect, E1: E1, col: col, rgb: rgb, Y: Y, soft: m.soft, omni: beam >= 300, h: h };
   }
 
   // automatický náklon světla: míří na výšku obličeje 2,2 m před sebou (°)
@@ -577,6 +636,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { ceilHeight: ceilHeight, envSegs: envSegs, surfaceAt: surfaceAt, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { LAMP_KINDS: LAMP_KINDS, lampFoot: lampFoot, ceilHeight: ceilHeight, envSegs: envSegs, surfaceAt: surfaceAt, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);
