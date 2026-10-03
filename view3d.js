@@ -67,6 +67,22 @@ function texture(kind) {
   texCache[kind] = { map: t, bump: b }; return texCache[kind];
 }
 function texMat(kind, color, opts) { const t = texture(kind); return new THREE.MeshStandardMaterial(Object.assign({ color: color, map: t.map, bumpMap: t.bump, bumpScale: 0.6, roughness: 0.9 }, opts || {})); }
+// fotografické textury (Poly Haven, CC0): textures/textures.tex.js = data URI (funguje i z disku); s = velikost dlaždice v m
+const REALTEX = { planks: { s: 1.6 }, woodfloor: { s: 1.5 }, woodplanks: { s: 1.8 }, greyplanks: { s: 1.2 }, brick: { s: 1.0 } };
+const realCache = {}; let realLoading = false;
+function realTex(k) {
+  if (!REALTEX[k]) return null; if (realCache[k]) return realCache[k];
+  if (!window.VF_TEX) { if (!realLoading) { realLoading = true; const sc = document.createElement('script'); sc.src = assetUrl('textures/textures.tex.js'); sc.onload = () => window.dispatchEvent(new Event('view3d-model')); document.head.appendChild(sc); } return null; }
+  const L = new THREE.TextureLoader(), d = window.VF_TEX[k], done = () => { dirty = true; };
+  const map = L.load(d.d, done), bump = L.load(d.b, done); map.colorSpace = THREE.SRGBColorSpace; [map, bump].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; });
+  return (realCache[k] = { map, bump });
+}
+// materiál s fotografickou texturou přes plochu w×h (m); null = textura se ještě načítá → použije se náhradní
+// UV plochy jsou v metrech (viz metersUV), opakování = 1 / velikost dlaždice
+function realMat(k, opts) { const t = realTex(k); if (!t) return null; const s = REALTEX[k].s, map = t.map.clone(), bump = t.bump.clone(); map.repeat.set(1 / s, 1 / s); bump.repeat.set(1 / s, 1 / s); map.needsUpdate = bump.needsUpdate = true;
+  const m = new THREE.MeshStandardMaterial(Object.assign({ color: 0xffffff, map, bumpMap: bump, bumpScale: 1.2, roughness: 0.8 }, opts || {})); m.userData.real = true; return m; }
+// UV dílu plochy w×h (m) posunutého o (ox, oy) → metry, aby textura navazovala přes otvory a měla skutečnou velikost
+function metersUV(geo, w, h, ox, oy) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (ox || 0) + uv.getX(i) * w, (oy || 0) + uv.getY(i) * h); uv.needsUpdate = true; return geo; }
 function surfMat(kind, color, repeatX, repeatY, opts) { const m = texMat(kind, color, opts); m.map = m.map.clone(); m.bumpMap = m.bumpMap.clone(); m.map.repeat.set(repeatX, repeatY); m.bumpMap.repeat.set(repeatX, repeatY); m.map.needsUpdate = m.bumpMap.needsUpdate = true; return m; }
 
 const MAT = {
@@ -87,9 +103,9 @@ const MAT = {
 const HAIRCOL = { dark: 0x2a1c12, brown: 0x5a3a22, blond: 0xc9a25a, red: 0x8a3a1a, grey: 0x9a9a96, black: 0x141210 };
 const SKIN = { light: [0xe8c4a6, 0xd4a888], medium: [0xc79c7a, 0xb08464], tan: [0xa8734f, 0x8f5f3f], dark: [0x6b4a34, 0x563a28] };
 const OUTFITS = { dark: [0x2f3340, 0x25262b], light: [0xd9d5cc, 0x6b6f78], blue: [0x3a5f9a, 0x2b2b30], red: [0x9a3a34, 0x2b2b30], green: [0x4f6b45, 0x3a3a3c] };
-const WALLCOL = { dark: 0x3a3532, normal: 0xa39a8d, white: 0xe6e1d6 };
-const FLOORCOL = { wood: 0x8a6444, grey: 0x777777, dark: 0x44403c, asphalt: 0x8a8a8a, grass: 0x4e6b34 };
-const FLOORTEX = { wood: 'wood', grey: 'concrete', dark: 'darkfloor', asphalt: 'asphalt', grass: 'fabric' };
+const WALLCOL = { dark: 0x3a3532, normal: 0xa39a8d, white: 0xe6e1d6, brick: 0x8a4a3a, woodplanks: 0x7a5a3e, greyplanks: 0x4a4a48 };
+const FLOORCOL = { planks: 0x9a6a2a, woodfloor: 0x8a6444, woodplanks: 0x6a4a30, greyplanks: 0x4a4a48, wood: 0x8a6444, grey: 0x777777, dark: 0x44403c, asphalt: 0x8a8a8a, grass: 0x4e6b34 };
+const FLOORTEX = { planks: 'wood', woodfloor: 'wood', woodplanks: 'wood', greyplanks: 'darkfloor', wood: 'wood', grey: 'concrete', dark: 'darkfloor', asphalt: 'asphalt', grass: 'fabric' };
 
 function init(cv) {
   canvas = cv; wrap = cv.parentElement;
@@ -197,7 +213,7 @@ function applyCamera() {
   camera.fov = S.fovs(f, region ? region.w / region.h : 1.5).v * 180 / Math.PI; camera.updateProjectionMatrix();
   camera.position.set(cam.x, ch, cam.y);
   const tgt = new THREE.Vector3(cam.x + Math.cos(cam.rot) * Math.cos(cam.tilt || 0) * 3, ch + Math.sin(cam.tilt || 0) * 3, cam.y + Math.sin(cam.rot) * Math.cos(cam.tilt || 0) * 3);
-  if (cam.aim !== false && person) tgt.set(person.x, S.faceZ(person), person.y);
+  if (cam.aim !== false && person) tgt.set(person.x, S.faceZ(person, lastScene), person.y);
   camera.lookAt(tgt);
   if (camMesh) { camMesh.position.set(cam.x, 0, cam.y); camMesh.rotation.y = -cam.rot; }
 }
@@ -425,6 +441,16 @@ function ceilLight(L, P, k, E1, lumL, g) {
     const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, len, 6), MAT.metal); cab.position.set(x, top + len / 2, 0); holder.add(cab); });
 }
 
+// Každá stínová mapa zabere v shaderu jednu texturovou jednotku. Běžná GPU (Mac, notebooky, mobily) jich mají jen 16 a materiál
+// s texturami + kostí postavy + 10 stíny se pak nezkompiluje → postava, auto nebo prostředí se nevykreslí. Stíny proto dostanou
+// jen nejsilnější světla, kolik se vejde (rezerva 8 jednotek pro textury materiálu, kostru, obálku a plošná světla).
+function limitShadows() {
+  const maxTex = window.VF_MAX_TEX || renderer.capabilities.maxTextures || 16, budget = Math.max(2, Math.min(16, maxTex - 9));
+  const L = []; scene3.traverse(o => { if (o.isLight && o.castShadow) L.push(o); });
+  if (L.length <= budget) return;
+  L.sort((a, b) => (b.isDirectionalLight - a.isDirectionalLight) || (b.intensity - a.intensity)); // slunce / měsíc vždy, pak nejsilnější
+  L.slice(budget).forEach(o => { o.castShadow = false; });
+}
 // ---------- svítidla z Light Packu: model (uzel <id> v models/lamps, zdroj v počátku, přední strana +x) + světlo podle typu ----------
 // lp_omni / lp_shade = bodové světlo, lp_up = do stropu (bodové + kužel nahoru), ostatní = kužel ve směru otočení a náklonu (dolů −90°)
 function lampLight(L, P, k, E1, g) {
@@ -886,6 +912,7 @@ function envGlow(L, k, E1) {
 function addEnv(sc) {
   const E = sc.env && S.ENVS[sc.env]; if (!E) return false; const gl = modelFor(E.model); if (!gl) return false;
   const inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); envInst = inst;
+  (E.hide || []).forEach(n => { const o = inst.getObjectByName(n); if (o) o.visible = false; }); // např. zavřené dveře do vedlejší místnosti
   inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = true; if (o.material && o.material.emissive && o.material.emissiveIntensity > 0 && !o.material.emissiveMap) o.material = o.material.clone(), o.material.emissiveIntensity = 0; } });
   group.add(inst);
   // model bez stropu (řez bytu): strop v zadané výšce; vidět jen zespodu, stíní i slunce shora
@@ -901,7 +928,7 @@ function envPlan(id) {
   let r; try { r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); } catch (e) { return (planCache[id] = null); }
   r.setPixelRatio(1); r.setSize(cw, ch, false); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x000000, 0);
   r.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.8)];
-  const sc = new THREE.Scene(), inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); sc.add(inst); sc.add(new THREE.AmbientLight(0xffffff, 2.6));
+  const sc = new THREE.Scene(), inst = gl.scene.clone(true); inst.position.set(E.off[0], E.offY || 0, E.off[1]); sc.add(inst); (E.hide || []).forEach(n => { const o = inst.getObjectByName(n); if (o) o.visible = false; }); sc.add(new THREE.AmbientLight(0xffffff, 2.6));
   const cam = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 0.1, 200); cam.position.set(W / 2, 100, H / 2); cam.up.set(0, 0, -1); cam.lookAt(W / 2, 0, H / 2);
   r.render(sc, cam); const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; cv.getContext('2d').drawImage(r.domElement, 0, 0);
   r.dispose(); r.forceContextLoss(); return (planCache[id] = cv);
@@ -909,11 +936,11 @@ function envPlan(id) {
 function addRoom(sc) {
   const W = sc.room.w, H = sc.room.h, Z = sc.room.z || 2.7;
   if (sc.outdoor) return; // exteriér: zem, obloha a stromy dělá addExterior
-  const wallMat = surfMat('plaster', WALLCOL[sc.walls || 'normal'], W / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
-  const floorMat = surfMat(FLOORTEX[sc.floor || 'wood'], FLOORCOL[sc.floor || 'wood'], W / 2, H / 2, { roughness: sc.floor === 'wood' ? 0.55 : 0.85, bumpScale: 0.5 });
+  const wallMat = realMat(sc.walls, { roughness: 0.9 }) || surfMat('plaster', WALLCOL[sc.walls || 'normal'], W / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
+  const floorMat = realMat(sc.floor, { roughness: 0.7 }) || surfMat(FLOORTEX[sc.floor || 'wood'], FLOORCOL[sc.floor || 'wood'], W / 2, H / 2, { roughness: sc.floor === 'wood' ? 0.55 : 0.85, bumpScale: 0.5 });
   const ceilMat = surfMat('ceiling', 0xd0cbc2, W / 2.5, H / 2.5, { roughness: 1, bumpScale: 0.2 });
   const facadeMat = skyLit(surfMat('plaster', 0xd9d3c7, W / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 }), sc, 0xd9d3c7);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, H / 2); floor.receiveShadow = true; group.add(floor);
+  const floor = new THREE.Mesh(floorMat.userData.real ? metersUV(new THREE.PlaneGeometry(W, H), W, H) : new THREE.PlaneGeometry(W, H), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, H / 2); floor.receiveShadow = true; group.add(floor);
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, H), ceilMat); ceil.userData.ceil = true; ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, Z, H / 2); ceil.castShadow = true; group.add(ceil);
   ['top', 'bottom', 'left', 'right'].forEach(side => {
     const fr = wallFrame(sc, side);
@@ -925,7 +952,7 @@ function addRoom(sc) {
     const pieces = []; let cur = 0;
     ops.forEach(o => { if (o[0] > cur) pieces.push([cur, o[0], 0, Z]); if (o[2] > 0) pieces.push([o[0], o[1], 0, o[2]]); if (o[3] < Z) pieces.push([o[0], o[1], o[3], Z]); cur = Math.max(cur, o[1]); });
     if (cur < fr.len) pieces.push([cur, fr.len, 0, Z]);
-    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; m.castShadow = true; m.userData.side = side; group.add(m);
+    pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const m = new THREE.Mesh(wallMat.userData.real ? metersUV(new THREE.PlaneGeometry(w, h), w, h, pc[0], pc[2]) : new THREE.PlaneGeometry(w, h), wallMat); const c = fr.at((pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2); m.position.set(c[0], c[1], c[2]); m.rotation.y = fr.ry; m.receiveShadow = true; m.castShadow = true; m.userData.side = side; group.add(m);
       // vnější plášť zdi (fasáda, tloušťka WALL_T) – vidět jen z pohledu kamery stojící venku; stíny nevrhá, aby se neměnilo světlo uvnitř
       const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, WALL_T), facadeMat); sh.position.set(c[0] - fr.inward[0] * (WALL_T / 2 + 0.004), c[1], c[2] - fr.inward[1] * (WALL_T / 2 + 0.004)); sh.rotation.y = fr.ry; sh.receiveShadow = true; sh.userData.ext = side; group.add(sh); });
   });
@@ -950,14 +977,14 @@ function addRoad(sc, it) {
 }
 function addWallItem(sc, it) {
   const L = S.wallLen(it); if (L < 0.05) return;
-  const Z = sc.room.z || 2.7, mat = surfMat('plaster', WALLCOL[sc.walls || 'normal'], L / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
+  const Z = sc.room.z || 2.7, mat = realMat(sc.walls, { roughness: 0.9 }) || surfMat('plaster', WALLCOL[sc.walls || 'normal'], L / 2.5, Z / 2.5, { roughness: 0.95, bumpScale: 0.35 });
   const g = new THREE.Group(); g.userData.seg = [it.x1, it.y1, it.x2, it.y2]; g.position.set(it.x1, 0, it.y1); g.rotation.y = -Math.atan2(it.y2 - it.y1, it.x2 - it.x1); group.add(g);
   const ops = []; (sc.windows || []).forEach(w => { if (w.wall === it.id) ops.push([w.from, w.to, S.WIN_Z0, S.WIN_Z1]); });
   const drs = (sc.doors || []).filter(d => d.wall === it.id); drs.forEach(d => ops.push([d.at - d.w / 2, d.at + d.w / 2, 0, 2.05, d])); ops.sort((a, b) => a[0] - b[0]);
   const pieces = []; let cur = 0;
   ops.forEach(o => { if (o[0] > cur) pieces.push([cur, o[0], 0, Z]); if (o[2] > 0) pieces.push([o[0], o[1], 0, o[2]]); pieces.push([o[0], o[1], o[3], Z]); cur = Math.max(cur, o[1]); });
   if (cur < L) pieces.push([cur, L, 0, Z]);
-  pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; box(g, mat, w, h, 0.12, (pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2, 0); });
+  pieces.forEach(pc => { const w = pc[1] - pc[0], h = pc[3] - pc[2]; if (w <= 0.001 || h <= 0.001) return; const bx = box(g, mat, w, h, 0.12, (pc[0] + pc[1]) / 2, (pc[2] + pc[3]) / 2, 0); if (mat.userData.real) metersUV(bx.geometry, w, h, pc[0], pc[2]); });
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.8 });
   ops.forEach(o => { const len = o[1] - o[0], mid = (o[0] + o[1]) / 2;
     if (o[4]) { // dveře v příčce (průchod mezi místnostmi)
@@ -1033,11 +1060,13 @@ function sync(sc, res, meas, opts) {
   applyQualityRatio();
   clear(group); pendingLift = [];
   scene3.background = new THREE.Color(0x000000); envInst = null; addExterior(sc); if (!addEnv(sc)) addRoom(sc); (sc.windows || []).forEach(w => addWindow(sc, w)); addSun(sc); addSunBeams(sc); sc.items.forEach(it => { if (it.kind === 'wall') addWallItem(sc, it); else if (it.kind === 'road') addRoad(sc, it); });
-  sc.items.forEach(it => { const nTag = group.children.length; addItem3D(sc, it, res); if (it.kind !== 'camera' && it.kind !== 'wall' && it.kind !== 'road') for (let i = nTag; i < group.children.length; i++) group.children[i].userData.itemId = it.id; });
+  sc.items.forEach(it => { const nTag = group.children.length; addItem3D(sc, it, res); if (it.kind !== 'camera' && it.kind !== 'wall' && it.kind !== 'road') for (let i = nTag; i < group.children.length; i++) group.children[i].userData.itemId = it.id;
+    const fl = (it.kind === 'person' || it.kind === 'furniture' || it.kind === 'box') ? S.floorAt(sc, it.x, it.y) : 0; if (fl) for (let i = nTag; i < group.children.length; i++) group.children[i].position.y += fl; }); // vyvýšená podlaha prostředí (terasa, chata)
   function addItem3D(sc, it, res) {
     if (it.kind === 'light') { const n0 = group.children.length; addLight(it, res);
       if (S.diffusedBy(sc, it)) { const drop = []; for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isLight || (o.userData && o.userData.beam)) drop.push(o); }); drop.forEach(o => o.parent && o.parent.remove(o)); } // světlo míří do difuzního rámu → svítí rám
-      if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; }); }
+      if (it.hide) for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.visible = false; });
+      for (let i = n0; i < group.children.length; i++) group.children[i].traverse(o => { if (o.isMesh) o.userData.noCast = true; }); } // těleso a stativ světla nevrhají stín (jinak hlava jednoho světla stíní na horizont od druhého)
     else if (it.kind === 'person') addPerson(it);
     else if (it.kind === 'bounce' || it.kind === 'diffuser') addBounce(it, res);
     else if (it.kind === 'flag') { const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -it.rot; const m = new THREE.Mesh(new THREE.PlaneGeometry(it.len, 0.9), MAT.flag); m.position.y = 1.5; m.castShadow = true; g.add(m); stand(0, 0, 1.05, g); group.add(g); }
@@ -1048,9 +1077,10 @@ function sync(sc, res, meas, opts) {
   group.updateMatrixWorld(true); pendingLift.forEach(a => liftHands(a[0], a[1], a[2])); pendingLift = [];
   // všechny plné objekty přijímají i vrhají stíny (jinak by je slunce prosvítilo skrz strop)
   group.traverse(o => { if (o.isMesh && !o.material.isMeshBasicMaterial) { o.receiveShadow = true; o.castShadow = !o.userData.noCast; } }); // noCast: těleso svítidla nesmí stínit vlastní světlo
+  limitShadows();
   // rozptýlené světlo od stěn (z půdorysného výpočtu)
   let amb = res ? res.ambCol : [5, 5, 5];
-  { const rf = { dark: 0.03, normal: 0.08, white: 0.15 }[sc.walls || 'normal'] || 0.08, kb = Math.max(rf, 0.12) / rf; amb = amb.map(v => v * kb); } // světlý strop a podlaha odráží i v tmavé místnosti
+  { const rf = { dark: 0.03, normal: 0.08, white: 0.15, brick: 0.06, woodplanks: 0.06, greyplanks: 0.04 }[sc.walls || 'normal'] || 0.08, kb = Math.max(rf, 0.12) / rf; amb = amb.map(v => v * kb); } // světlý strop a podlaha odráží i v tmavé místnosti
   if (sc.outdoor) { const skd = S.SKY[sc.sky] || S.SKY.overcast, kc = kel(skd.cct); amb = [kc.color.r * skd.E * 2.2 * 0.5, kc.color.g * skd.E * 2.2 * 0.5, kc.color.b * skd.E * 2.2 * 0.5]; }
   const hemi = new THREE.HemisphereLight(new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(1.2), new THREE.Color(amb[0], amb[1], amb[2]).multiplyScalar(0.6), 1); group.add(hemi);
   // kamera
@@ -1264,6 +1294,6 @@ function poseUp() { const d = pose.drag; pose.drag = null; if (d && pose.onChang
 function poseHoverAt(e) { const h = poseHit(e); pose.hover = h; drawPose(); return !!h; }
 function setPoseCallback(fn) { pose.onChange = fn; }
 
-window.View3D = { envPlan, setMoveCallback, setKey: (k, on) => { if (on) keys[k] = true; else delete keys[k]; }, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls }) };
+window.View3D = { envPlan, setMoveCallback, setKey: (k, on) => { if (on) keys[k] = true; else delete keys[k]; }, setCtrlMode, ctrlMode: () => ctrlMode, onCtrlMode: fn => { onCtrlMode = fn; }, resetOrbit: () => { orbitInit = false; }, init, resize, sync, renderHQ, stopHQ, hqState, setPose, poseHoverAt, setPoseCallback, poseOn: () => pose.on, poseHandles: () => pose.handles, headY: id => { const r = rigs[id]; if (!r || !r.bones.head_07) return null; return r.bones.head_07.getWorldPosition(new THREE.Vector3()).y; }, region: () => region, setSel, toggleOrbit, isOrbit, render, shot, hasCamera, wantsKeys, setCameraCallback, applyCamera: () => { applyCamera(); dirty = true; }, refresh: () => { stopHQ(); applyCamera(); dirty = true; }, focusInfo: () => (camItem && camItem.dof && !orbit) ? { s: focusDist(camItem) } : null, _dbg: () => ({ scene3, renderer, group, camera, orbitCam, controls, modelFor }) };
 window.dispatchEvent(new Event('view3d-ready'));
 })();

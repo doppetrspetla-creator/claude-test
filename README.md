@@ -91,13 +91,15 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   (stativ / podstavec začíná na desce) a při posouvání po ní jezdí. Světlo, které už je nad deskou, zůstane
   ve stejné výšce; nižší se zvedne na desku. Vypíná se zaškrtávátkem „Magnet“ ve vlastnostech světla.
 - **Nábytek po kategoriích** – v levém panelu tlačítka Sezení, Stůl, Postel, Skříně a komody, Kuchyň, Koupelna,
-  Počítač, Venku a vozidla; každé otevře nabídku s náhledy modelů (klik = vložit do scény). Náhledy jsou
+  Počítač, Vozidla (auto, letadlo), Venku; každé otevře nabídku s náhledy modelů (klik = vložit do scény). Náhledy jsou
   v jednom obrázku `icons/furniture.webp`.
 - **Svítidla (Light Pack)** – 43 lamp jako 3D modely ve čtyřech nabídkách s náhledy: Stolní, Stojací,
   Nástěnná, Stropní a závěsná. Lampa opravdu svítí: žárovka, stínidlo nebo difuzor září barvou a výkonem
   světla a do scény svítí podle typu (do všech stran, dolů, do stropu, spot s náklonem). Stolní lampa se
   magnetem postaví podstavou na stůl, stropní má vršek u stropu (závěsnou lze snížit – přibude kabel).
   Modely jsou v jednom souboru `models/lamps.glb.js`, náhledy v `icons/lamps.webp`.
+- **Fotografické textury** – stěny: cihly, dřevěné obložení, šedá prkna; podlaha: parkety, borová prkna,
+  stará a šedá prkna. Textura má skutečnou velikost a navazuje přes okna a dveře.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
   vchod a garážová vrata, nábytek z boxů, zahrada se stromy a slunce.
 - **Interiéry a exteriéry z 3D modelů** – šablony Byt, Byt 2, Školní třída, Industriál (betonová remíza)
@@ -106,6 +108,15 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   pod půdorysem je pohled na model shora (nábytek, podlahy), násobený nasvícením. Okna v modelu propouštějí
   denní světlo (třída, remíza). U prvního bytu (model „půdorys“) jsou zdi dotažené do 2,6 m a doplněný strop;
   v remíze je podlaha rampy v nule a montážní jámy jsou v půdorysu vyznačené.
+- **Glamping zařízený** – chata stojí na terase 0,85 m nad zemí (prostředí má „vyvýšenou podlahu“: nábytek,
+  postavy, lampy i měření obličeje se v ní zvednou). Obývák s pohovkou a stojací lampou, jídelní kout, ložnice,
+  kuchyňka, terasa s křesly a sedící postavou, světla u dveří; noc.
+- **Fotoateliér s make-up místností** – dveře v pravé stěně jsou otevřené do vedlejší místnosti (šatna):
+  toaletní stolek se zrcadlem se žárovkami, sedící postava, pohovka, skříň, lampy a stropní panel.
+- **Cyklorama** – postava 4 m před hlavním zaobleným plátnem čelem ke kameře, key a fill zepředu, kontra
+  zezadu a dvě světla na horizont mimo záběr. Tělesa a stativy světel nevrhají stíny.
+- **Stíny podle možností grafiky** – stínové mapy dostanou jen nejsilnější světla, kolik se vejde do texturových
+  jednotek GPU (běžně 16); jinak se na Macu a noteboocích postavy, auto nebo prostředí nevykreslily.
 - **Šablona Letní kemp** – 3D model kempu s šesti obytnými přívěsy (73×66 m), noc s měsícem.
   Svítí dvě pouliční lampy u cesty, světla u dveří všech přívěsů a dvě lampy uvnitř přívěsu 2;
   jejich tělesa v modelu se rozsvítí podle zapnutí, výkonu a barvy světla. Stropní bodovky
@@ -191,6 +202,7 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Glamping chata (FBX): autor bude doplněn
 - Nábytek „Furniture Pack“ (35 kusů, FBX, textury 512 px): autor bude doplněn (textury zmenšené na 256 px WebP, sofa a křeslo převedené na skutečnou velikost)
 - Svítidla „Light Pack“ (43 lamp, FBX): autor bude doplněn (sítě zjednodušené na ~750–2 400 trojúhelníků, kvantizované, svítící části označené emisí)
+- Textury podlah a stěn (Plank Flooring 02, Wooden Floor 01, Wood Planks, Wood Planks Grey, Red Brick): Poly Haven, CC0 (zmenšené na 512 px WebP, `textures/textures.tex.js`)
 - Postavy „Muž 6 – košile a džíny“ a „Muž 7 – pracovník v montérkách“ (MakeHuman, FBX): autor bude doplněn (kostra přejmenovaná na společnou, pózy přenesené z Mixama)
 - Letadlo Piper PA-18 Super Cub (FBX): autor bude doplněn (zjednodušeno, barvy materiálů doplněny – žlutá Cub)
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn

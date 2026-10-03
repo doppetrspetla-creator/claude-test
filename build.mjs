@@ -10,7 +10,7 @@ const out = path.resolve(process.argv[2] || path.join(root, 'viewfinder-light-bu
 const list = dir => fs.readdirSync(path.join(root, dir)).map(f => dir + '/' + f);
 // soubory, které service worker uloží do cache (index.html se ukládá zvlášť při ověření přístupu)
 const files = ['style.css', 'sim.js', 'view3d.js', 'app.js', 'manifest.json', 'vendor/three-bundle.js',
-  ...list('icons'), ...list('models').filter(f => f.endsWith('.glb.js'))];
+  ...list('icons'), ...list('models').filter(f => f.endsWith('.glb.js')), ...list('textures')];
 const h = crypto.createHash('sha256');
 for (const f of ['index.html', ...files]) h.update(f).update(fs.readFileSync(path.join(root, f)));
 const version = h.digest('hex').slice(0, 12);

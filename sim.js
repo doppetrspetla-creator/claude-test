@@ -164,8 +164,9 @@
   };
   // prostředí = celá místnost jako 3D model (sken / hotový ateliér); off = posun modelu do půdorysu, parts = pevné prvky kreslené v půdorysu
   var ENVS = {
-    photostudio: { name: 'Fotoateliér (papírové pozadí, stůl s PC)', model: 'photostudio', room: { w: 10.1, h: 8.9, z: 3.75 }, off: [5.05, 4.45], walls: 'dark', floor: 'dark',
-      parts: [{ label: 'Papírové pozadí', x0: 0.06, y0: 2.87, x1: 3.46, y1: 6.03, col: 'rgba(245,245,245,.55)' }, { label: 'Stůl s PC', x0: 6.5, y0: 6.05, x1: 7.6, y1: 8.22 }],
+    photostudio: { name: 'Fotoateliér (papírové pozadí, stůl s PC, make-up místnost)', model: 'photostudio', room: { w: 12.52, h: 8.9, z: 3.75 }, off: [5.05, 4.45], walls: 'dark', floor: 'dark', hide: ['Object_60'], // dveře do vedlejší místnosti otevřené
+      segs: '10.15,0,10.15,1.04;10.15,3.07,10.15,8.9;10.2,0.23,12.52,0.23;10.2,7.68,12.52,7.68',
+      parts: [{ label: 'Papírové pozadí', x0: 0.06, y0: 2.87, x1: 3.46, y1: 6.03, col: 'rgba(245,245,245,.55)' }, { label: 'Stůl s PC', x0: 6.5, y0: 6.05, x1: 7.6, y1: 8.22 }, { label: 'Make-up a šatna', x0: 10.2, y0: 0.23, x1: 12.52, y1: 0.6, col: 'rgba(0,0,0,0)' }, { label: '', x0: 10.2, y0: 7.68, x1: 12.52, y1: 8.9, col: 'rgba(0,0,0,.55)' }],
       credit: 'Zachey', title: 'Photo Studio' },
     cyclorama: { name: 'Hala s cykloramou (sken ateliéru)', model: 'cyclorama', room: { w: 22.75, h: 12.36, z: 4.7 }, off: [15.3, 6.63], walls: 'normal', floor: 'grey',
       parts: [{ label: 'Cyklorama (bílý horizont)', x0: 11.8, y0: 0.07, x1: 21.0, y1: 9.87, col: 'rgba(245,245,245,.35)' }],
@@ -202,7 +203,7 @@
       credit: 'Elbolillo', title: 'Gas station' },
     // exteriér: glamping chata (áčko) v lese
     glamping: { name: 'Glamping – chata v lese (3D model, exteriér)', model: 'glamping', room: { w: 24, h: 28, z: 9 }, off: [12, 19.5], offY: 0.05, outdoor: true, walls: 'normal', floor: 'grass', exterior: { on: true, trees: 12 },
-      segs: '8.53,7.5,8.88,7.5;15.12,7.5,15.47,7.5;8.88,7.7,15.12,7.7;8.88,7.9,11.97,7.9;12.12,7.9,15.12,7.9;11.97,8.1,12.12,8.1;11.97,8.95,12.12,8.95;8.88,9.1,11.97,9.1;8.88,9.2,12.12,9.2;11.97,10.2,12.12,10.2;8.88,10.5,11.97,10.5;12.12,10.5,13.57,10.5;8.88,10.6,13.57,10.6;8.53,17.5,8.88,17.5;15.12,17.5,15.47,17.5;8.53,7.5,8.53,17.5;8.88,7.5,8.88,7.7;8.88,7.9,8.88,9.1;8.88,9.2,8.88,10.5;8.88,10.6,8.88,17.5;11.97,7.9,11.97,8.1;11.97,8.95,11.97,9.1;11.97,10.2,11.97,10.5;12.12,7.9,12.12,8.1;12.12,8.95,12.12,9.2;12.12,10.2,12.12,10.5;15.12,7.5,15.12,7.7;15.12,7.9,15.12,17.5;15.47,7.5,15.47,17.5', parts: [{ label: 'Chata', x0: 7.88, y0: 7.5, x1: 16.12, y1: 17.0, col: 'rgba(160,110,70,.25)' }, { label: 'Terasa', x0: 7.88, y0: 17.0, x1: 16.12, y1: 19.6, col: 'rgba(200,160,100,.3)' }], credit: null, title: 'Glamping chata' }
+      segs: '8.53,7.5,8.88,7.5;15.12,7.5,15.47,7.5;8.88,7.7,15.12,7.7;8.88,7.9,11.97,7.9;12.12,7.9,15.12,7.9;11.97,8.1,12.12,8.1;11.97,8.95,12.12,8.95;8.88,9.1,11.97,9.1;8.88,9.2,12.12,9.2;11.97,10.2,12.12,10.2;8.88,10.5,11.97,10.5;12.12,10.5,13.57,10.5;8.88,10.6,13.57,10.6;8.53,17.5,8.88,17.5;15.12,17.5,15.47,17.5;8.53,7.5,8.53,17.5;8.88,7.5,8.88,7.7;8.88,7.9,8.88,9.1;8.88,9.2,8.88,10.5;8.88,10.6,8.88,17.5;11.97,7.9,11.97,8.1;11.97,8.95,11.97,9.1;11.97,10.2,11.97,10.5;12.12,7.9,12.12,8.1;12.12,8.95,12.12,9.2;12.12,10.2,12.12,10.5;15.12,7.5,15.12,7.7;15.12,7.9,15.12,17.5;15.47,7.5,15.47,17.5', parts: [{ label: 'Chata', x0: 7.88, y0: 7.5, x1: 16.12, y1: 17.0, col: 'rgba(160,110,70,.25)' }, { label: 'Terasa', x0: 7.88, y0: 17.0, x1: 16.12, y1: 19.6, col: 'rgba(200,160,100,.3)' }], floors: [[7.9, 7.5, 16.1, 19.6, 0.85]], credit: null, title: 'Glamping chata' }
   };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
   var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', bath: 'Koupelna', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box' };
@@ -211,12 +212,12 @@
     proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
     zena1: { name: 'Žena 1 – bílá halenka', file: 'models/zena1.glb', stand: 1.72, sit: 1.23, credit: 'Renderpeople', license: 'CC BY 4.0', source: 'sketchfab.com' },
     zena2: { name: 'Žena 2 – sako', file: 'models/zena2.glb', stand: 1.59, sit: 1.17, credit: 'Renderpeople', license: 'CC BY 4.0', source: 'sketchfab.com' },
+    zena3: { name: 'Žena 3 – červený top a sukně', file: 'models/zena3.glb', stand: 1.64, sit: 1.20, credit: 'Veterock', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz1:  { name: 'Muž 1 – vesta a kravata', file: 'models/muz1.glb', stand: 1.71, sit: 1.30, credit: '1-3D.com', license: 'CC BY 4.0', source: 'sketchfab.com' },
-    muz2:  { name: 'Muž 2 – mikina, kšiltovka, brýle', file: 'models/muz2.glb', stand: 1.70, sit: 1.24, credit: 'Eyasu Biyaylgn', license: 'CC BY 4.0', source: 'sketchfab.com' },
+    muz2:  { name: 'Muž 2 – mikina a kšiltovka', file: 'models/muz2.glb', stand: 1.70, sit: 1.24, credit: 'Eyasu Biyaylgn', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz3:  { name: 'Muž 3 – dlouhý kabát a čepice', file: 'models/muz3.glb', solid: true, stand: 1.68, sit: 1.23, credit: 'Saitam', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz4:  { name: 'Muž 4 – mikina a modré tričko', file: 'models/muz4.glb', stand: 1.67, sit: 1.22, credit: 'Mike Alger', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz5:  { name: 'Muž 5 – ostraha (uniforma)', file: 'models/muz5.glb', stand: 1.50, sit: 1.10, credit: 'Q.SARDOR', license: 'CC BY 4.0', source: 'sketchfab.com' },
-    zena3: { name: 'Žena 3 – červený top a sukně', file: 'models/zena3.glb', stand: 1.64, sit: 1.20, credit: 'Veterock', license: 'CC BY 4.0', source: 'sketchfab.com' },
     // postavy z MakeHumanu (kostra „game engine“ přejmenovaná na naši, pózy přenesené z Mixama); autor bude doplněn
     muz6:  { name: 'Muž 6 – košile a džíny', file: 'models/muz6.glb', stand: 1.70, sit: 1.26 },
     muz7:  { name: 'Muž 7 – pracovník v montérkách', file: 'models/muz7.glb', stand: 1.65, sit: 1.23 }
@@ -243,7 +244,10 @@
   }
   // pózy = klipy v modelech; sit: obličej ve výšce sedu
   var POSES = { stand: { name: 'Stojí (klid)', clip: 'idle', sit: false }, sit: { name: 'Sedí', clip: 'sitidle', sit: true }, talk: { name: 'Mluví (gesta)', clip: 'talk', sit: false }, point: { name: 'Ukazuje', clip: 'point', sit: false }, phone: { name: 'Telefonuje', clip: 'phone', sit: false }, type: { name: 'Píše na klávesnici (sedí)', clip: 'type', sit: true }, walk: { name: 'Jde', clip: 'walk', sit: false }, clap: { name: 'Tleská', clip: 'clap', sit: false }, lean: { name: 'Opírá se (zády ke zdi)', clip: 'lean', sit: false, face: 0.94 }, look: { name: 'Rozhlíží se', clip: 'look', sit: false }, crouch: { name: 'Dřepí', clip: 'crouch', sit: false, face: 0.68 }, lay: { name: 'Leží (na zádech)', clip: 'lay', sit: false, face: 0.13, lay: true }, layf: { name: 'Sedí na zemi (opřená o ruce, noha přes nohu)', clip: 'layf', sit: false, face: 0.47 }, wave: { name: 'Mává (oběma rukama)', clip: 'wave', sit: false }, ask: { name: 'Hlásí se / ptá se (sedí)', clip: 'ask', sit: true }, catwalk: { name: 'Jde jako modelka (přehlídka)', clip: 'catwalk', sit: false }, squat: { name: 'Dřepy (cvičí)', clip: 'squat', sit: false, face: 0.8 }, dance: { name: 'Tančí', clip: 'dance', sit: false }, kick: { name: 'Kope', clip: 'kick', sit: false, face: 0.93 }, carin: { name: 'Nastupuje do auta', clip: 'carin', sit: false, face: 0.8 } };
-  function faceZ(person) { if (!person) return FACE_Z; var m = MODELS[person.model] || MODELS.proc, ps = POSES[person.pose] || POSES.stand; return ps.sit ? m.sit : (ps.face ? m.stand * ps.face : m.stand); }
+  // výška obličeje nad zemí; scene = připočíst vyvýšenou podlahu prostředí (terasa, chata na kůlech)
+  function faceZ(person, scene) { if (!person) return FACE_Z; var m = MODELS[person.model] || MODELS.proc, ps = POSES[person.pose] || POSES.stand; return (ps.sit ? m.sit : (ps.face ? m.stand * ps.face : m.stand)) + (scene ? floorAt(scene, person.x, person.y) : 0); }
+  // vyvýšená podlaha prostředí v bodě (x, y): ENVS[..].floors = [[x0, y0, x1, y1, výška]]
+  function floorAt(scene, x, y) { var E = scene && scene.env && ENVS[scene.env]; if (!E || !E.floors) return 0; for (var i = 0; i < E.floors.length; i++) { var f = E.floors[i]; if (x >= f[0] && x <= f[2] && y >= f[1] && y <= f[3]) return f[4]; } return 0; }
   var SUN_E = 50000, SUN_CCT = 5200, WIN_Z0 = 0.9, WIN_Z1 = 2.1;
   // gobo: name + podíl propuštěného světla (orientačně)
   var GOBOS = {
@@ -390,7 +394,7 @@
       if (it.id === exceptId || it.kind !== 'furniture') return; var f = FURNITURE[it.type]; if (!f || SURF_GRPS.indexOf(f.grp) < 0 || it.elev || f.elev || isTall(it)) return;
       var r = it.rot || 0, c = Math.cos(r), sn = Math.sin(r), dx = x - it.x, dy = y - it.y, u = dx * c + dy * sn, v = -dx * sn + dy * c;
       if (Math.abs(u) > (it.w || f.w) / 2 || Math.abs(v) > (it.d || f.d) / 2) return;
-      var top = f.top != null ? f.top : (it.h != null ? it.h : f.h); if (!best || top > best.top) best = { top: top, it: it };
+      var top = (f.top != null ? f.top : (it.h != null ? it.h : f.h)) + floorAt(scene, it.x, it.y); if (!best || top > best.top) best = { top: top, it: it };
     });
     return best;
   }
@@ -588,7 +592,7 @@
   }
 
   function compute(scene, cell) {
-    curFaceZ = faceZ(scene.items.find(function (i) { return i.kind === 'person'; }));
+    curFaceZ = faceZ(scene.items.find(function (i) { return i.kind === 'person'; }), scene);
     var occ = buildOccluders(scene), ems = emitters(scene, occ), sun = sunOn(scene), sunCol = cctColor(sunCCT(scene));
     var skD = SKY[scene.sky] || SKY.overcast, skyE = scene.outdoor ? skD.E * 2.2 : 0, skyCol = cctColor(skD.cct);
     var W = scene.room.w, H = scene.room.h, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell);
@@ -603,7 +607,7 @@
       if (scene.outdoor) { r += skyE * skyCol[0]; g += skyE * skyCol[1]; b += skyE * skyCol[2]; }
       R[k] = r; G[k] = g; B[k] = b;
     }
-    var refl = scene.outdoor ? 0.02 : ({ dark: 0.03, normal: 0.08, white: 0.15 }[scene.walls || 'normal'] || 0.08);
+    var refl = scene.outdoor ? 0.02 : ({ dark: 0.03, normal: 0.08, white: 0.15, brick: 0.06, woodplanks: 0.06, greyplanks: 0.04 }[scene.walls || 'normal'] || 0.08);
     var n = nx * ny, mr = 0, mg = 0, mb = 0;
     for (var q = 0; q < n; q++) { mr += R[q]; mg += G[q]; mb += B[q]; }
     var amb = [mr / n * refl, mg / n * refl, mb / n * refl];
@@ -621,7 +625,7 @@
   function measure(scene, res) {
     var person = scene.items.find(function (i) { return i.kind === 'person'; });
     if (!person) return null;
-    curFaceZ = faceZ(person);
+    curFaceZ = faceZ(person, scene);
     var r = 0.125, out = [], base = person.rot;
     [0.75, -0.75].forEach(function (off) {
       var a = base + off, nx = Math.cos(a), ny = Math.sin(a);
@@ -636,6 +640,6 @@
     return { sides: out, lux: hi, lo: lo, ratio: hi / lo, stops: Math.log(hi / lo) / Math.LN2, per: bright.per, perDark: dark.per };
   }
 
-  var API = { LAMP_KINDS: LAMP_KINDS, lampFoot: lampFoot, ceilHeight: ceilHeight, envSegs: envSegs, surfaceAt: surfaceAt, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
+  var API = { floorAt: floorAt, LAMP_KINDS: LAMP_KINDS, lampFoot: lampFoot, ceilHeight: ceilHeight, envSegs: envSegs, surfaceAt: surfaceAt, sunCCT: sunCCT, sunE: sunE, isNight: isNight, MODS: MODS, FIXTURES: FIXTURES, SKY: SKY, POSES: POSES, FORMATS: FORMATS, fovs: fovs, exteriorTrees: exteriorTrees, GOBOS: GOBOS, BLINDS: BLINDS, blindOf: blindOf, SUN_E: SUN_E, SUN_CCT: SUN_CCT, WIN_Z0: WIN_Z0, WIN_Z1: WIN_Z1, wallLen: wallLen, wallPoint: wallPoint, sunDir: sunDir, sunOn: sunOn, sunVisible: sunVisible, DOORLIGHT: DOORLIGHT, FURNITURE: FURNITURE, MODELS: MODELS, credits: credits, seatUnder: seatUnder, carSeat: carSeat, carSlide: carSlide, deskSpots: deskSpots, autoTilt: autoTilt, GRIDS: GRIDS, boardParams: boardParams, diffusedBy: diffusedBy, sofaSeats: sofaSeats, ENVS: ENVS, FURN_GROUPS: FURN_GROUPS, FACE_Z: FACE_Z, faceZ: faceZ, openings: openings, corners: corners, isTall: isTall, compute: compute, measure: measure, cctColor: cctColor, kelvinRGB: kelvinRGB, lightEmitter: lightEmitter, lightParams: lightParams };
   if (typeof module !== 'undefined') module.exports = API; else root.LightSim = API;
 })(this);

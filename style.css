@@ -44,7 +44,10 @@ main#center.plan #camWrap,main#center.cam #planWrap{display:none}
 .pane{position:relative;overflow:hidden;background:#0a0a0b;border:1px solid var(--line);border-radius:10px;min-height:0}
 .pane canvas{position:absolute;left:0;top:0;display:block}
 .paneTitle{position:absolute;left:10px;top:8px;z-index:2;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);pointer-events:none;display:flex;gap:8px;align-items:center}
+.camRight{position:absolute;right:10px;top:8px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.camRight>*{pointer-events:auto}
 .camTools{position:absolute;right:10px;top:8px;z-index:2;display:flex;gap:6px}
+.camRight .camTools{position:static}
 .camHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);pointer-events:none;z-index:1;font-size:14px}
 .camHint.hide{display:none}
 canvas#stage{cursor:default}
@@ -145,10 +148,9 @@ canvas#view3d:focus{outline:none}
 .klKeys span{white-space:nowrap}
 .keyLegend .mo{display:none}.keyLegend.m-object .mo{display:inline}.keyLegend.m-object .mc{display:none}
 /* dva výrazné přepínače režimu ovládání pohledu kamery (viditelné i se sbalenou nápovědou) */
-.ctrlModes{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
-.keyLegend.collapsed .ctrlModes{margin:6px;margin-top:4px;width:230px}
-.ctrlModes button{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 6px;min-height:54px;background:#1c1b19;border:2px solid #4a463f;border-radius:10px;color:#a9a397;font:800 12.5px/1.15 Inter,Lato,sans-serif;letter-spacing:.04em;text-align:left;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
-.ctrlModes button svg{flex:none}
+.ctrlModes{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:330px;padding:7px;background:rgba(14,14,16,.78);border:1px solid rgba(212,176,113,.45);border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.45);backdrop-filter:blur(3px)}
+.ctrlModes button{display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 8px;min-height:68px;background:#1c1b19;border:2px solid #4a463f;border-radius:10px;color:#a9a397;font:800 14px/1.15 Inter,Lato,sans-serif;letter-spacing:.04em;text-align:left;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.ctrlModes button svg{flex:none;width:30px;height:30px}
 .ctrlModes button:hover{border-color:#8a8274;color:#ece8e0}
 .ctrlModes button.on{background:var(--gold);border-color:var(--gold);color:#16140f;box-shadow:0 0 0 3px rgba(212,176,113,.25),0 3px 12px rgba(0,0,0,.4)}
 
@@ -257,10 +259,9 @@ aside.l .list{max-height:none}
   #camWrap .paneTitle{display:none}
   #planWrap .paneTitle{top:auto;bottom:6px;font-size:9.5px}
   .keyLegend{top:auto;bottom:8px;left:8px;max-width:none}
-  .keyLegend .ctrlModes{grid-template-columns:1fr}
-  .keyLegend .ctrlModes button{justify-content:flex-start;min-width:118px}
+  .ctrlModes{width:auto;padding:5px;gap:5px}
   .camTools .btn.sm,.camTools select.btn{font-size:11px;padding:3px 6px}
-  .ctrlModes button{min-height:40px;font-size:10.5px;padding:6px 4px;gap:4px}
+  .ctrlModes button{min-height:40px;font-size:10.5px;padding:6px 6px;gap:5px}
   .ctrlModes button svg{width:18px;height:18px}
   .camTools{flex-wrap:wrap;justify-content:flex-end}
 }
@@ -273,7 +274,6 @@ aside.l .list{max-height:none}
   .tpUp{display:flex;flex-direction:column;gap:5px}
   .keyLegend .klBody,.keyLegend .klToggle{display:none}
   .keyLegend,.keyLegend.collapsed{padding:6px}
-  .keyLegend .ctrlModes,.keyLegend.collapsed .ctrlModes{margin:0;width:auto}
   canvas#stage,canvas#view3d{touch-action:none}
   .btn{min-height:32px}
 }
