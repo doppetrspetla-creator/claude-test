@@ -177,6 +177,8 @@ Modely postav jsou pod licencí **CC BY 4.0** a vyžadují uvedení autora (apli
 - Školní třída „Classroom“: **Zeps3D**, sketchfab.com, CC BY 4.0 (odstraněny efekty paprsků a prachu a zapečené sluneční skvrny)
 - Industriál „Decayed concrete train shed with graffiti“: **orphanrtg**, sketchfab.com, CC BY 4.0
 - Glamping chata (FBX): autor bude doplněn
+- Postavy „Muž 6 – košile a džíny“ a „Muž 7 – pracovník v montérkách“ (MakeHuman, FBX): autor bude doplněn (kostra přejmenovaná na společnou, pózy přenesené z Mixama)
+- Letadlo Piper PA-18 Super Cub (FBX): autor bude doplněn (zjednodušeno, barvy materiálů doplněny – žlutá Cub)
 - Světla ARRI SkyPanel, ARRI 650, Kino Flo, filmová kamera (FBX) a COB s reflektorem „Studio light“ (OBJ): autor bude doplněn
 
 Modely nábytku jsou zmenšené pro web (zjednodušená síť postele, textury 512 px JPEG) a zabalené

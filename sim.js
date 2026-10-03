@@ -62,6 +62,7 @@
     shelf:    { name: 'Regál', w: 0.9, d: 0.35, h: 2.0, tall: true, grp: 'storage' },
     block:    { name: 'Box (obecný)', w: 1.2, d: 0.6, h: 0.9, tall: false, grp: 'block' },
     car:      { name: 'Auto (klasické kupé)', w: 4.7, d: 1.9, h: 1.4, tall: false, credit: 'Lexyc16', title: 'Classic Muscle car', grp: 'car' },
+    plane:    { name: 'Letadlo Piper PA-18 Super Cub', w: 7.05, d: 10.7, h: 2.69, tall: false, credit: null, title: 'Piper PA-18 Super Cub', grp: 'car' },
     ldesk:    { name: 'Rohový stůl (L) s nástavbou', w: 2.11, d: 1.55, h: 1.475, tall: false, top: 0.75, credit: 'fthylmaz', title: 'L shape desk, drawers and shelfs', grp: 'table' },
     pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer', grp: 'pc' },
     pcdesk:   { name: 'Pracovní stůl s PC a doplňky', w: 0.75, d: 2.31, h: 1.32, tall: false, top: 0.75, credit: 'Ren Viro Store', title: 'PC Desk', grp: 'table' },
@@ -104,7 +105,7 @@
       segs: '8.53,7.5,8.88,7.5;15.12,7.5,15.47,7.5;8.88,7.7,15.12,7.7;8.88,7.9,11.97,7.9;12.12,7.9,15.12,7.9;11.97,8.1,12.12,8.1;11.97,8.95,12.12,8.95;8.88,9.1,11.97,9.1;8.88,9.2,12.12,9.2;11.97,10.2,12.12,10.2;8.88,10.5,11.97,10.5;12.12,10.5,13.57,10.5;8.88,10.6,13.57,10.6;8.53,17.5,8.88,17.5;15.12,17.5,15.47,17.5;8.53,7.5,8.53,17.5;8.88,7.5,8.88,7.7;8.88,7.9,8.88,9.1;8.88,9.2,8.88,10.5;8.88,10.6,8.88,17.5;11.97,7.9,11.97,8.1;11.97,8.95,11.97,9.1;11.97,10.2,11.97,10.5;12.12,7.9,12.12,8.1;12.12,8.95,12.12,9.2;12.12,10.2,12.12,10.5;15.12,7.5,15.12,7.7;15.12,7.9,15.12,17.5;15.47,7.5,15.47,17.5', parts: [{ label: 'Chata', x0: 7.88, y0: 7.5, x1: 16.12, y1: 17.0, col: 'rgba(160,110,70,.25)' }, { label: 'Terasa', x0: 7.88, y0: 17.0, x1: 16.12, y1: 19.6, col: 'rgba(200,160,100,.3)' }], credit: null, title: 'Glamping chata' }
   };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
-  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Auto', block: 'Box' };
+  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box' };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
     proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
@@ -115,13 +116,16 @@
     muz3:  { name: 'Muž 3 – dlouhý kabát a čepice', file: 'models/muz3.glb', solid: true, stand: 1.68, sit: 1.23, credit: 'Saitam', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz4:  { name: 'Muž 4 – mikina a modré tričko', file: 'models/muz4.glb', stand: 1.67, sit: 1.22, credit: 'Mike Alger', license: 'CC BY 4.0', source: 'sketchfab.com' },
     muz5:  { name: 'Muž 5 – ostraha (uniforma)', file: 'models/muz5.glb', stand: 1.50, sit: 1.10, credit: 'Q.SARDOR', license: 'CC BY 4.0', source: 'sketchfab.com' },
-    zena3: { name: 'Žena 3 – červený top a sukně', file: 'models/zena3.glb', stand: 1.64, sit: 1.20, credit: 'Veterock', license: 'CC BY 4.0', source: 'sketchfab.com' }
+    zena3: { name: 'Žena 3 – červený top a sukně', file: 'models/zena3.glb', stand: 1.64, sit: 1.20, credit: 'Veterock', license: 'CC BY 4.0', source: 'sketchfab.com' },
+    // postavy z MakeHumanu (kostra „game engine“ přejmenovaná na naši, pózy přenesené z Mixama); autor bude doplněn
+    muz6:  { name: 'Muž 6 – košile a džíny', file: 'models/muz6.glb', stand: 1.70, sit: 1.26 },
+    muz7:  { name: 'Muž 7 – pracovník v montérkách', file: 'models/muz7.glb', stand: 1.65, sit: 1.23 }
   };
   // atribuce pro použité modely (CC BY vyžaduje uvedení autora)
   function credits(scene) {
     var out = [], seen = {}, items = scene.items || [];
-    items.forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.credit || seen[i.model]) return; seen[i.model] = 1; out.push('3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license); });
-    var types = {}; items.forEach(function (i) { if (i.kind === 'furniture' && FURNITURE[i.type] && FURNITURE[i.type].credit) types[i.type] = 1; });
+    items.forEach(function (i) { if (i.kind !== 'person') return; var m = MODELS[i.model]; if (!m || !m.file || seen[i.model]) return; seen[i.model] = 1; out.push(m.credit ? '3D model „' + m.name + '“: ' + m.credit + ' (' + m.source + '), licence ' + m.license : '3D model „' + m.name + '“ (autor bude doplněn)'); });
+    var types = {}; items.forEach(function (i) { if (i.kind === 'furniture' && FURNITURE[i.type] && FURNITURE[i.type].title) types[i.type] = 1; });
     if (exteriorTrees(scene).length) types.tree = 1;
     var outside = scene.outdoor || (scene.exterior && scene.exterior.on);
     if ((scene.windows || []).length && !scene.outdoor) out.push('3D model „Plastic window“: Annelida (sketchfab.com), licence CC BY 4.0');
@@ -132,7 +136,7 @@
     if (items.some(function (i) { return i.kind === 'light' && FIXTURES[i.fixture] && FIXTURES[i.fixture].model === 'lightpack'; })) out.push('3D model „Light Pack“: OPREXT (sketchfab.com), licence CC BY 4.0');
     if (items.some(function (i) { return i.kind === 'light' && i.fixture === 'hangfluo'; })) out.push('3D model „Low Poly hanging Light“: Avadhoot (sketchfab.com), licence CC BY 4.0');
     var env = scene.env && ENVS[scene.env]; if (env) out.push(env.credit ? '3D model „' + env.title + '“: ' + env.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + env.title + '“ (autor bude doplněn)');
-    Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push('3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0'); });
+    Object.keys(types).forEach(function (t) { var f = FURNITURE[t]; out.push(f.credit ? '3D model „' + f.title + '“: ' + f.credit + ' (sketchfab.com), licence CC BY 4.0' : '3D model „' + f.title + '“ (autor bude doplněn)'); });
     if (items.some(function (i) { return i.kind === 'person' && MODELS[i.model] && MODELS[i.model].file; })) out.push('Animace: Mixamo (Adobe)');
     return out;
   }
