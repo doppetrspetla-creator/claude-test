@@ -527,24 +527,45 @@ function fitModelInto(g, gltf, key, w, d, h, elev, it) {
     rotG.position.set(-c.x, -bb.min.y, -c.z); outer.scale.set(w / sz.x, h / sz.y, segD / sz.z); outer.position.set(0, elev || 0, -d / 2 + segD * (i + 0.5)); g.add(outer);
   }
 }
+// stav načítání modelů v rohu pohledu kamery: „Načítám…“ / chyba po posledním pokusu
+const modelErr = {};
+function modelStatus() {
+  if (!wrap) return; let el = wrap.querySelector('.mdlStatus'); if (!el) { el = document.createElement('div'); el.className = 'mdlStatus'; wrap.appendChild(el); }
+  const name = id => (S.MODELS[id] && S.MODELS[id].name) || (S.FURNITURE[id] && S.FURNITURE[id].name) || (Object.values(S.ENVS).find(E => E.model === id) || {}).name || id;
+  const loading = Object.keys(modelCache).filter(k => modelCache[k].loading), errs = Object.keys(modelErr);
+  el.innerHTML = errs.length ? '⚠ Nepodařilo se načíst: ' + errs.map(name).join(', ') + '. <button type="button">Zkusit znovu</button>' : loading.length ? 'Načítám 3D model' + (loading.length > 1 ? 'y (' + loading.length + ')' : '') + '…' : '';
+  el.className = 'mdlStatus' + (errs.length ? ' err' : '') + (el.innerHTML ? ' on' : '');
+  const b = el.querySelector('button'); if (b) b.onclick = () => { errs.forEach(k => { delete modelErr[k]; modelCache[k] = { retry: true, tries: 0 }; }); window.dispatchEvent(new Event('view3d-model')); };
+}
 function modelFor(id) {
   const m = S.MODELS[id] || EXTRA_MODELS[id] || (S.FURNITURE[id] && S.FURNITURE[id].glb ? { file: 'models/' + id + '.glb' } : null); if (!m || !m.file) return null;
-  const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c) return null;
-  modelCache[id] = { loading: true };
+  const c = modelCache[id]; if (c && c.gltf) return c.gltf; if (c && !c.retry) return null;
+  const tries = c ? c.tries : 0; modelCache[id] = { loading: true, tries }; modelStatus();
   const solid = !!(S.MODELS[id] && S.MODELS[id].solid);
   // model má celé oblečení i tělo omylem jako „alpha blend“ (Muž 3) → kreslí se bez zápisu hloubky a kalhoty i vnitřek úst prosvítají přes kabát a obličej; převést na ořez alfou
   const onLoad = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = Math.max(0.55, o.material.roughness || 0.8); o.material.metalness = 0;
-    if (solid && o.material.transparent) { o.material.transparent = false; o.material.depthWrite = true; o.material.alphaTest = 0.5; } } } }); modelCache[id] = { gltf: g }; window.dispatchEvent(new Event('view3d-model')); };
+    if (solid && o.material.transparent) { o.material.transparent = false; o.material.depthWrite = true; o.material.alphaTest = 0.5; } } } }); modelCache[id] = { gltf: g }; delete modelErr[id]; modelStatus(); window.dispatchEvent(new Event('view3d-model')); };
+  // Nezdařené načtení se zopakuje (e-shop posílá každý soubor přes PHP s ověřením nákupu; při mnoha souběžných
+  // požadavcích může některý vypršet) – 3 další pokusy s odstupem, pak hlášení a tlačítko „Zkusit znovu“.
+  const fail = err => { const n = tries + 1; console.error('Viewfinder: model „' + id + '“ se nenačetl (pokus ' + n + ')', err || '');
+    if (window.VF_MODEL_DATA) delete window.VF_MODEL_DATA[id];
+    if (n < 4) { modelCache[id] = { loading: true, tries: n }; setTimeout(() => { modelCache[id] = { retry: true, tries: n }; window.dispatchEvent(new Event('view3d-model')); }, 2500 * n); }
+    else { modelCache[id] = { error: true, tries: n }; modelErr[id] = String((err && err.message) || err || ''); }
+    modelStatus(); };
   // Model je zabalený ve skriptu (models/<id>.glb.js, base64) – funguje i z disku (file://), kde fetch .glb selže.
-  const fail = () => { modelCache[id] = { error: true }; };
-  const fromB64 = b64 => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); new GLTFLoader().parse(u8.buffer, '', onLoad, fail); };
+  const fromB64 = b64 => { try { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); new GLTFLoader().parse(u8.buffer, '', onLoad, fail); } catch (e) { fail(e); } };
   if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) { fromB64(window.VF_MODEL_DATA[id]); return null; }
-  const sc = document.createElement('script'); sc.src = assetUrl(m.file + '.js');
-  sc.onload = () => { if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) fromB64(window.VF_MODEL_DATA[id]); else fail(); };
-  sc.onerror = () => { new GLTFLoader().load(assetUrl(m.file), onLoad, undefined, fail); };
-  document.head.appendChild(sc);
+  loadQueue.push(() => { const url = assetUrl(m.file + '.js'), sc = document.createElement('script'); sc.src = tries ? url + (url.indexOf('?') >= 0 ? '&' : '?') + 'r=' + tries : url; // opakovaný pokus jinou adresou (mimo cache)
+    const done = () => { sc.remove(); loadActive--; pumpLoads(); };
+    sc.onload = () => { done(); if (window.VF_MODEL_DATA && window.VF_MODEL_DATA[id]) fromB64(window.VF_MODEL_DATA[id]); else fail(new Error('soubor ' + m.file + '.js neobsahuje model')); };
+    sc.onerror = () => { done(); if (location.protocol === 'file:') new GLTFLoader().load(assetUrl(m.file), onLoad, undefined, fail); else fail(new Error('soubor ' + m.file + '.js se nestáhl')); };
+    document.head.appendChild(sc); });
+  pumpLoads();
   return null;
 }
+// stahování modelů po nejvýš třech najednou (server e-shopu tak nezahltí desítka souběžných požadavků)
+const loadQueue = []; let loadActive = 0;
+function pumpLoads() { while (loadActive < 3 && loadQueue.length) { loadActive++; loadQueue.shift()(); } }
 function addModelPerson(p, gltf) {
   const g = new THREE.Group(); g.position.set(p.x, 0, p.y); g.rotation.y = -p.rot; if (p.mirror) g.scale.z = -1; group.add(g); // zrcadlení: levá ↔ pravá
   const inst = SkeletonUtils.clone(gltf.scene); inst.rotation.y = Math.PI / 2; // model kouká do +Z → náš směr je +X

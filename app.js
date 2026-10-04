@@ -764,7 +764,8 @@ function cloudLoad(cb){ if(!VF||!VF.rest){ cb(null); return; } fetch(VF.rest,{cr
 if(VF){ var bar=$('wpBar'); if(VF.back){ var a=document.createElement('a'); a.className='btn sm'; a.href=VF.back; a.textContent='← Můj účet'; bar.appendChild(a); }
   var fs=document.createElement('button'); fs.className='btn sm'; fs.textContent='Celá obrazovka'; fs.title='Přepnout celou obrazovku (F11 / Esc)'; fs.onclick=function(){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen().catch(function(){}); } }; bar.appendChild(fs);
   // instalovatelná aplikace (PWA): service worker = offline cache + pravidelné ověření nákupu v e-shopu
-  if(VF.pwa && 'serviceWorker' in navigator && window.isSecureContext){ navigator.serviceWorker.register('sw.js'+(VF.version?'?v='+encodeURIComponent(VF.version):''),{scope:'./'}).catch(function(){}); }
+  // registrace až po chvíli: stažení celého buildu do offline cache (desítky souborů přes PHP e-shopu) jinak soupeří s načítáním modelů scény
+  if(VF.pwa && 'serviceWorker' in navigator && window.isSecureContext){ setTimeout(function(){ navigator.serviceWorker.register('sw.js'+(VF.version?'?v='+encodeURIComponent(VF.version):''),{scope:'./'}).catch(function(){}); }, 30000); }
   document.addEventListener('fullscreenchange',function(){ fs.textContent= document.fullscreenElement?'Ukončit celou obrazovku':'Celá obrazovka'; setTimeout(function(){ fit(); if(view3dReady) window.View3D.resize(); },100); }); }
 
 // ---------- tlačítko „Nainstalovat“ (Chrome/Edge: nabídka prohlížeče; Safari/iPad: návod) ----------

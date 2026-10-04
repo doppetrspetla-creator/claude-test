@@ -299,3 +299,8 @@ aside.l .list{max-height:none}
 .fic.lic,.ftile .fimg.lic{background-image:url(icons/lamps.webp)}
 .ftile .femo{width:84px;height:84px;display:flex;align-items:center;justify-content:center;font-size:40px}
 @media (max-width:760px){ .furnpop{left:8px!important;right:8px;bottom:8px;top:auto!important;width:auto;max-height:62vh} .furnpop .fgrid{grid-template-columns:repeat(3,1fr)} }
+
+/* stav načítání 3D modelů (pohled kamery) */
+.mdlStatus{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:4;display:none;padding:6px 12px;border-radius:8px;background:rgba(14,14,16,.82);border:1px solid rgba(212,176,113,.45);color:#ece8e0;font-size:12px;pointer-events:auto;max-width:80%;text-align:center}
+.mdlStatus.on{display:block}.mdlStatus.err{border-color:#d0534a;color:#ffd9d4}
+.mdlStatus button{margin-left:8px;background:var(--gold);color:#16140f;border:0;border-radius:6px;padding:3px 9px;font-weight:700;cursor:pointer}
