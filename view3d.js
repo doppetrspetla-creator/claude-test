@@ -502,7 +502,7 @@ function assetUrl(p) { const V = window.SVH_VIEWFINDER; return (V && V.asset) ? 
 const modelCache = {}; // id -> { gltf } | { loading: true } | { error: true }
 const EXTRA_MODELS = { car: { file: 'models/car.glb' }, bed: { file: 'models/bed.glb' }, ldesk: { file: 'models/ldesk.glb' }, pc: { file: 'models/pc.glb' }, kitchen: { file: 'models/kitchen.glb' }, tree: { file: 'models/tree.glb' }, pcdesk: { file: 'models/pcdesk.glb' }, skypanel: { file: 'models/skypanel.glb' }, lightpack: { file: 'models/lightpack.glb' }, lamps: { file: 'models/lamps.glb' }, hangfluo: { file: 'models/hangfluo.glb' }, camp: { file: 'models/camp.glb' }, plane: { file: 'models/plane.glb' }, gas: { file: 'models/gas.glb' }, apt1: { file: 'models/apt1.glb' }, apt2: { file: 'models/apt2.glb' }, classroom: { file: 'models/classroom.glb' }, shed: { file: 'models/shed.glb' }, glamping: { file: 'models/glamping.glb' }, arri650: { file: 'models/arri650.glb' }, kinoflo: { file: 'models/kinoflo.glb' }, filmcam: { file: 'models/filmcam.glb' }, photostudio: { file: 'models/photostudio.glb' }, cyclorama: { file: 'models/cyclorama.glb' }, window: { file: 'models/window.glb' }, door: { file: 'models/door.glb' }, fence: { file: 'models/fence.glb' }, skybox: { file: 'models/skybox.glb' }, sofa: { file: 'models/sofa.glb' }, cobhead: { file: 'models/cobhead.glb' }, sbhead: { file: 'models/sbhead.glb' }, stand: { file: 'models/stand.glb' } };
 // usazení modelu do rozměrů Š×H×V: rot = otočení modelu tak, aby jeho „přední“ strana mířila na lokální +x (šipka otočení v půdorysu)
-const MODEL_FIT = { bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 }, plane: { rot: Math.PI / 2 } }; // letadlo: příď (+z modelu) → +x
+const MODEL_FIT = { user: { rot: 0 }, bed: { rot: -Math.PI / 2 }, ldesk: { rot: 0 }, pc: { rot: Math.PI / 2 }, kitchen: { rot: 0, tile: 1.49 }, tree: { rot: 0 }, pcdesk: { rot: Math.PI / 2 }, sofa: { rot: Math.PI / 2 }, plane: { rot: Math.PI / 2 } }; // letadlo: příď (+z modelu) → +x
 // strom: soubor obsahuje dva stromy – rozdělit na dvě varianty postavené na zem
 function treeProto(gltf, v) {
   if (!gltf.userData.protos) {
@@ -701,6 +701,10 @@ function cushion(g, mat, w, h, d, x, y, z) { const r = Math.min(w, h) / 2; const
 function addFurniture(it) {
   const g = new THREE.Group(); g.position.set(it.x, 0, it.y); g.rotation.y = -(it.rot || 0); g.userData.furn = true; group.add(g);
   const f = S.FURNITURE[it.type] || S.FURNITURE.block, w = it.w || f.w, d = it.d || f.d, t = it.type;
+  if (t === 'user') { // vlastní model z disku (usermodels.js): načítá se → průhledný box, chybí v prohlížeči → červený box
+    const um = window.UserModels && it.um ? window.UserModels.get(it.um) : null, hh = it.h != null ? it.h : f.h, el = it.elev || 0;
+    if (um) { fitModelInto(g, um, 'user', w, d, hh, el, it); return; }
+    const miss = window.UserModels && window.UserModels.missing(it.um); box(g, new THREE.MeshStandardMaterial({ color: miss ? 0xb04040 : 0x8a8a8a, transparent: true, opacity: 0.35, depthWrite: false }), w, hh, d, 0, el + hh / 2, 0); return; }
   if (fitCfg(t)) { const gl = modelFor(t); if (gl) { fitModelInto(g, gl, t, w, d, it.h != null ? it.h : f.h, it.elev != null ? it.elev : (f.elev || 0), it); return; } }
   const fabric = texMat('fabric', 0x4e5a70, { roughness: 1, bumpScale: 0.3 }), fabric2 = texMat('fabric', 0x5b6780, { roughness: 1, bumpScale: 0.3 }), bedding = texMat('cloth', 0xe4dfd3, { roughness: 1, bumpScale: 0.2 }), blanket = texMat('fabric', 0x7a6a5a, { roughness: 1, bumpScale: 0.3 });
   if (t === 'sofa' || t === 'armchair') {

@@ -124,6 +124,7 @@
     pc:       { name: 'Počítač (monitor, klávesnice, myš)', w: 0.41, d: 0.62, h: 0.41, tall: false, elev: 0.75, credit: 'Tyler P Halterman', title: 'Desktop Computer', grp: 'pc' },
     pcdesk:   { name: 'Pracovní stůl s PC a doplňky', w: 0.75, d: 2.31, h: 1.32, tall: false, top: 0.75, credit: 'Ren Viro Store', title: 'PC Desk', grp: 'table' },
     kitchen:  { name: 'Kuchyňská linka s dřezem', w: 0.52, d: 1.49, h: 0.92, tall: false, credit: 'euanford12321', title: 'Kitchen Counter', grp: 'kitchen' },
+    user:     { name: 'Vlastní 3D model', w: 1, d: 1, h: 1, tall: false, grp: 'user' }, // import z disku uživatele (usermodels.js); rozměry nese položka
     tree:     { name: 'Strom', w: 3.2, d: 3.2, h: 5.5, tall: false, credit: '00amza', title: 'Tree low poly', grp: 'tree' },
     // Furniture Pack (FBX, textury 512 px): glb = models/<id>.glb, rot = otočení modelu, aby přední strana mířila na +x; seat = dá se na tom sedět
     fp_bt_bath: { name: 'Vana volně stojící', w: 0.686, d: 1.6, h: 0.665, tall: false, grp: 'bath', glb: true, rot: Math.PI / 2, title: 'Furniture Pack' },
@@ -206,7 +207,7 @@
       segs: '8.53,7.5,8.88,7.5;15.12,7.5,15.47,7.5;8.88,7.7,15.12,7.7;8.88,7.9,11.97,7.9;12.12,7.9,15.12,7.9;11.97,8.1,12.12,8.1;11.97,8.95,12.12,8.95;8.88,9.1,11.97,9.1;8.88,9.2,12.12,9.2;11.97,10.2,12.12,10.2;8.88,10.5,11.97,10.5;12.12,10.5,13.57,10.5;8.88,10.6,13.57,10.6;8.53,17.5,8.88,17.5;15.12,17.5,15.47,17.5;8.53,7.5,8.53,17.5;8.88,7.5,8.88,7.7;8.88,7.9,8.88,9.1;8.88,9.2,8.88,10.5;8.88,10.6,8.88,17.5;11.97,7.9,11.97,8.1;11.97,8.95,11.97,9.1;11.97,10.2,11.97,10.5;12.12,7.9,12.12,8.1;12.12,8.95,12.12,9.2;12.12,10.2,12.12,10.5;15.12,7.5,15.12,7.7;15.12,7.9,15.12,17.5;15.47,7.5,15.47,17.5', parts: [{ label: 'Chata', x0: 7.88, y0: 7.5, x1: 16.12, y1: 17.0, col: 'rgba(160,110,70,.25)' }, { label: 'Terasa', x0: 7.88, y0: 17.0, x1: 16.12, y1: 19.6, col: 'rgba(200,160,100,.3)' }], floors: [[7.9, 7.5, 16.1, 19.6, 0.85]], credit: null, title: 'Glamping chata' }
   };
   // kategorie nábytku: v panelu vlastností se pak volí konkrétní model (jako u postav)
-  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', bath: 'Koupelna', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box' };
+  var FURN_GROUPS = { seat: 'Sezení', table: 'Stůl', bed: 'Postel', storage: 'Skříň / regál', kitchen: 'Kuchyň', bath: 'Koupelna', pc: 'Počítač', tree: 'Strom', car: 'Vozidlo', block: 'Box', user: 'Vlastní model' };
   // 3D modely postav (soubory models/<id>.glb); výšky obličeje pro měření se doplní z pipeline
   var MODELS = {
     proc:  { name: 'Stylizovaná figura', stand: 1.5, sit: 1.2 },
@@ -398,7 +399,7 @@
     });
     return best;
   }
-  function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block') return (it.h == null ? f.h : it.h) >= 1.3; return it.tall != null ? !!it.tall : f.tall; }
+  function isTall(it) { if (it.kind === 'box') return !!it.tall; var f = FURNITURE[it.type] || FURNITURE.block; if (it.type === 'block' || it.type === 'user') return (it.h == null ? f.h : it.h) + (it.elev || 0) >= 1.3 && (it.elev || 0) < 1.3; return it.tall != null ? !!it.tall : f.tall; }
   // zorné úhly kamery (rad) pro ohnisko (mm, full frame 36×24) a poměr stran záběru
   var FORMATS = { free: { name: 'volný (podle okna)', a: 0 }, '43': { name: '4:3', a: 4 / 3 }, '169': { name: '16:9', a: 16 / 9 }, '916': { name: '9:16 (na výšku)', a: 9 / 16 }, scope: { name: '2.39:1 cinemascope', a: 2.39 } };
   function fovs(focal, aspect) {

@@ -304,3 +304,11 @@ aside.l .list{max-height:none}
 .mdlStatus{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:4;display:none;padding:6px 12px;border-radius:8px;background:rgba(14,14,16,.82);border:1px solid rgba(212,176,113,.45);color:#ece8e0;font-size:12px;pointer-events:auto;max-width:80%;text-align:center}
 .mdlStatus.on{display:block}.mdlStatus.err{border-color:#d0534a;color:#ffd9d4}
 .mdlStatus button{margin-left:8px;background:var(--gold);color:#16140f;border:0;border-radius:6px;padding:3px 9px;font-weight:700;cursor:pointer}
+
+/* vlastní 3D modely: smazání z knihovny, hlášení importu */
+.ftile{position:relative}
+.ftile .umDel{position:absolute;top:4px;right:6px;font-style:normal;color:#b9b3a7;font-size:12px;padding:1px 4px;border-radius:4px}
+.ftile .umDel:hover{background:#d0534a;color:#fff}
+.ftile small{color:#9a948a}
+.umNote{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:80;display:none;max-width:min(560px,90vw);padding:9px 14px;border-radius:10px;background:rgba(20,20,22,.95);border:1px solid var(--gold2);color:#ece8e0;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.umNote.on{display:block}.umNote.err{border-color:#d0534a;color:#ffd9d4}

@@ -98,6 +98,13 @@ Three.js je přibalen ve složce `vendor/`, aplikace funguje i offline.
   světla a do scény svítí podle typu (do všech stran, dolů, do stropu, spot s náklonem). Stolní lampa se
   magnetem postaví podstavou na stůl, stropní má vršek u stropu (závěsnou lze snížit – přibude kabel).
   Modely jsou v jednom souboru `models/lamps.glb.js`, náhledy v `icons/lamps.webp`.
+- **Vlastní 3D modely z disku** – tlačítko 📂 Vlastní model v Nábytku (nebo přetažení souborů do okna):
+  GLB, glTF (i s .bin a texturami), FBX, OBJ (+ MTL a textury) – u modelů s externími texturami se vyberou
+  všechny soubory najednou. Model se usadí na podlahu, rozměry se odhadnou (cm/mm se převedou), ve
+  vlastnostech jde zadat skutečnou výšku nebo měřítko, výšku nad podlahou a otočení; vyšší než 1,3 m stíní.
+  Animované postavy se uloží v první póze. Soubory zůstávají v prohlížeči (IndexedDB) v knihovně s náhledy,
+  scéna si pamatuje jen odkaz – na jiném zařízení se místo modelu ukáže červený box. Načítání FBX/OBJ
+  (`vendor/import-bundle.js`) se stáhne až při prvním takovém importu.
 - **Fotografické textury** – stěny: cihly, dřevěné obložení, šedá prkna; podlaha: parkety, borová prkna,
   stará a šedá prkna. Textura má skutečnou velikost a navazuje přes okna a dveře.
 - **Šablona Dům s garáží** – 12×9 m, kuchyně, obývák, ložnice a garáž z nakreslených zdí, okna,
